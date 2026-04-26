@@ -1,38 +1,24 @@
-import hardhatToolboxMochaEthersPlugin from "@nomicfoundation/hardhat-toolbox-mocha-ethers";
-import { configVariable, defineConfig } from "hardhat/config";
+import { HardhatUserConfig } from "hardhat/config";
+import "@nomicfoundation/hardhat-verify";
+import "@nomicfoundation/hardhat-toolbox-mocha-ethers";
+import * as dotenv from "dotenv";
 
-export default defineConfig({
-  plugins: [hardhatToolboxMochaEthersPlugin],
-  solidity: {
-    profiles: {
-      default: {
-        version: "0.8.28",
-      },
-      production: {
-        version: "0.8.28",
-        settings: {
-          optimizer: {
-            enabled: true,
-            runs: 200,
-          },
-        },
-      },
-    },
-  },
+dotenv.config();
+
+const config: HardhatUserConfig = {
+  solidity: "0.8.24",
   networks: {
-    hardhatMainnet: {
-      type: "edr-simulated",
-      chainType: "l1",
-    },
-    hardhatOp: {
-      type: "edr-simulated",
-      chainType: "op",
-    },
     sepolia: {
       type: "http",
-      chainType: "l1",
-      url: configVariable("SEPOLIA_RPC_URL"),
-      accounts: [configVariable("SEPOLIA_PRIVATE_KEY")],
+      url: `https://eth-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
+      accounts: [process.env.PRIVATE_KEY!],
     },
   },
-});
+  verify: {
+    etherscan: {
+      apiKey: process.env.ETHERSCAN_API_KEY!,
+    },
+  },
+};
+
+export default config;
