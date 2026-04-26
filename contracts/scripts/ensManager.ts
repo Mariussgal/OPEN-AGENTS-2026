@@ -46,11 +46,11 @@ async function mintCert(
     const { wallet, registry, resolver } = await getContracts();
 
     const label = `contract-${contractAddress.slice(2, 8).toLowerCase()}`;
-    const parentNode = namehash("certified.keeper-memory.eth");
+    const parentNode = namehash("certified.Onkhor-ai.eth");
     const labelHash = ethers.keccak256(ethers.toUtf8Bytes(label));
-    const subnameNode = namehash(`${label}.certified.keeper-memory.eth`);
+    const subnameNode = namehash(`${label}.certified.Onkhor-ai.eth`);
 
-    console.log(`Minting ${label}.certified.keeper-memory.eth...`);
+    console.log(`Minting ${label}.certified.Onkhor-ai.eth...`);
     const tx1 = await registry.setSubnodeRecord(
         parentNode, labelHash, wallet.address, PUBLIC_RESOLVER, 0
     );
@@ -72,7 +72,7 @@ async function mintCert(
         console.log(`✓ ${key} = ${value}`);
     }
 
-    const subname = `${label}.certified.keeper-memory.eth`;
+    const subname = `${label}.certified.Onkhor-ai.eth`;
     console.log(`\nENS_SUBNAME=${subname}`);
     console.log(`ENS_NODE=${subnameNode}`);
     return subname;
@@ -87,11 +87,11 @@ async function mintAuditor(
     const { wallet, registry, resolver } = await getContracts();
 
     const label = walletAddress.slice(2, 10).toLowerCase();
-    const parentNode = namehash("auditors.keeper-memory.eth");
+    const parentNode = namehash("auditors.Onkhor-ai.eth");
     const labelHash = ethers.keccak256(ethers.toUtf8Bytes(label));
-    const subnameNode = namehash(`${label}.auditors.keeper-memory.eth`);
+    const subnameNode = namehash(`${label}.auditors.Onkhor-ai.eth`);
 
-    console.log(`Minting ${label}.auditors.keeper-memory.eth...`);
+    console.log(`Minting ${label}.auditors.Onkhor-ai.eth...`);
     const tx1 = await registry.setSubnodeRecord(
         parentNode, labelHash, wallet.address, PUBLIC_RESOLVER, 0
     );
@@ -110,7 +110,7 @@ async function mintAuditor(
         console.log(`✓ ${key} = ${value}`);
     }
 
-    const subname = `${label}.auditors.keeper-memory.eth`;
+    const subname = `${label}.auditors.Onkhor-ai.eth`;
     console.log(`\nENS_SUBNAME=${subname}`);
     return subname;
 }
