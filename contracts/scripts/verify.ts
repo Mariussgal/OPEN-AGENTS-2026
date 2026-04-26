@@ -2,7 +2,7 @@ import * as dotenv from "dotenv";
 import * as fs from "fs";
 dotenv.config();
 
-const DEPLOYED_ADDRESS = "0x02aEf76103faB49260c06891A3b9670Fe99A8bec";
+const DEPLOYED_ADDRESS = "0x4DC06573aa7b214645f649E4b9412Fe5aEd775F8";
 const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY!;
 
 interface EtherscanResponse {
