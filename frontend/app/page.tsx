@@ -178,28 +178,28 @@ export default function HomePage() {
 
         {/* ── Hero ───────────────────────────────────────────────────────── */}
         <section className="text-center max-w-4xl mx-auto flex flex-col items-center pt-8 md:pt-12">
-          <div 
+          <div
             className="animate-fade-in-up inline-flex items-center gap-2 mb-6 md:mb-8 bg-zinc-900/50 backdrop-blur-md border border-white/10 rounded-full px-4 py-1.5 shadow-[0_0_15px_rgba(0,123,255,0.15)]"
           >
             <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
             <span className="text-xs font-medium text-zinc-300">ETHGlobal Open Agents 2026</span>
           </div>
 
-          <h1 
+          <h1
             className="animate-fade-in-up opacity-0 text-4xl sm:text-5xl md:text-7xl font-bold tracking-tight mb-6 md:mb-8 text-balance text-[#0DFC67] leading-[1.1] sm:whitespace-nowrap"
             style={{ animationDelay: '100ms' }}
           >
             The audit tool that <br className="sm:hidden" /><span className="text-zinc-400">remembers.</span>
           </h1>
 
-          <p 
+          <p
             className="animate-fade-in-up opacity-0 text-base md:text-lg text-zinc-400 max-w-2xl text-balance mb-10 md:mb-12 leading-relaxed px-4 md:px-0"
             style={{ animationDelay: '200ms' }}
           >
             A minimalist CLI agent that cross-references your Solidity against a continuously growing vulnerability database and anchors every confirmed finding onchain.
           </p>
 
-          <div 
+          <div
             className="animate-fade-in-up opacity-0 w-full max-w-md mx-auto px-4 md:px-0"
             style={{ animationDelay: '300ms' }}
           >
@@ -257,7 +257,7 @@ export default function HomePage() {
         {/* ── Pipeline ───────────────────────────────────────────────────── */}
         <section className="max-w-5xl mx-auto w-full">
           <h2 className="text-2xl font-semibold tracking-tight mb-8 text-center text-[#0DFC67]">How it works</h2>
-          <div 
+          <div
             className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 px-6 md:px-0 md:grid md:grid-cols-2 lg:grid-cols-3 md:overflow-visible md:pb-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
             onScroll={handleScroll}
           >
@@ -285,9 +285,9 @@ export default function HomePage() {
           {/* Mobile pagination dots */}
           <div className="flex justify-center gap-2 mt-4 md:hidden">
             {PHASES.map((_, i) => (
-              <div 
-                key={i} 
-                className={`w-1.5 h-1.5 rounded-full transition-colors duration-300 ${i === activePhaseIndex ? "bg-[#0DFC67] w-3" : "bg-zinc-700"}`} 
+              <div
+                key={i}
+                className={`w-1.5 h-1.5 rounded-full transition-colors duration-300 ${i === activePhaseIndex ? "bg-[#0DFC67] w-3" : "bg-zinc-700"}`}
               />
             ))}
           </div>
@@ -296,7 +296,7 @@ export default function HomePage() {
         {/* ── Stack ──────────────────────────────────────────────────────── */}
         <section className="text-center w-full mx-auto overflow-hidden">
           <h2 className="text-2xl font-semibold tracking-tight mb-8 text-[#0DFC67]">Built with modern primitives</h2>
-          
+
           {/* Desktop View: Centered wrapped pills */}
           <div className="hidden md:flex flex-wrap justify-center gap-3 max-w-5xl mx-auto">
             {STACK.map((s) => (
@@ -339,26 +339,30 @@ export default function HomePage() {
         </section>
 
         {/* ── Pricing ────────────────────────────────────────────────────── */}
-        <section className="max-w-4xl mx-auto">
-          <div className="bg-zinc-900/30 border border-white/5 rounded-[2.5rem] p-8 md:p-14 text-center">
+        <section className="max-w-4xl mx-auto w-full px-4 md:px-0">
+          <div className="bg-zinc-900/30 border border-white/5 rounded-[2rem] md:rounded-[2.5rem] p-6 sm:p-8 md:p-14 text-center">
             <h2 className="text-2xl font-semibold tracking-tight mb-4 text-[#0DFC67]">Simple pricing</h2>
-            <p className="text-zinc-400 mb-10 max-w-lg mx-auto">Pay per use via HTTP-native USDC. No API keys required.</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            <p className="text-zinc-400 mb-8 md:mb-10 max-w-lg mx-auto text-sm md:text-base">Pay per use via HTTP-native USDC. No API keys required.</p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-8">
               {[
                 { scope: "≤ 3 files", price: "0.50", example: "Simple ERC20" },
                 { scope: "≤ 10 files", price: "1.00", example: "Vault + Router" },
                 { scope: "≤ 30 files", price: "2.00", example: "Full DeFi protocol" },
                 { scope: "> 30 files", price: "4.00", example: "Uniswap v4 scale" },
               ].map((tier) => (
-                <div key={tier.scope} className="bg-zinc-900/40 border border-white/5 rounded-3xl p-6 text-center">
-                  <div className="text-2xl font-semibold text-zinc-100 mb-2">${tier.price}</div>
-                  <div className="text-sm font-medium text-zinc-400 mb-2">{tier.scope}</div>
-                  <div className="text-xs text-zinc-600">{tier.example}</div>
+                <div
+                  key={tier.scope}
+                  className={`relative bg-zinc-900/40 border rounded-2xl md:rounded-3xl p-4 md:p-6 text-center flex flex-col justify-center transition-transform hover:-translate-y-1 border-white/5`}
+                >
+
+                  <div className="text-xl md:text-2xl font-semibold text-zinc-100 mb-1 md:mb-2">${tier.price}</div>
+                  <div className="text-xs md:text-sm font-medium text-zinc-400 mb-1 md:mb-2">{tier.scope}</div>
+                  <div className="text-[10px] md:text-xs text-zinc-600 leading-tight">{tier.example}</div>
                 </div>
               ))}
             </div>
-            <p className="text-sm text-zinc-500">
-              Run free without anchoring using the <span className="font-mono bg-white/5 px-2 py-1 rounded-md text-zinc-300">--local</span> flag.
+            <p className="text-xs md:text-sm text-zinc-500 max-w-xs mx-auto md:max-w-none">
+              Run free without anchoring using the <span className="font-mono bg-white/5 px-1.5 md:px-2 py-0.5 md:py-1 rounded-md text-zinc-300">--local</span> flag.
             </p>
           </div>
         </section>
