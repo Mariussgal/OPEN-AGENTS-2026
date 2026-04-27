@@ -181,7 +181,6 @@ export default function HomePage() {
           <div
             className="animate-fade-in-up inline-flex items-center gap-2 mb-6 md:mb-8 bg-zinc-900/50 backdrop-blur-md border border-white/10 rounded-full px-4 py-1.5 shadow-[0_0_15px_rgba(0,123,255,0.15)]"
           >
-            <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
             <span className="text-xs font-medium text-zinc-300">ETHGlobal Open Agents 2026</span>
           </div>
 
