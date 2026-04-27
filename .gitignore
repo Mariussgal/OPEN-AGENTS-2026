@@ -1,0 +1,13 @@
+# Environnement virtuel
+venv/
+env/
+
+# Fichiers caches Python
+__pycache__/
+*.pyc
+
+# Variables d'environnement (JAMAIS sur GitHub)
+.env
+
+# Fichiers temporaires de Slither
+slither_report.json
