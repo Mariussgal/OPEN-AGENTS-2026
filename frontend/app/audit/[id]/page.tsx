@@ -109,8 +109,8 @@ function FindingCard({ finding }: { finding: Finding }) {
                     {finding.fix_sketch && (
                         <div className="p-4">
                             <div className="text-xs text-zinc-500 font-medium mb-3">Fix</div>
-                            <div className="bg-zinc-900/50 border border-white/5 p-4 overflow-x-auto">
-                                <pre className="text-xs text-zinc-300 leading-relaxed whitespace-pre">
+                            <div className="bg-zinc-900/50 border border-white/5 p-4 overflow-x-auto w-full">
+                                <pre className="text-xs text-zinc-300 leading-relaxed whitespace-pre w-max">
                                     {finding.fix_sketch}
                                 </pre>
                             </div>
@@ -202,18 +202,18 @@ export default function AuditDetailPage() {
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-3xl h-[400px] bg-white opacity-[0.02] rounded-[100%] blur-[100px] pointer-events-none" />
 
             {/* Nav */}
-            <nav className="relative z-10 flex items-center justify-between px-6 py-6 max-w-6xl mx-auto border-b border-white/5">
+            <nav className="relative z-10 flex flex-col sm:flex-row items-center justify-between px-6 py-6 max-w-6xl mx-auto border-b border-white/5 gap-4 sm:gap-0">
                 <button
                     onClick={() => router.push("/history")}
                     className="flex items-center gap-3 hover:opacity-80 transition-opacity"
                 >
-                    <ChevronLeft className="w-4 h-4 text-zinc-400" />
-                    <Image src="/OnchorAI-logo.png" alt="Onchor.ai Logo" width={32} height={32} className="rounded-lg" />
+                    <ChevronLeft className="w-4 h-4 text-zinc-400 shrink-0" />
+                    <Image src="/OnchorAI-logo.png" alt="Onchor.ai Logo" width={32} height={32} className="rounded-lg shrink-0" />
                     <span className="font-semibold text-sm tracking-tight text-zinc-100">Audit History</span>
                 </button>
                 <div className="flex items-center gap-2">
-                    <Terminal className="w-4 h-4 text-[#0DFC67]" />
-                    <span className="font-medium text-sm text-zinc-400">Report</span>
+                    <Terminal className="w-4 h-4 text-[#0DFC67] shrink-0" />
+                    <span className="font-medium text-sm text-zinc-400 text-center">Report</span>
                 </div>
             </nav>
 
@@ -369,9 +369,9 @@ export default function AuditDetailPage() {
                             ...(report.payment_tx ? [{ label: "Payment tx", value: shortHash(report.payment_tx) }] : []),
                             ...(report.report_hash ? [{ label: "0G report hash", value: shortHash(report.report_hash) }] : []),
                         ].map((row) => (
-                            <div key={row.label} className="grid grid-cols-3 px-4 py-3">
+                            <div key={row.label} className="grid grid-cols-1 md:grid-cols-3 px-4 py-3 gap-1 md:gap-0">
                                 <span className="text-xs text-zinc-600">{row.label}</span>
-                                <span className="col-span-2 text-xs text-zinc-400 break-all">{row.value}</span>
+                                <span className="md:col-span-2 text-xs text-zinc-400 break-all">{row.value}</span>
                             </div>
                         ))}
                     </div>

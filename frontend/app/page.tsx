@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Menu, X } from "lucide-react";
 
 // ─── Copy button ──────────────────────────────────────────────────────────────
 
@@ -89,6 +90,7 @@ const STACK = [
 
 export default function HomePage() {
   const router = useRouter();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-zinc-100 relative selection:bg-white/20 font-sans">
@@ -101,9 +103,11 @@ export default function HomePage() {
         <div className="flex items-center gap-3">
           <Image src="/OnchorAI-logo.png" alt="Onchor.ai Logo" width={32} height={32} className="rounded-lg" />
           <span className="font-semibold text-sm tracking-tight">Onchor.ai</span>
-          <span className="text-xs text-zinc-500 bg-white/5 px-2 py-0.5 rounded-full">v0.1.0</span>
+          <span className="text-xs text-zinc-500 bg-white/5 px-2 py-0.5 rounded-full hidden sm:inline-block">v0.1.0</span>
         </div>
-        <div className="flex items-center gap-6">
+
+        {/* Desktop links */}
+        <div className="hidden sm:flex items-center gap-6">
           <button
             onClick={() => router.push("/memory")}
             className="text-sm text-zinc-400 hover:text-zinc-100 transition-colors font-medium"
@@ -125,7 +129,39 @@ export default function HomePage() {
             GitHub <span className="text-zinc-600">↗</span>
           </a>
         </div>
+
+        {/* Mobile menu toggle */}
+        <button className="sm:hidden text-zinc-400 hover:text-zinc-100 transition-colors" onClick={() => setMenuOpen(!menuOpen)}>
+          {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+        </button>
       </nav>
+
+      {/* Mobile dropdown */}
+      {menuOpen && (
+        <div className="sm:hidden relative z-20 bg-[#0a0a0a]/95 backdrop-blur-md border-b border-white/5 px-6 py-4 flex flex-col gap-4">
+          <button
+            onClick={() => { router.push("/memory"); setMenuOpen(false); }}
+            className="text-left text-sm text-zinc-300 font-medium w-full"
+          >
+            Memory
+          </button>
+          <button
+            onClick={() => { router.push("/history"); setMenuOpen(false); }}
+            className="text-left text-sm text-zinc-300 font-medium w-full"
+          >
+            Audit History
+          </button>
+          <a
+            href="https://github.com/cnm-agency/Onchor-ai"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm text-zinc-300 font-medium flex items-center gap-1"
+            onClick={() => setMenuOpen(false)}
+          >
+            GitHub <span className="text-zinc-600">↗</span>
+          </a>
+        </div>
+      )}
 
       <main className="relative z-10 max-w-6xl mx-auto px-6 pt-24 pb-32 space-y-32">
 
@@ -136,10 +172,10 @@ export default function HomePage() {
             <span className="text-xs font-medium text-zinc-300">ETHGlobal Open Agents 2026</span>
           </div>
 
-          <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-8 whitespace-nowrap text-[#0DFC67] leading-[1.1]">The audit tool that <span className="text-zinc-400">remembers.</span></h1>
+          <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-8 sm:whitespace-nowrap text-balance text-[#0DFC67] leading-[1.1]">The audit tool that <span className="text-zinc-400">remembers.</span></h1>
 
           <p className="text-lg text-zinc-400 max-w-2xl text-balance mb-12 leading-relaxed">
-            A minimalist CLI agent that cross-references your Solidity against 1,847 real-world vulnerability patterns and anchors every confirmed finding onchain.
+            A minimalist CLI agent that cross-references your Solidity against a continuously growing vulnerability database and anchors every confirmed finding onchain.
           </p>
 
           <div className="w-full max-w-md mx-auto">
@@ -178,7 +214,7 @@ export default function HomePage() {
               <div className="w-3 h-3 rounded-full bg-zinc-800" />
               <span className="text-xs text-zinc-600 font-mono ml-2">Onchor-ai audit</span>
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 overflow-x-auto pb-2 whitespace-nowrap">
               {DEMO_LINES.map((line, i) => (
                 <div key={i} className={`font-mono text-xs leading-relaxed ${line.cls}`}>
                   {line.text}
@@ -234,7 +270,7 @@ export default function HomePage() {
           <div className="bg-zinc-900/30 border border-white/5 rounded-[2.5rem] p-8 md:p-14 text-center">
             <h2 className="text-2xl font-semibold tracking-tight mb-4 text-[#0DFC67]">Simple pricing</h2>
             <p className="text-zinc-400 mb-10 max-w-lg mx-auto">Pay per use via HTTP-native USDC. No API keys required.</p>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-8">
               {[
                 { scope: "≤ 3 files", price: "0.50", example: "Simple ERC20" },
                 { scope: "≤ 10 files", price: "1.00", example: "Vault + Router" },
@@ -258,7 +294,7 @@ export default function HomePage() {
 
       {/* Footer */}
       <footer className="relative z-10 border-t border-white/5 px-6 py-8 mt-12">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 text-center md:text-left">
           <span className="text-sm text-zinc-500">Marius · Cyriac · Nohem — CNM Agency</span>
           <span className="text-sm text-zinc-500">ETHGlobal Open Agents 2026</span>
         </div>

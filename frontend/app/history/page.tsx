@@ -125,7 +125,7 @@ export default function HistoryPage() {
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-3xl h-[400px] bg-white opacity-[0.02] rounded-[100%] blur-[100px] pointer-events-none" />
 
             {/* Nav */}
-            <nav className="relative z-10 flex items-center justify-between px-6 py-6 max-w-6xl mx-auto border-b border-white/5">
+            <nav className="relative z-10 flex flex-col sm:flex-row items-center justify-between px-6 py-6 max-w-6xl mx-auto border-b border-white/5 gap-4 sm:gap-0">
                 <button
                     onClick={() => router.push("/")}
                     className="flex items-center gap-3 hover:opacity-80 transition-opacity"
@@ -176,7 +176,7 @@ export default function HistoryPage() {
                 {/* Table header */}
                 {!loading && audits.length > 0 && (
                     <>
-                        <div className="grid grid-cols-12 gap-4 px-4 pb-2 border-b border-white/5 mb-1">
+                        <div className="hidden md:grid grid-cols-12 gap-4 px-4 pb-2 border-b border-white/5 mb-1">
                             <div className="col-span-4 text-sm font-medium text-zinc-500">Target</div>
                             <div className="col-span-2 text-sm font-medium text-zinc-500">Verdict</div>
                             <div className="col-span-2 text-sm font-medium text-zinc-500">Risk</div>
@@ -195,10 +195,10 @@ export default function HistoryPage() {
                                     <button
                                         key={audit.id}
                                         onClick={() => router.push(`/audit/${audit.id}`)}
-                                        className="w-full grid grid-cols-12 gap-4 items-center px-6 py-5 bg-zinc-900/30 border border-white/5 rounded-2xl mb-3 hover:border-white/10 hover:bg-zinc-900/50 transition-all duration-200 text-left group"
+                                        className="w-full flex flex-col md:grid md:grid-cols-12 gap-3 md:gap-4 items-start md:items-center px-5 md:px-6 py-4 md:py-5 bg-zinc-900/30 border border-white/5 rounded-2xl mb-3 hover:border-white/10 hover:bg-zinc-900/50 transition-all duration-200 text-left group"
                                     >
                                         {/* Target */}
-                                        <div className="col-span-4 flex items-center gap-3 min-w-0">
+                                        <div className="md:col-span-4 flex items-center justify-between md:justify-start w-full md:w-auto gap-3 min-w-0">
                                             <TargetLabel target={audit.target} />
                                             {audit.ens_cert && (
                                                 <span className="text-xs bg-[#0DFC6715] text-[#0DFC67] px-1.5 py-0.5 border border-[#0DFC6730] shrink-0">
@@ -208,7 +208,8 @@ export default function HistoryPage() {
                                         </div>
 
                                         {/* Verdict */}
-                                        <div className="col-span-2">
+                                        <div className="md:col-span-2 w-full flex items-center justify-between md:justify-start">
+                                            <span className="text-xs text-zinc-500 md:hidden">Verdict</span>
                                             <div className={`inline-flex items-center gap-1.5 px-2 py-1 border text-xs font-medium ${vc.bg} ${vc.color}`}>
                                                 <VIcon className="w-3 h-3" />
                                                 {vc.label}
@@ -216,30 +217,37 @@ export default function HistoryPage() {
                                         </div>
 
                                         {/* Risk bar */}
-                                        <div className="col-span-2">
+                                        <div className="md:col-span-2 w-full flex items-center justify-between md:justify-start">
+                                            <span className="text-xs text-zinc-500 md:hidden">Risk</span>
                                             <RiskBar score={audit.risk_score} />
                                         </div>
 
                                         {/* Findings */}
-                                        <div className="col-span-2 flex items-center gap-2">
-                                            {audit.high_count > 0 && (
-                                                <span className="text-xs text-red-400">{audit.high_count}H</span>
-                                            )}
-                                            {audit.medium_count > 0 && (
-                                                <span className="text-xs text-yellow-400">{audit.medium_count}M</span>
-                                            )}
-                                            {audit.high_count === 0 && audit.medium_count === 0 && (
-                                                <span className="text-xs text-zinc-600">—</span>
-                                            )}
-                                            {audit.price_paid && (
-                                                <span className="text-xs text-zinc-600 ml-1">{audit.price_paid} USDC</span>
-                                            )}
+                                        <div className="md:col-span-2 flex items-center justify-between md:justify-start w-full gap-2">
+                                            <span className="text-xs text-zinc-500 md:hidden">Findings</span>
+                                            <div className="flex items-center gap-2">
+                                                {audit.high_count > 0 && (
+                                                    <span className="text-xs text-red-400">{audit.high_count}H</span>
+                                                )}
+                                                {audit.medium_count > 0 && (
+                                                    <span className="text-xs text-yellow-400">{audit.medium_count}M</span>
+                                                )}
+                                                {audit.high_count === 0 && audit.medium_count === 0 && (
+                                                    <span className="text-xs text-zinc-600">—</span>
+                                                )}
+                                                {audit.price_paid && (
+                                                    <span className="text-xs text-zinc-600 ml-1">{audit.price_paid} USDC</span>
+                                                )}
+                                            </div>
                                         </div>
 
                                         {/* Date + arrow */}
-                                        <div className="col-span-2 flex items-center justify-between">
-                                            <span className="text-xs text-zinc-600">{dateStr}</span>
-                                            <ExternalLink className="w-3 h-3 text-zinc-700 group-hover:text-zinc-500 transition-colors" />
+                                        <div className="md:col-span-2 flex items-center justify-between w-full">
+                                            <span className="text-xs text-zinc-500 md:hidden">Date</span>
+                                            <div className="flex items-center gap-2 justify-between md:justify-end md:w-full">
+                                                <span className="text-xs text-zinc-600">{dateStr}</span>
+                                                <ExternalLink className="w-3 h-3 text-zinc-700 group-hover:text-zinc-500 transition-colors" />
+                                            </div>
                                         </div>
                                     </button>
                                 );
@@ -247,7 +255,7 @@ export default function HistoryPage() {
                         </div>
 
                         {/* Footer stats */}
-                        <div className="mt-6 pt-4 border-t border-white/5 flex items-center gap-8">
+                        <div className="mt-6 pt-4 border-t border-white/5 flex flex-wrap items-center gap-4 md:gap-8">
                             <div>
                                 <span className="text-xs text-zinc-600">Total audits </span>
                                 <span className="text-xs text-zinc-400">{audits.length}</span>

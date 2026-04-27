@@ -86,18 +86,18 @@ export default function MemoryPage() {
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[200px] bg-[#0DFC67] opacity-[0.03] rounded-full blur-3xl pointer-events-none" />
 
       {/* Nav */}
-      <nav className="relative z-10 flex items-center justify-between px-6 py-6 max-w-6xl mx-auto border-b border-white/5">
+      <nav className="relative z-10 flex flex-col sm:flex-row items-center justify-between px-6 py-6 max-w-6xl mx-auto border-b border-white/5 gap-4 sm:gap-0">
         <button
           onClick={() => router.push("/")}
           className="flex items-center gap-3 hover:opacity-80 transition-opacity"
         >
-          <ChevronLeft className="w-4 h-4 text-zinc-400" />
-          <Image src="/OnchorAI-logo.png" alt="Onchor.ai Logo" width={32} height={32} className="rounded-lg" />
+          <ChevronLeft className="w-4 h-4 text-zinc-400 shrink-0" />
+          <Image src="/OnchorAI-logo.png" alt="Onchor.ai Logo" width={32} height={32} className="rounded-lg shrink-0" />
           <span className="font-semibold text-sm tracking-tight text-zinc-100">Onchor.ai</span>
         </button>
         <div className="flex items-center gap-2">
-          <Terminal className="w-4 h-4 text-[#0DFC67]" />
-          <span className="font-medium text-sm text-zinc-400">Collective Memory</span>
+          <Terminal className="w-4 h-4 text-[#0DFC67] shrink-0" />
+          <span className="font-medium text-sm text-zinc-400 text-center">Collective Memory</span>
         </div>
       </nav>
 
@@ -142,9 +142,9 @@ export default function MemoryPage() {
                 <div key={source.name} className="px-5 py-4 flex items-center gap-4 hover:bg-white/[0.02] transition-colors">
                   <Database className="w-4 h-4 text-zinc-500 shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-zinc-300">{source.name}</span>
-                      <span className={`text-xs font-medium ${source.color}`}>{source.count} patterns</span>
+                    <div className="flex items-center justify-between mb-2 gap-2">
+                      <span className="text-sm font-medium text-zinc-300 truncate">{source.name}</span>
+                      <span className={`text-xs font-medium ${source.color} shrink-0`}>{source.count} patterns</span>
                     </div>
                     <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
                       <div
@@ -171,7 +171,7 @@ export default function MemoryPage() {
           <div className="space-y-3 bg-zinc-900/30 border border-white/5 p-6 rounded-2xl">
             {MEMORY_STATS.pattern_types.map((p) => (
               <div key={p.type} className="flex items-center gap-4">
-                <span className="text-sm font-medium text-zinc-400 w-36 shrink-0">{p.type}</span>
+                <span className="text-sm font-medium text-zinc-400 w-24 md:w-36 shrink-0 truncate">{p.type}</span>
                 <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-[#0DFC67] rounded-full transition-all duration-700 opacity-60"
@@ -229,8 +229,8 @@ export default function MemoryPage() {
                 </p>
               </div>
             </div>
-            <div className="border border-white/5 bg-zinc-950/50 p-5 rounded-xl overflow-x-auto">
-              <pre className="text-xs text-zinc-400 leading-relaxed font-mono">{`{
+            <div className="border border-white/5 bg-zinc-950/50 p-5 rounded-xl overflow-x-auto w-full">
+              <pre className="text-xs text-zinc-400 leading-relaxed font-mono whitespace-pre w-max">{`{
   pattern_hash:         "sha256(normalized_snippet)",
   pattern_type:         "reentrancy",
   normalized_snippet:   "call{value: VAR_AMOUNT}(ADDR_RECIPIENT)
