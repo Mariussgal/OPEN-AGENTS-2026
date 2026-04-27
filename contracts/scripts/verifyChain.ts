@@ -17,7 +17,7 @@ async function verifyChain(patternHash: string) {
     const registry = new ethers.Contract(ANCHOR_REGISTRY, REGISTRY_ABI, provider);
 
     console.log("\n═══════════════════════════════════════════════");
-    console.log("  Onkhor.ai — Independent Verification");
+    console.log("  Onchor.ai — Independent Verification");
     console.log("═══════════════════════════════════════════════");
     console.log(`\nPattern Hash: ${patternHash}`);
 

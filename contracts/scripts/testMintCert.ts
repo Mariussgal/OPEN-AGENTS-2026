@@ -34,12 +34,12 @@ async function main() {
     const registry = new ethers.Contract(ENS_REGISTRY, ENS_REGISTRY_ABI, wallet);
     const resolver = new ethers.Contract(PUBLIC_RESOLVER, RESOLVER_ABI, wallet);
 
-    const certifiedNode = namehash("certified.Onkhor-ai.eth");
+    const certifiedNode = namehash("certified.Onchor-ai.eth");
     const label = "vault-0x7f2e";
     const labelHash = ethers.keccak256(ethers.toUtf8Bytes(label));
-    const subnameNode = namehash(`${label}.certified.Onkhor-ai.eth`);
+    const subnameNode = namehash(`${label}.certified.Onchor-ai.eth`);
 
-    console.log("Minting vault-0x7f2e.certified.Onkhor-ai.eth...");
+    console.log("Minting vault-0x7f2e.certified.Onchor-ai.eth...");
     const tx1 = await registry.setSubnodeRecord(
         certifiedNode,
         labelHash,
@@ -73,7 +73,7 @@ async function main() {
     }
 
     console.log("\n✓ Test complete");
-    console.log(`Subname: ${label}.certified.Onkhor-ai.eth`);
+    console.log(`Subname: ${label}.certified.Onchor-ai.eth`);
     console.log(`Node: ${subnameNode}`);
 }
 

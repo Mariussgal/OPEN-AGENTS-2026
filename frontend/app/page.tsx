@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -42,7 +43,7 @@ function CodeLine({ command, comment }: { command: string; comment?: string }) {
 const COMPARISON = [
   { tool: "Slither / Mythril", memory: "None", payment: "Free", limit: "Unfiltered false positives" },
   { tool: "GPT-4 / Claude direct", memory: "Conversation context", payment: "Subscription", limit: "Resets every session" },
-  { tool: "Onkhor.ai", memory: "Tridimensional (Cognee)", payment: "x402 USDC pay-per-use", limit: "—", highlight: true },
+  { tool: "Onchor.ai", memory: "Tridimensional (Cognee)", payment: "x402 USDC pay-per-use", limit: "—", highlight: true },
 ];
 
 const PHASES = [
@@ -55,7 +56,7 @@ const PHASES = [
 ];
 
 const DEMO_LINES: { text: string; cls: string }[] = [
-  { text: "Onkhor.ai v0.1.0", cls: "text-zinc-500" },
+  { text: "Onchor.ai v0.1.0", cls: "text-zinc-500" },
   { text: "-----------------------------------------------------", cls: "text-zinc-800" },
   { text: "[x402]    Paying 0.50 USDC for audit...   ✓ tx: 0x8fa3...", cls: "text-zinc-400" },
   { text: "[Phase 1] Resolving...          ✓ 1 file (EulerVault.sol)", cls: "text-zinc-300" },
@@ -98,7 +99,8 @@ export default function HomePage() {
       {/* Nav */}
       <nav className="relative z-10 flex items-center justify-between px-6 py-6 max-w-6xl mx-auto">
         <div className="flex items-center gap-3">
-          <span className="font-semibold text-sm tracking-tight">Onkhor.ai</span>
+          <Image src="/OnchorAI-logo.png" alt="Onchor.ai Logo" width={32} height={32} className="rounded-lg" />
+          <span className="font-semibold text-sm tracking-tight">Onchor.ai</span>
           <span className="text-xs text-zinc-500 bg-white/5 px-2 py-0.5 rounded-full">v0.1.0</span>
         </div>
         <div className="flex items-center gap-6">
@@ -109,7 +111,7 @@ export default function HomePage() {
             Audit History
           </button>
           <a
-            href="https://github.com/cnm-agency/Onkhor-ai"
+            href="https://github.com/cnm-agency/Onchor-ai"
             target="_blank"
             rel="noopener noreferrer"
             className="text-sm text-zinc-400 hover:text-zinc-100 transition-colors font-medium flex items-center gap-1"
@@ -135,7 +137,7 @@ export default function HomePage() {
           </p>
 
           <div className="w-full max-w-md mx-auto">
-            <CodeLine command="pip install Onkhor-ai" />
+            <CodeLine command="pip install Onchor-ai" />
           </div>
         </section>
 
@@ -149,15 +151,15 @@ export default function HomePage() {
             <div className="space-y-4">
               <div className="p-5 bg-zinc-900/40 border border-white/5 rounded-3xl">
                 <h3 className="text-sm font-medium mb-3 text-[#0DFC67]">1. Install</h3>
-                <CodeLine command="pip install Onkhor-ai" />
+                <CodeLine command="pip install Onchor-ai" />
               </div>
               <div className="p-5 bg-zinc-900/40 border border-white/5 rounded-3xl">
                 <h3 className="text-sm font-medium mb-3 text-[#0DFC67]">2. Initialize</h3>
-                <CodeLine command="Onkhor-ai init" />
+                <CodeLine command="Onchor-ai init" />
               </div>
               <div className="p-5 bg-zinc-900/40 border border-white/5 rounded-3xl">
                 <h3 className="text-sm font-medium mb-3 text-[#0DFC67]">3. Audit</h3>
-                <CodeLine command="Onkhor-ai audit ./src/" />
+                <CodeLine command="Onchor-ai audit ./src/" />
               </div>
             </div>
           </div>
@@ -168,7 +170,7 @@ export default function HomePage() {
               <div className="w-3 h-3 rounded-full bg-zinc-800" />
               <div className="w-3 h-3 rounded-full bg-zinc-800" />
               <div className="w-3 h-3 rounded-full bg-zinc-800" />
-              <span className="text-xs text-zinc-600 font-mono ml-2">Onkhor-ai audit</span>
+              <span className="text-xs text-zinc-600 font-mono ml-2">Onchor-ai audit</span>
             </div>
             <div className="space-y-1.5">
               {DEMO_LINES.map((line, i) => (

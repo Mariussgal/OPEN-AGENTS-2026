@@ -129,7 +129,7 @@ export function downloadReportJson(report: AuditReport) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `Onkhor-ai-report-${report.id}.json`;
+    a.download = `Onchor-ai-report-${report.id}.json`;
     a.click();
     URL.revokeObjectURL(url);
 }

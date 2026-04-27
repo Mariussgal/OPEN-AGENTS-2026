@@ -94,7 +94,7 @@ export const MOCK_HISTORY: AuditSummary[] = [
         high_count: 0,
         medium_count: 0,
         price_paid: 0.5,
-        ens_cert: "token-0x8a3f.certified.Onkhor-ai.eth",
+        ens_cert: "token-0x8a3f.certified.Onchor-ai.eth",
     },
     {
         id: "audit-router-003",

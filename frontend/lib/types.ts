@@ -92,7 +92,7 @@ export interface AuditReport {
     payment_tx?: string;
     findings: Finding[];
     memory_hits: MemoryHit[];
-    ens_cert?: string; // e.g. "vault-0x7f2e.certified.Onkhor-ai.eth"
+    ens_cert?: string; // e.g. "vault-0x7f2e.certified.Onchor-ai.eth"
     report_hash?: string; // 0G rootHash
 }
 

@@ -5,7 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Onkhor.ai — Solidity Security Copilot",
+  title: "Onchor.ai — Solidity Security Copilot",
   description:
     "AI-powered Solidity audits with persistent memory. Finds vulnerabilities your tools miss — powered by pattern recognition across thousands of past audits.",
   keywords: ["solidity", "security", "audit", "smart contracts", "defi", "vulnerability"],

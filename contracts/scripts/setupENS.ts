@@ -30,16 +30,16 @@ async function main() {
 
     const registry = new ethers.Contract(ENS_REGISTRY, ENS_REGISTRY_ABI, wallet);
 
-    const parentNode = namehash("Onkhor-ai.eth");
+    const parentNode = namehash("Onchor-ai.eth");
 
     // Vérifie que tu es bien owner
     const owner = await registry.owner(parentNode);
-    console.log("Onkhor-ai.eth owner:", owner);
+    console.log("Onchor-ai.eth owner:", owner);
 
     const subnames = ["certified", "auditors"];
 
     for (const label of subnames) {
-        console.log(`\nMinting ${label}.Onkhor-ai.eth...`);
+        console.log(`\nMinting ${label}.Onchor-ai.eth...`);
         const labelHash = ethers.keccak256(ethers.toUtf8Bytes(label));
         const tx = await registry.setSubnodeRecord(
             parentNode,
@@ -49,8 +49,8 @@ async function main() {
             0
         );
         await tx.wait();
-        console.log(`✓ ${label}.Onkhor-ai.eth — tx: ${tx.hash}`);
-        console.log(`  Node: ${namehash(`${label}.Onkhor-ai.eth`)}`);
+        console.log(`✓ ${label}.Onchor-ai.eth — tx: ${tx.hash}`);
+        console.log(`  Node: ${namehash(`${label}.Onchor-ai.eth`)}`);
     }
 
     console.log("\n✓ ENS setup complete");
