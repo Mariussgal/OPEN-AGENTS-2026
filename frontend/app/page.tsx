@@ -91,6 +91,17 @@ const STACK = [
 export default function HomePage() {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [activePhaseIndex, setActivePhaseIndex] = useState(0);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.currentTarget;
+    if (!target.firstElementChild) return;
+    const cardWidth = target.firstElementChild.clientWidth + 16; // width + gap
+    const newIndex = Math.round(target.scrollLeft / cardWidth);
+    if (newIndex !== activePhaseIndex && newIndex >= 0 && newIndex < PHASES.length) {
+      setActivePhaseIndex(newIndex);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-zinc-100 relative selection:bg-white/20 font-sans">
@@ -166,19 +177,32 @@ export default function HomePage() {
       <main className="relative z-10 max-w-6xl mx-auto px-6 pt-24 pb-32 space-y-32">
 
         {/* ── Hero ───────────────────────────────────────────────────────── */}
-        <section className="text-center max-w-4xl mx-auto flex flex-col items-center">
-          <div className="inline-flex items-center gap-2 mb-8 bg-white/5 border border-white/10 rounded-full px-4 py-1.5">
-            <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+        <section className="text-center max-w-4xl mx-auto flex flex-col items-center pt-8 md:pt-12">
+          <div 
+            className="animate-fade-in-up inline-flex items-center gap-2 mb-6 md:mb-8 bg-zinc-900/50 backdrop-blur-md border border-white/10 rounded-full px-4 py-1.5 shadow-[0_0_15px_rgba(0,123,255,0.15)]"
+          >
+            <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
             <span className="text-xs font-medium text-zinc-300">ETHGlobal Open Agents 2026</span>
           </div>
 
-          <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-8 sm:whitespace-nowrap text-balance text-[#0DFC67] leading-[1.1]">The audit tool that <span className="text-zinc-400">remembers.</span></h1>
+          <h1 
+            className="animate-fade-in-up opacity-0 text-4xl sm:text-5xl md:text-7xl font-bold tracking-tight mb-6 md:mb-8 text-balance text-[#0DFC67] leading-[1.1] sm:whitespace-nowrap"
+            style={{ animationDelay: '100ms' }}
+          >
+            The audit tool that <br className="sm:hidden" /><span className="text-zinc-400">remembers.</span>
+          </h1>
 
-          <p className="text-lg text-zinc-400 max-w-2xl text-balance mb-12 leading-relaxed">
+          <p 
+            className="animate-fade-in-up opacity-0 text-base md:text-lg text-zinc-400 max-w-2xl text-balance mb-10 md:mb-12 leading-relaxed px-4 md:px-0"
+            style={{ animationDelay: '200ms' }}
+          >
             A minimalist CLI agent that cross-references your Solidity against a continuously growing vulnerability database and anchors every confirmed finding onchain.
           </p>
 
-          <div className="w-full max-w-md mx-auto">
+          <div 
+            className="animate-fade-in-up opacity-0 w-full max-w-md mx-auto px-4 md:px-0"
+            style={{ animationDelay: '300ms' }}
+          >
             <CodeLine command="pip install Onchor-ai" />
           </div>
         </section>
@@ -231,37 +255,86 @@ export default function HomePage() {
 
 
         {/* ── Pipeline ───────────────────────────────────────────────────── */}
-        <section className="max-w-5xl mx-auto">
+        <section className="max-w-5xl mx-auto w-full">
           <h2 className="text-2xl font-semibold tracking-tight mb-8 text-center text-[#0DFC67]">How it works</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div 
+            className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 px-6 md:px-0 md:grid md:grid-cols-2 lg:grid-cols-3 md:overflow-visible md:pb-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+            onScroll={handleScroll}
+          >
             {PHASES.map((phase) => (
-              <div key={phase.id} className="bg-zinc-900/30 border border-white/5 p-8 rounded-[2rem] hover:bg-zinc-900/50 transition-colors">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-lg font-medium text-zinc-200">{phase.name}</span>
-                  <span className="text-xs font-mono text-zinc-500 bg-white/5 px-2.5 py-1 rounded-lg">{phase.id}</span>
+              <div key={phase.id} className="snap-center shrink-0 w-[85vw] sm:w-[350px] md:w-auto bg-zinc-900/30 border border-white/5 p-8 rounded-[2rem] hover:bg-zinc-900/50 transition-colors flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-lg font-medium text-zinc-200">{phase.name}</span>
+                    <span className="text-xs font-mono text-zinc-500 bg-white/5 px-2.5 py-1 rounded-lg flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-zinc-500" />
+                      Step {phase.id}
+                    </span>
+                  </div>
+                  <p className="text-sm text-zinc-400 leading-relaxed">{phase.desc}</p>
                 </div>
-                <p className="text-sm text-zinc-400 leading-relaxed">{phase.desc}</p>
                 {phase.core && (
-                  <div className="mt-5 inline-block text-xs font-medium bg-zinc-200 text-zinc-900 px-3 py-1.5 rounded-lg">
+                  <div className="mt-6 self-start inline-flex items-center gap-2 text-xs font-medium bg-zinc-200 text-zinc-900 px-3 py-1.5 rounded-lg">
+                    <span className="w-1.5 h-1.5 rounded-full bg-zinc-900 animate-pulse" />
                     Core execution
                   </div>
                 )}
               </div>
             ))}
           </div>
+          {/* Mobile pagination dots */}
+          <div className="flex justify-center gap-2 mt-4 md:hidden">
+            {PHASES.map((_, i) => (
+              <div 
+                key={i} 
+                className={`w-1.5 h-1.5 rounded-full transition-colors duration-300 ${i === activePhaseIndex ? "bg-[#0DFC67] w-3" : "bg-zinc-700"}`} 
+              />
+            ))}
+          </div>
         </section>
 
         {/* ── Stack ──────────────────────────────────────────────────────── */}
-        <section className="text-center max-w-5xl mx-auto">
+        <section className="text-center w-full mx-auto overflow-hidden">
           <h2 className="text-2xl font-semibold tracking-tight mb-8 text-[#0DFC67]">Built with modern primitives</h2>
-          <div className="flex flex-wrap justify-center gap-3">
+          
+          {/* Desktop View: Centered wrapped pills */}
+          <div className="hidden md:flex flex-wrap justify-center gap-3 max-w-5xl mx-auto">
             {STACK.map((s) => (
               <div key={s.name} className="bg-zinc-900/40 border border-white/5 px-5 py-3.5 rounded-full flex items-center gap-3">
                 <span className="font-medium text-sm text-zinc-200">{s.name}</span>
-                <span className="w-1 h-1 rounded-full bg-zinc-700" />
-                <span className="text-sm text-zinc-500">{s.role}</span>
+                <span className="w-1 h-1 rounded-full bg-zinc-700 shrink-0" />
+                <span className="text-sm text-zinc-500 whitespace-nowrap">{s.role}</span>
               </div>
             ))}
+          </div>
+
+          {/* Mobile View: Two-line marquee */}
+          <div className="md:hidden flex flex-col gap-3 w-full relative">
+            {/* Gradient masks for smooth fading edges */}
+            <div className="absolute inset-y-0 left-0 w-12 bg-gradient-to-r from-[#0a0a0a] to-transparent z-10 pointer-events-none" />
+            <div className="absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-[#0a0a0a] to-transparent z-10 pointer-events-none" />
+
+            {/* Line 1: Marquee Right */}
+            <div className="flex w-max animate-marquee-right gap-3">
+              {[...STACK, ...STACK, ...STACK, ...STACK].map((s, i) => (
+                <div key={`l1-${i}`} className="shrink-0 bg-zinc-900/40 border border-white/5 px-5 py-3.5 rounded-full flex items-center gap-3">
+                  <span className="font-medium text-sm text-zinc-200">{s.name}</span>
+                  <span className="w-1 h-1 rounded-full bg-zinc-700 shrink-0" />
+                  <span className="text-sm text-zinc-500 whitespace-nowrap">{s.role}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Line 2: Marquee Left */}
+            <div className="flex w-max animate-marquee-left gap-3">
+              {[...[...STACK].reverse(), ...[...STACK].reverse(), ...[...STACK].reverse(), ...[...STACK].reverse()].map((s, i) => (
+                <div key={`l2-${i}`} className="shrink-0 bg-zinc-900/40 border border-white/5 px-5 py-3.5 rounded-full flex items-center gap-3">
+                  <span className="font-medium text-sm text-zinc-200">{s.name}</span>
+                  <span className="w-1 h-1 rounded-full bg-zinc-700 shrink-0" />
+                  <span className="text-sm text-zinc-500 whitespace-nowrap">{s.role}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
 

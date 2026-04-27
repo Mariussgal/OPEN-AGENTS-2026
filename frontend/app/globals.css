@@ -219,6 +219,24 @@ body {
   animation: pulse-green 2s ease-in-out infinite;
 }
 
+@keyframes marquee-right {
+  0% { transform: translateX(-50%); }
+  100% { transform: translateX(0%); }
+}
+
+@keyframes marquee-left {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-marquee-right {
+  animation: marquee-right 30s linear infinite;
+}
+
+.animate-marquee-left {
+  animation: marquee-left 30s linear infinite;
+}
+
 /* ─── Terminal line types ────────────────────────────────────────────────── */
 .terminal-line-log {
   color: var(--foreground);
