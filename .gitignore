@@ -11,3 +11,10 @@ __pycache__/
 
 # Fichiers temporaires de Slither
 slither_report.json
+
+# Documentation Specs
+keeper-memory-tasks.pdf
+keeper-memory-v10.pdf
+
+# Dépendances Node.js
+node_modules/
