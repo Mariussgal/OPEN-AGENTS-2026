@@ -58,3 +58,12 @@ async def add_finding_to_memory(finding: dict, contract_name: str):
         print(f"🧠 Graphe mis à jour : {finding['check']} pour {contract_name}")
     except Exception as e:
         print(f"❌ Erreur lors de l'ajout en mémoire : {e}")
+async def load_known_findings(scope):
+    """Recherche des vulnérabilités connues dans la mémoire Cognee."""
+    try:
+        # Recherche par similarité ou mot-clé sur le nom du contrat
+        results = await cognee.search(f"findings for {scope.name}")
+        return results if results else []
+    except Exception as e:
+        print(f"⚠️ Erreur lors de la recherche mémoire : {e}")
+        return []
