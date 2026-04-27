@@ -3,9 +3,66 @@
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Terminal, ChevronLeft, ExternalLink, Shield, AlertTriangle, AlertCircle, Info } from "lucide-react";
-import { getAuditHistory } from "@/lib/api";
+import { Terminal, ChevronLeft, ExternalLink, Shield, AlertTriangle, AlertCircle, Info, Wallet } from "lucide-react";
+import { getAuditHistory, getWalletInfo } from "@/lib/api";
 import type { AuditSummary, Verdict } from "@/lib/types";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface WalletInfo {
+    address: string;
+    balance_usdc: number;
+    network: string;
+}
+
+// ─── Wallet banner ────────────────────────────────────────────────────────────
+
+function WalletBanner({ wallet }: { wallet: WalletInfo }) {
+    const short = `${wallet.address.slice(0, 6)}...${wallet.address.slice(-4)}`;
+    const isLow = wallet.balance_usdc < 1;
+
+    return (
+        <div className="border border-white/5 bg-zinc-900/30 px-6 py-5 rounded-2xl flex items-center justify-between gap-6 flex-wrap mb-10">
+            <div className="flex items-center gap-4">
+                <div>
+                    <div className="text-xs font-medium text-zinc-500 mb-0.5">
+                        Onchor.ai Wallet
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <span className="text-sm font-medium text-zinc-200">{short}</span>
+                        <span className="text-xs text-zinc-500 bg-white/5 px-2 py-0.5 rounded-md">{wallet.network}</span>
+                        <a
+                            href={`https://sepolia.etherscan.io/address/${wallet.address}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-zinc-600 hover:text-[#0DFC67] transition-colors"
+                        >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div className="text-right">
+                <div className="text-xs font-medium text-zinc-500 mb-0.5">
+                    Balance
+                </div>
+                <div className="flex items-baseline gap-2 justify-end">
+                    <span className={`text-2xl font-bold ${isLow ? "text-yellow-400" : "text-[#0DFC67]"}`}>
+                        {wallet.balance_usdc.toFixed(2)}
+                    </span>
+                    <span className="text-xs text-zinc-500 font-medium">USDC</span>
+                </div>
+                {isLow && (
+                    <div className="text-xs text-yellow-500 mt-1 font-medium">
+                        Low balance — run{" "}
+                        <span className="text-yellow-400 bg-yellow-400/10 px-1.5 py-0.5 rounded">Onchor-ai fund</span>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
 
 // ─── Verdict config ───────────────────────────────────────────────────────────
 
@@ -52,11 +109,12 @@ function TargetLabel({ target }: { target: AuditSummary["target"] }) {
 export default function HistoryPage() {
     const router = useRouter();
     const [audits, setAudits] = useState<AuditSummary[]>([]);
+    const [wallet, setWallet] = useState<WalletInfo | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        getAuditHistory()
-            .then(setAudits)
+        Promise.all([getAuditHistory(), getWalletInfo()])
+            .then(([a, w]) => { setAudits(a); setWallet(w); })
             .finally(() => setLoading(false));
     }, []);
 
@@ -100,6 +158,9 @@ export default function HistoryPage() {
                         <span className="text-zinc-400 leading-relaxed">Loading audits...</span>
                     </div>
                 )}
+
+                {/* Wallet Banner */}
+                {!loading && wallet && <WalletBanner wallet={wallet} />}
 
                 {/* Empty */}
                 {!loading && audits.length === 0 && (

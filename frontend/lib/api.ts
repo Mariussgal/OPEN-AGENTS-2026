@@ -133,3 +133,16 @@ export function downloadReportJson(report: AuditReport) {
     a.click();
     URL.revokeObjectURL(url);
 }
+
+export async function getWalletInfo() {
+    if (IS_MOCK) {
+        return {
+            address: "0x4DB6Bf931e0AC52E6a35601da70aAB3fF26657C4",
+            balance_usdc: 4.25,
+            network: "ETH Sepolia",
+        };
+    }
+    const res = await fetch(`${API_BASE}/wallet`);
+    if (!res.ok) throw new Error("Failed to fetch wallet info");
+    return res.json();
+}

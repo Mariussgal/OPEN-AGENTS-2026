@@ -105,6 +105,12 @@ export default function HomePage() {
         </div>
         <div className="flex items-center gap-6">
           <button
+            onClick={() => router.push("/memory")}
+            className="text-sm text-zinc-400 hover:text-zinc-100 transition-colors font-medium"
+          >
+            Memory
+          </button>
+          <button
             onClick={() => router.push("/history")}
             className="text-sm text-zinc-400 hover:text-zinc-100 transition-colors font-medium"
           >
