@@ -1,42 +1,137 @@
+import asyncio
+import cognee
+import hashlib
+import os
+from typing import List, Any, Dict
+from .phase_resolve import ResolvedContract
+from memory.cognee_setup import setup_cognee
+
 import re
-from typing import List, Dict, Any
-from pipeline.phase_resolve import ResolvedContract
 
-# Mots-clés dangereux à détecter (d'après le cahier des charges)
-DANGEROUS_FLAGS = ['delegatecall', 'unchecked', 'assembly', 'selfdestruct']
-
-def parse_structural(file_path: str) -> Dict[str, Any]:
-    """Parse basique d'un fichier Solidity pour trouver des flags dangereux."""
-    flags_found = []
-    try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            content = f.read()
-            for flag in DANGEROUS_FLAGS:
-                # Utilisation d'une regex pour chercher le mot exact
-                if re.search(r'\b' + flag + r'\b', content):
-                    flags_found.append(flag)
-    except Exception as e:
-        print(f"Erreur lors de la lecture de {file_path}: {e}")
-        
+def analyze_solidity_file(file_path: str) -> Dict[str, Any]:
+    """Analyse structurelle rapide sans LLM."""
+    if not os.path.exists(file_path):
+        return {"functions": [], "modifiers": [], "events": [], "flags": []}
+    
+    with open(file_path, "r", encoding="utf-8") as f:
+        content = f.read()
+    
+    # Extraction simple par regex
+    functions = re.findall(r"function\s+([a-zA-Z0-9_]+)", content)
+    modifiers = re.findall(r"modifier\s+([a-zA-Z0-9_]+)", content)
+    events = re.findall(r"event\s+([a-zA-Z0-9_]+)", content)
+    
+    # Flags de sécurité rapides
+    flags = []
+    if "delegatecall" in content: flags.append("delegatecall")
+    if "selfdestruct" in content: flags.append("selfdestruct")
+    if "assembly {" in content: flags.append("assembly")
+    if "unchecked {" in content: flags.append("unchecked")
+    
     return {
-        "file": file_path,
-        "flags": flags_found
+        "functions_count": len(functions),
+        "modifiers_count": len(modifiers),
+        "events_count": len(events),
+        "flags": flags
     }
 
-async def run_inventory(scope: ResolvedContract) -> dict:
-    """Phase 1: Inventaire des fichiers et détection rapide."""
-    print("[Phase 1] Inventory en cours...")
-    inventory_results = []
+def generate_file_hash(file_path: str) -> str:
+    """Génère un hash SHA256 pour identifier le contrat."""
+    try:
+        if not os.path.exists(file_path): return ""
+        with open(file_path, "rb") as f:
+            return hashlib.sha256(f.read()).hexdigest()
+    except Exception:
+        return "hash_error"
+
+async def load_known_findings(scope: ResolvedContract) -> List[Any]:
+    """PHASE 1 : Recherche sémantique via la nouvelle API recall de Cognee."""
+    known_findings = []
     
-    # On scanne chaque fichier trouvé en Phase 0
-    for file in scope.files:
-        parsed = parse_structural(file)
-        inventory_results.append(parsed)
+    # On construit une query basée sur ce qu'on sait du contrat
+    # Si on a un nom de contrat ou une adresse, on l'utilise
+    contract_name = os.path.basename(scope.files[0]).replace(".sol", "") if scope.files else "Smart Contract"
+    search_query = f"Vulnerabilities and historical exploits for {contract_name}"
+    
+    if scope.address:
+        search_query += f" at {scope.address}"
         
-    # TODO: Plus tard, on intégrera ici load_known_findings() via Cognee
+    try:
+        print(f"🧠 [Phase 1] Interrogation de la mémoire vive : '{search_query}'...")
+        
+        # recall() parcourt le graphe de connaissances extrait lors du seed
+        search_results = await cognee.recall(search_query)
+        
+        if search_results:
+            print(f"💡 [Phase 1] {len(search_results)} souvenir(s) récupéré(s) du Knowledge Graph.")
+            for res in search_results:
+                content = ""
+                
+                # 1. On cherche 'search_result' qui contient la liste des faits trouvés
+                if hasattr(res, "search_result"):
+                    val = getattr(res, "search_result")
+                    content = "\n".join(val) if isinstance(val, list) else str(val)
+                elif isinstance(res, dict) and "search_result" in res:
+                    val = res["search_result"]
+                    content = "\n".join(val) if isinstance(val, list) else str(val)
+                elif hasattr(res, "text"):
+                    content = res.text
+                else:
+                    # Fallback ultime : on essaie de voir si c'est un string qui contient un dict
+                    res_str = str(res)
+                    if "'search_result': [" in res_str:
+                        # Extraction rustique mais efficace pour le hackathon
+                        try:
+                            parts = res_str.split("'search_result': [")[1].split("]")[0]
+                            content = parts.replace("\\n", "\n").replace("'", "").strip()
+                        except:
+                            content = res_str
+                    else:
+                        content = res_str
+
+                # Nettoyage final pour enlever les résidus de formatage
+                content = content.replace("['", "").replace("']", "").replace("', '", "\n")
+                
+                if content and content not in [f["description"] for f in known_findings]:
+                    known_findings.append({
+                        "contract": contract_name,
+                        "type": "Historical Memory",
+                        "description": content.strip()
+                    })
+        else:
+            print("p [Phase 1] Aucun souvenir spécifique trouvé dans le graphe.")
+                
+    except Exception as e:
+        print(f"⚠️ [Phase 1] Cognee Recall Error : {e}")
+        
+    return known_findings
+
+async def run_inventory(scope: ResolvedContract):
+    """Exécute l'inventaire complet."""
+    print(f"🔍 [Phase 1] Analyse de {len(scope.files)} fichier(s)...")
     
+    # 0. Initialiser Cognee avec les bons chemins
+    await setup_cognee()
+    
+    # 1. Recherche de souvenirs
+    known_findings = await load_known_findings(scope)
+    
+    # 2. Construction des détails
+    inventory_details = []
+    for file_path in scope.files:
+        stats = analyze_solidity_file(file_path)
+        inventory_details.append({
+            "file": file_path,
+            "flags": stats["flags"], 
+            "stats": stats,
+            "pattern_hash": generate_file_hash(file_path),
+            "is_duplicate": False
+        })
+        
     return {
         "files_analyzed": len(scope.files),
-        "details": inventory_results,
-        "known_findings_loaded": 0  # Mock pour le moment
+        "details": inventory_details,
+        "duplicates_detected": 0,
+        "known_findings": known_findings,
+        "known_findings_count": len(known_findings)
     }

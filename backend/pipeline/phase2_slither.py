@@ -37,10 +37,19 @@ async def run_slither(path: str) -> Dict[str, Any]:
             # Formatage des résultats pour notre pipeline
             formatted_findings = []
             for f in findings:
+                # Sécurisation de l'extraction du fichier
+                elements = f.get("elements", [])
+                if elements:
+                    source_mapping = elements[0].get("source_mapping", {})
+                    filename = source_mapping.get("filename_relative", "unknown")
+                else:
+                    filename = "unknown"
+                
                 formatted_findings.append({
                     "check": f.get("check"),
                     "impact": f.get("impact"),
-                    "description": f.get("description")
+                    "description": f.get("description"),
+                    "file": filename
                 })
                 
             print(f"[Phase 2] Slither a terminé. {len(formatted_findings)} failles trouvées.")
