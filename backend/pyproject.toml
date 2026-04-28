@@ -24,7 +24,8 @@ dependencies = [
     "eth-account>=0.11.0",
     "anthropic>=0.17.0",
     "requests>=2.31.0",
-    "x402[fastapi,httpx,evm]>=0.1.0"
+    "x402[fastapi,httpx,evm]>=0.1.0",
+    "rich>=13.7.0"
 ]
 requires-python = ">=3.10"
 
@@ -32,7 +33,7 @@ requires-python = ">=3.10"
 onchor-ai = "cli:cli"
 
 [tool.setuptools]
-py-modules = ["cli", "server"]
+py-modules = ["cli", "server", "ui"]
 
 [tool.setuptools.packages.find]
 where = ["."]
