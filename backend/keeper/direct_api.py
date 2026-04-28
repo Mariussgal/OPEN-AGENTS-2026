@@ -20,76 +20,82 @@ async def anchor_contribution(
     amount_usdc: float = 0.05
 ) -> str:
     """
-    Ancre une contribution IA on-chain.
-    Si amount_usdc > 0, déclenche un vrai transfert USDC via le protocole x402.
-    Le serveur (OG_PRIVATE_KEY) signe la récompense.
+    Ancre une contribution on-chain.
+    Si amount_usdc > 0 → transfert USDC direct (ERC-20) signé par le serveur.
+    Note : x402 est pour paiements ENTRANTS (client→serveur), pas sortants.
     """
     try:
         if amount_usdc <= 0:
             logger.info(f"⚓ Ancrage POC pour {pattern_hash} — Pas de récompense.")
             return "anchored_only"
 
-        # 1. Signature du transfert USDC par le serveur (EIP-3009)
-        clean_amount = round(amount_usdc, 2)
-        reward_payload = sign_server_reward(contributor_address, amount_usdc=clean_amount)
-        
-        # 2. Construction des requirements via le serveur x402 officiel (pour être identique au paiement audit)
-        from server import x402_server, API_BASE_URL as SERVER_URL
-        from x402.server import ResourceConfig
-        
-        config = ResourceConfig(
-            scheme="exact",
-            network=NETWORK,
-            pay_to=contributor_address,
-            price=f"${clean_amount:.2f}",
-            resource=f"{SERVER_URL}/audit/reward",
-            description=f"Onchor.ai contribution reward",
+        from web3 import Web3
+        from eth_account import Account
+
+        private_key = os.getenv("OG_PRIVATE_KEY")
+        if not private_key:
+            raise ValueError("OG_PRIVATE_KEY manquante")
+
+        clean_amount  = round(amount_usdc, 2)
+        amount_atomic = int(clean_amount * 1_000_000)   # 6 décimales USDC
+
+        w3      = Web3(Web3.HTTPProvider("https://sepolia.base.org"))
+        account = Account.from_key(private_key)
+
+        usdc = w3.eth.contract(
+            address=Web3.to_checksum_address("0x036CbD53842c5426634e7929541eC2318f3dCF7e"),
+            abi=[{
+                "inputs": [{"name": "_to", "type": "address"}, {"name": "_value", "type": "uint256"}],
+                "name": "transfer",
+                "outputs": [{"name": "", "type": "bool"}],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            }]
         )
-        requirements = x402_server.build_payment_requirements(config)
-        requirement = requirements[0].model_dump()
-        
-        # 3. Construction du payload x402 (Standard protocol)
-        payment_payload = {
-            "x402Version": 2,
-            "scheme":      "exact",
-            "network":     NETWORK,
-            "accepted":    requirement,
-            "payload":     reward_payload
-        }
 
-        # 4. Settle body pour le facilitateur
-        settle_body = {
-            "x402Version":         2,
-            "paymentPayload":      payment_payload,
-            "paymentRequirements": requirement
-        }
+        # Vérifie le solde ETH avant d'envoyer
+        eth_balance = w3.eth.get_balance(account.address)
+        gas_estimate = 80_000
+        gas_price    = w3.eth.gas_price
+        gas_needed   = gas_estimate * gas_price
 
-        logger.info(f"💰 Récompense x402 demandée : {clean_amount} USDC vers {contributor_address}")
+        if eth_balance < gas_needed:
+            eth_needed = w3.from_wei(gas_needed, 'ether')
+            eth_have   = w3.from_wei(eth_balance, 'ether')
+            logger.error(
+                f"❌ Gas insuffisant — besoin: {eth_needed:.6f} ETH, "
+                f"disponible: {eth_have:.6f} ETH\n"
+                f"   → Recharge le wallet serveur : {account.address}\n"
+                f"   → Faucet Base Sepolia : https://faucet.quicknode.com/base/sepolia"
+            )
+            return "no_gas"
 
-        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as http:
-            # On envoie le settle_body au facilitateur
-            resp = await http.post(f"{FACILITATOR_URL}/settle", json=settle_body)
-            
-            # DEBUG: On affiche TOUTE la réponse pour comprendre pourquoi le TX est vide
-            logger.info(f"🔍 Facilitator response ({resp.status_code}): {resp.text}")
-            
-            if not resp.is_success:
-                logger.error(f"❌ Échec x402 settle: {resp.status_code} - {resp.text}")
-                return "payment_failed"
+        tx = usdc.functions.transfer(
+            Web3.to_checksum_address(contributor_address),
+            amount_atomic
+        ).build_transaction({
+            "from":     account.address,
+            "nonce":    w3.eth.get_transaction_count(account.address),
+            "gas":      gas_estimate,
+            "gasPrice": gas_price,
+            "chainId":  84532,
+        })
 
-            data = resp.json()
-            # On cherche plusieurs clés possibles pour le hash de transaction
-            tx_hash = data.get("transaction") or data.get("transactionHash") or data.get("tx")
-            
-            if tx_hash:
-                logger.info(f"✅ Vrai transfert USDC effectué ! TX: {tx_hash}")
-                return tx_hash
-            else:
-                logger.warning("⚠️ Facilitateur a répondu OK mais sans hash de transaction.")
-                return "payment_failed"
+        logger.info(f"💰 Envoi {clean_amount} USDC → {contributor_address} (ERC-20 direct)")
+        signed  = account.sign_transaction(tx)
+        tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
+        receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=60)
+
+        hex_hash = tx_hash.hex()
+        if receipt.status == 1:
+            logger.info(f"✅ Récompense envoyée — tx: {hex_hash}")
+            return hex_hash
+        else:
+            logger.error(f"❌ Transaction revertée — tx: {hex_hash}")
+            return "payment_failed"
 
     except Exception as e:
-        logger.error(f"❌ Erreur x402 : {e}")
+        logger.error(f"❌ Erreur transfert USDC direct : {e}")
         return "error"
 
 async def is_already_anchored(pattern_hash: str) -> bool:

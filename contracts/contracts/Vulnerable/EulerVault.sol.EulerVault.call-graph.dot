@@ -3,13 +3,13 @@ rankdir="LR"
 node [shape=box]
 subgraph cluster_94_EulerVault {
 label = "EulerVault"
-"94_deposit" [label="deposit"]
-"94_getBalance" [label="getBalance"]
 "94_withdraw" [label="withdraw"]
+"94_getBalance" [label="getBalance"]
+"94_deposit" [label="deposit"]
 }subgraph cluster_solidity {
 label = "[Solidity]"
-"balance(address)" 
 "require(bool,string)" 
+"balance(address)" 
 "94_withdraw" -> "require(bool,string)"
 "94_getBalance" -> "balance(address)"
 }

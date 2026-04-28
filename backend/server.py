@@ -328,8 +328,11 @@ async def send_reward(contributor_address: str, amount: float):
     dummy_hash   = "0x" + hashlib.sha256(contributor_address.encode()).hexdigest()
     tx_hash      = await anchor_contribution(dummy_hash, dummy_hash, contributor_address, amount_usdc=clean_amount)
     
-    if tx_hash in ["payment_failed", "error"]:
-        raise HTTPException(status_code=500, detail="Échec du transfert USDC.")
+    if tx_hash in ["payment_failed", "error", "no_gas"]:
+        detail = "Échec du transfert USDC."
+        if tx_hash == "no_gas":
+            detail = "Wallet serveur sans ETH — rechargez-le via faucet Base Sepolia"
+        raise HTTPException(status_code=500, detail=detail)
         
     return {"status": "success", "tx": tx_hash}
 
