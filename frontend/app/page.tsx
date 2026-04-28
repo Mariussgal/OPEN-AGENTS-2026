@@ -333,7 +333,8 @@ export default function HomePage() {
 
           <a
             href="#playground"
-            className="font-mono text-xs uppercase tracking-[0.18em] text-[--terminal-muted] hover:text-[--terminal-accent] transition-colors px-3 py-2 mt-12"
+            className="animate-fade-in-up opacity-0 font-mono text-xs uppercase tracking-[0.18em] text-[--terminal-muted] hover:text-[--terminal-accent] transition-colors px-3 py-2 mt-10 sm:mt-16"
+            style={{ animationDelay: "800ms" }}
           >
             try the playground ↓
           </a>
