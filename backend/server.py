@@ -337,6 +337,24 @@ async def send_reward(contributor_address: str, amount: float):
     return {"status": "success", "tx": tx_hash}
 
 
+
+@app.get("/user/balance")
+async def get_user_balance(address: str):
+    """Récupère le solde USDC réel on-chain pour une adresse donnée."""
+    from web3 import Web3
+    try:
+        w3 = Web3(Web3.HTTPProvider("https://sepolia.base.org"))
+        USDC_ADDRESS = "0x036CbD53842c5426634e7929541eC2318f3dCF7e"
+        abi = [{"constant": True, "inputs": [{"name": "_owner", "type": "address"}],
+                "name": "balanceOf", "outputs": [{"name": "balance", "type": "uint256"}],
+                "type": "function"}]
+        contract = w3.eth.contract(address=USDC_ADDRESS, abi=abi)
+        raw = contract.functions.balanceOf(Web3.to_checksum_address(address)).call()
+        return {"balance": raw / 1_000_000}
+    except Exception as e:
+        return {"balance": 0.0, "error": str(e)}
+
+
 @app.get("/wallet")
 async def get_wallet_info():
     """Info wallet pour le frontend."""
