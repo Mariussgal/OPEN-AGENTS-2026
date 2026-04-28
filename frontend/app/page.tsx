@@ -206,7 +206,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
         history
       </button>
       <a
-        href="https://github.com/cnm-agency/Onchor-ai"
+        href="https://github.com/Mariussgal/OPEN-AGENTS-2026"
         target="_blank"
         rel="noopener noreferrer"
         onClick={() => onNavigate?.()}
