@@ -3,379 +3,500 @@
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Menu, X } from "lucide-react";
+import { Check, Copy, Menu, X } from "lucide-react";
+import { Shell } from "@/components/shell/Shell";
+import { TerminalWindow } from "@/components/branding/TerminalWindow";
 
-// ─── Copy button ──────────────────────────────────────────────────────────────
-
-function CopyButton({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false);
-  function copy() {
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }
-  return (
-    <button
-      onClick={copy}
-      className="shrink-0 text-xs text-zinc-500 hover:text-zinc-300 transition-colors bg-white/5 hover:bg-white/10 px-2.5 py-1.5 rounded-md font-medium"
-    >
-      {copied ? "Copied" : "Copy"}
-    </button>
-  );
-}
-
-// ─── Code line ────────────────────────────────────────────────────────────────
-
-function CodeLine({ command, comment }: { command: string; comment?: string }) {
-  return (
-    <div className="flex items-center justify-between group bg-zinc-900/50 border border-white/5 rounded-xl p-3 hover:border-white/10 transition-all">
-      <div className="flex items-center gap-3 overflow-hidden">
-        <span className="font-mono text-xs text-zinc-500 shrink-0">$</span>
-        <span className="font-mono text-sm text-zinc-200 truncate">{command}</span>
-        {comment && <span className="font-mono text-xs text-zinc-600 shrink-0 hidden md:block"># {comment}</span>}
-      </div>
-      <CopyButton text={command} />
-    </div>
-  );
-}
-
-// ─── Data ─────────────────────────────────────────────────────────────────────
-
-const COMPARISON = [
-  { tool: "Slither / Mythril", memory: "None", payment: "Free", limit: "Unfiltered false positives" },
-  { tool: "GPT-4 / Claude direct", memory: "Conversation context", payment: "Subscription", limit: "Resets every session" },
-  { tool: "Onchor.ai", memory: "Tridimensional (Cognee)", payment: "x402 USDC pay-per-use", limit: "—", highlight: true },
-];
+// ─── Static data ──────────────────────────────────────────────────────────────
 
 const PHASES = [
-  { id: 1, name: "Resolve", desc: "Detects contract address or local files. Identifies known forks and reduces scope to the diff only." },
-  { id: 2, name: "Inventory", desc: "Structural parse without LLM. Flags delegatecall, unchecked, assembly. Deduplicates findings." },
-  { id: 3, name: "Slither", desc: "Static analysis JSON. On detected fork, only modified files are scanned." },
-  { id: 4, name: "Triage", desc: "claude-haiku-4-5 scores each file 0–10. Score < 3 stops the pipeline safely." },
-  { id: 5, name: "Investigation", desc: "claude-sonnet reads code adversarially with 7 tools, 30 turns, cross-referencing memory patterns.", core: true },
-  { id: 6, name: "Anchor", desc: "JSON report anchored onchain via KeeperHub. Zero HIGH findings mints an ENS certificate." },
-];
-
-const DEMO_LINES: { text: string; cls: string }[] = [
-  { text: "Onchor.ai v0.1.0", cls: "text-zinc-500" },
-  { text: "-----------------------------------------------------", cls: "text-zinc-800" },
-  { text: "[x402]    Paying 0.50 USDC for audit...   ✓ tx: 0x8fa3...", cls: "text-zinc-400" },
-  { text: "[Phase 1] Resolving...          ✓ 1 file (EulerVault.sol)", cls: "text-zinc-300" },
-  { text: "[Phase 2] Inventory...          ✓ 2 flags (delegatecall, unchecked)", cls: "text-zinc-300" },
-  { text: "[Phase 3] Slither...            ✓ 3 findings (1 HIGH, 1 MED, 1 LOW)", cls: "text-zinc-300" },
-  { text: "[Phase 4] Triage...             risk_score: 8.4 / 10", cls: "text-zinc-300" },
-  { text: "[Phase 5] Investigating...", cls: "text-zinc-300" },
-  { text: "  > query_memory('reentrancy external call')", cls: "text-zinc-500" },
-  { text: "  Memory hit: Euler Finance hack (2024-03-15) — $197M", cls: "text-blue-400" },
-  { text: "  Finding CONFIRMED — anchoring onchain now...", cls: "text-zinc-300" },
-  { text: "  ✓ f-001 anchored → 0x7f2e... (KeeperHub)", cls: "text-zinc-300" },
-  { text: "[Phase 6] Verifying anchors... ✓ 2/2 confirmed", cls: "text-zinc-300" },
-  { text: "-----------------------------------------------------", cls: "text-zinc-800" },
-  { text: "VERDICT: HIGH RISK (7.8/10)", cls: "text-zinc-100 font-medium" },
-  { text: "[HIGH] EulerVault.sol:142  Reentrancy — withdraw() external before state", cls: "text-zinc-300" },
-  { text: "[MED]  EulerVault.sol:89   Missing access control — setFeeRecipient()", cls: "text-zinc-400" },
-  { text: "Onchain proof: https://sepolia.etherscan.io/tx/0x3bc4...", cls: "text-zinc-500" },
+  {
+    id: 0,
+    name: "Resolve",
+    desc: "Detects the contract address or local file. Identifies known forks (Uniswap, Aave, OZ) and reduces scope to the diff only.",
+  },
+  {
+    id: 1,
+    name: "Inventory",
+    desc: "Structural parse without LLM. Flags delegatecall, unchecked, assembly. Cross-references known findings via Cognee.",
+  },
+  {
+    id: 2,
+    name: "Slither",
+    desc: "Static analysis JSON output. On detected fork, only modified files are scanned to save tokens and noise.",
+  },
+  {
+    id: 3,
+    name: "Triage",
+    desc: "claude-haiku-4-5 scores each file 0–10. Score below 3 stops the pipeline with a SAFE verdict.",
+  },
+  {
+    id: 4,
+    name: "Investigation",
+    desc: "claude-sonnet reads code adversarially with 7 tools, 30 turns, cross-referencing memory patterns.",
+    core: true,
+  },
+  {
+    id: 5,
+    name: "Anchor",
+    desc: "Direct Execution API verifies and completes anchors. Mints an ENS certificate when zero HIGH findings.",
+  },
 ];
 
 const STACK = [
   { name: "KeeperHub", role: "Onchain anchoring notary" },
   { name: "0G Storage", role: "Decentralized pattern storage" },
-  { name: "ENS", role: "Audit certificates mapping" },
+  { name: "ENS", role: "Audit certificate registry" },
   { name: "x402", role: "HTTP-native USDC payments" },
   { name: "Cognee", role: "Tridimensional memory" },
   { name: "Anthropic", role: "Haiku and Sonnet models" },
 ];
 
+const PRICING = [
+  { scope: "≤ 3 files", price: "0.50", example: "Simple ERC20" },
+  { scope: "≤ 10 files", price: "1.00", example: "Vault + Router" },
+  { scope: "≤ 30 files", price: "2.00", example: "Full DeFi protocol" },
+  { scope: "> 30 files", price: "4.00", example: "Uniswap v4 scale" },
+];
+
+const INSTALL_CMD = "pip install onchor-ai";
+const HERO_BG_ASCII = String.raw`                                                                                                                                                               
+                                                                                                                                                               
+                                                                               .                                                                               
+                                                                              ..::                                                                             
+                                                                             ...:::                                                                            
+                                                                            ....::::                                                                           
+                                                                           .....:::::                                                                          
+                                                                          ......::::::                                                                         
+                                                                        :.......:::::::                                                                        
+                                                                       :........::::::::                                                                       
+                                                                      :.........:::::::::                                                                      
+                                                                     :..........::::::::::                                                                     
+                                                                    ............:::::::::::                                                                    
+                                                                   .............::::::::::::                                                                   
+                                                                  ..............:::::::::::::                                                                  
+                                                                 ...............::::::::::::::                                                                 
+                                                                ................:::::::::::::::                                                                
+                                                               .................::::::::::::::::                                                               
+                                                              ..................::::::::::::::::::                                                             
+                                                             ...................:::::::::::::::::::                                                            
+                                                            ....................:::::::::::::::::::-                                                           
+                                                           .....................:::::::::::::::::::::                                                          
+                                                          ......................:::::::::::::::::::::-                                                         
+                                                        :.......................:::::::::::::::::::::::                                                        
+                                                       -........................::::::::::::::::::::::::                                                       
+                                                      ..........................:::::::::::::::::::::::::                                                      
+                                                     .........................::-:::::::::::::::::::::::::                                                     
+                                                    ......................::::::-----::::::::::::::::::::::                                                    
+                                                   ..................:::::::::::----------::::::::::::::::::                                                   
+                                                  ...............:::::::::::::::--------------:::::::::::::::                                                  
+                                                 ...........::::::::::::::::::::-------------------:::::::::::                                                 
+                                                ........::::::::::::::::::::::::------------------------:::::::                                                
+                                               :...:::::::::::::::::::::::::::::----------------------------::::                                               
+                                              ::::::::::::::::::::::::::::::::::--------------------------------:                                              
+                                                ::::::::::::::::::::::::::::::::-------------------------------                                                
+                                                   :::::::::::::::::::::::::::::----------------------------                                                   
+                                                      ::::::::::::::::::::::::::-------------------------                                                      
+                                              :..        :::::::::::::::::::::::----------------------        :::                                              
+            .                                  :...:        -:::::::::::::::::::-------------------        -::::                                  ::           
+            ...:                                 .....:        -::::::::::::::::----------------        -:::::=                                 ::::           
+            ......                                .......:        ::::::::::::::-------------        -:::::::                                -:::::-           
+            .........                              .........:        -::::::::::----------        -:::::::::                               :::::::::           
+            ...........                              ...........        ::::::::-------        ::::::::::::                             ::::::::::::           
+            ..............                            .............        .::::----        ::::::::::::::                            ::::::::::::::           
+            ................                           ...............        ::-        :::::::::::::::                           :::::::::::::::::           
+            ..................                          :...............:             :::::::::::::::::                          :::::::::::::::::::           
+            ....................:                         .................:        :::::::::::::::::-                         :::::::::::::::::::::           
+            .......................                        ...................:  :::::::::::::::::::-                       -:::::::::::::::::::::::           
+            .........................                       ....................:::::::::::::::::::                       ::::::::::::::::::::::::::           
+            ............................                     :..................::::::::::::::::::                     :::::::::::::::::::::::::::::           
+            ..............................                     .................:::::::::::::::::                    :::::::::::::::::::::::::::::::           
+            ................................                    ................::::::::::::::::                   :::::::::::::::::::::::::::::::::           
+            ..........................:                          ...............::::::::::::::                           :::::::::::::::::::::::::::           
+            ......................:                                .............:::::::::::::                                :::::::::::::::::::::::           
+            .......................:                                ............::::::::::::                                ::::::::::::::::::::::::           
+            .........................                               ............:::::::::::                               ::::::::::::::::::::::::::           
+            ..........................                              ............:::::::::::                              :::::::::::::::::::::::::::           
+            ............................                            ............:::::::::::                            ::::::::::::::::::: :::::::::           
+            .......   :...................                          :...........:::::::::::                          ::::::::::::::::::::   ::::::::           
+            .....      ......................                       ............::::::::::::                      -:::::::::::::::::::::      ::::::           
+            ...          ......................:                   .............::::::::::::-                   :::::::::::::::::::::::          :::           
+                          ........................:              ...............::::::::::::::              :::::::::::::::::::::::::                          
+                           ............................:-    ::.................:::::::::::::::::-    --::::::::::::::::::::::::::::                           
+                             ...................................................:::::::::::::::::::::::::::::::::::::::::::::::::::                            
+                              ..................................................:::::::::::::::::::::::::::::::::::::::::::::::::                              
+                                ................................................:::::::::::::::::::::::::::::::::::::::::::::::                                
+                                  ..............................................::::::::::::::::::::::::::::::::::::::::::::::                                 
+                                    ............................................::::::::::::::::::::::::::::::::::::::::::::                                   
+                                      ..........................................::::::::::::::::::::::::::::::::::::::::::                                     
+                                        :.......................................:::::::::::::::::::::::::::::::::::::::                                        
+                                           .....................................::::::::::::::::::::::::::::::::::::                                           
+                                              :.................................:::::::::::::::::::::::::::::::::                                              
+                                                 ...............................::::::::::::::::::::::::::::::                                                 
+                                                     ...........................::::::::::::::::::::::::::                                                     
+                                                         :......................::::::::::::::::::::::                                                         
+                                                             :..................::::::::::::::::::                                                             
+                                                                ................:::::::::::::::                                                                
+                                                                   .............::::::::::::                                                                   
+                                                                     -..........::::::::::                                                                     
+                                                                        ........::::::::                                                                       
+                                                                         :......::::::                                                                         
+                                                                           .....::::                                                                           
+                                                                             ...:::                                                                            
+                                                                              ..:                                                                              
+                                                                                                                                                               
+                                                                                                                                                               
+                                                                                                                                                               `;
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+function CopyCommand({
+  cmd,
+  className = "",
+  showPrompt = true,
+}: {
+  cmd: string;
+  className?: string;
+  showPrompt?: boolean;
+}) {
+  const [copied, setCopied] = useState(false);
+  function copy() {
+    navigator.clipboard.writeText(cmd);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1800);
+  }
+  return (
+    <div
+      className={[
+        "group inline-flex items-center gap-3 terminal-box rounded-sm pl-3 pr-1 py-1.5 hover:border-[--terminal-brand]/60 transition-colors",
+        className,
+      ].join(" ")}
+    >
+      {showPrompt && <span className="font-mono text-xs text-[--terminal-accent] shrink-0">$</span>}
+      <code className="font-mono text-xs sm:text-sm text-[--terminal-label] truncate">{cmd}</code>
+      <button
+        onClick={copy}
+        aria-label="Copy install command"
+        className="shrink-0 p-1.5 rounded-sm text-[--terminal-muted] hover:text-[--terminal-accent] hover:bg-[--terminal-bg] transition-colors"
+      >
+        {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+      </button>
+    </div>
+  );
+}
+
+function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
+  const router = useRouter();
+  const click = (path: string) => {
+    onNavigate?.();
+    router.push(path);
+  };
+  return (
+    <>
+      <button
+        onClick={() => click("/memory")}
+        className="font-mono text-xs uppercase tracking-[0.18em] text-[--terminal-muted] hover:text-[--terminal-accent] transition-colors"
+      >
+        memory
+      </button>
+      <button
+        onClick={() => click("/history")}
+        className="font-mono text-xs uppercase tracking-[0.18em] text-[--terminal-muted] hover:text-[--terminal-accent] transition-colors"
+      >
+        history
+      </button>
+      <a
+        href="https://github.com/cnm-agency/Onchor-ai"
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={() => onNavigate?.()}
+        className="font-mono text-xs uppercase tracking-[0.18em] text-[--terminal-muted] hover:text-[--terminal-accent] transition-colors flex items-center gap-1"
+      >
+        github <span aria-hidden>↗</span>
+      </a>
+    </>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function HomePage() {
-  const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [activePhaseIndex, setActivePhaseIndex] = useState(0);
-
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const target = e.currentTarget;
-    if (!target.firstElementChild) return;
-    const cardWidth = target.firstElementChild.clientWidth + 16; // width + gap
-    const newIndex = Math.round(target.scrollLeft / cardWidth);
-    if (newIndex !== activePhaseIndex && newIndex >= 0 && newIndex < PHASES.length) {
-      setActivePhaseIndex(newIndex);
-    }
-  };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-zinc-100 relative selection:bg-white/20 font-sans">
+    <div className="min-h-screen bg-[--background] text-[--foreground] relative overflow-x-hidden">
+      {/* Glow brand discret derrière le hero */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-3xl h-[420px] bg-[--terminal-brand] opacity-[0.06] rounded-[100%] blur-[120px] pointer-events-none" />
 
-      {/* Subtle modern background blur */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-3xl h-[400px] bg-white opacity-[0.02] rounded-[100%] blur-[100px] pointer-events-none" />
+      {/* ═════ HEADER — sticky, 3 colonnes égales ══════════════════════════ */}
+      <header className="sticky top-0 z-30 backdrop-blur-md bg-[--background]/80 border-b border-[--terminal-border]">
+        {/* Layout desktop : 3 colonnes flex — brand | install centré | nav */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center">
 
-      {/* Nav */}
-      <nav className="relative z-10 flex items-center justify-between px-6 py-6 max-w-6xl mx-auto">
-        <div className="flex items-center gap-3">
-          <Image src="/OnchorAI-logo.png" alt="Onchor.ai Logo" width={32} height={32} className="rounded-lg" />
-          <span className="font-semibold text-sm tracking-tight">Onchor.ai</span>
-          <span className="text-xs text-zinc-500 bg-white/5 px-2 py-0.5 rounded-full hidden sm:inline-block">v0.1.0</span>
+          {/* Col 1 — brand (gauche) */}
+          <button
+            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+            className="flex items-center gap-2.5 shrink-0"
+          >
+            <Image
+              src="/OnchorAI-logo.png"
+              alt="Onchor.ai"
+              width={26}
+              height={26}
+              className="rounded-sm"
+            />
+            <span className="font-mono text-sm tracking-tight">
+              <span className="text-[--terminal-brand] font-semibold">onchor</span>
+              <span className="text-[--terminal-comment]">.</span>
+              <span className="text-[--terminal-accent]">ai</span>
+            </span>
+            <span className="hidden sm:inline-block text-[10px] uppercase tracking-[0.2em] text-[--terminal-muted] border border-[--terminal-border] px-1.5 py-0.5 rounded-sm">
+              v0.1.0
+            </span>
+          </button>
+
+          {/* Col 2 — install command (centre absolu) */}
+          <div className="hidden md:flex flex-1 justify-center px-4">
+            <CopyCommand cmd={INSTALL_CMD} className="w-full max-w-xs" />
+          </div>
+
+          {/* Col 3 — nav (droite) */}
+          <nav className="hidden md:flex items-center gap-6 ml-auto shrink-0">
+            <NavLinks />
+          </nav>
+
+          {/* Mobile : install compacte + burger */}
+          <div className="flex md:hidden items-center gap-2 ml-auto">
+            <CopyCommand cmd={INSTALL_CMD} className="max-w-[160px]" showPrompt={false} />
+            <button
+              className="text-[--terminal-muted] hover:text-[--terminal-accent] transition-colors p-1"
+              onClick={() => setMenuOpen(!menuOpen)}
+              aria-label="Toggle menu"
+            >
+              {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
+          </div>
         </div>
 
-        {/* Desktop links */}
-        <div className="hidden sm:flex items-center gap-6">
-          <button
-            onClick={() => router.push("/memory")}
-            className="text-sm text-zinc-400 hover:text-zinc-100 transition-colors font-medium"
-          >
-            Memory
-          </button>
-          <button
-            onClick={() => router.push("/history")}
-            className="text-sm text-zinc-400 hover:text-zinc-100 transition-colors font-medium"
-          >
-            Audit History
-          </button>
-          <a
-            href="https://github.com/cnm-agency/Onchor-ai"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-sm text-zinc-400 hover:text-zinc-100 transition-colors font-medium flex items-center gap-1"
-          >
-            GitHub <span className="text-zinc-600">↗</span>
-          </a>
-        </div>
+        {/* Mobile dropdown */}
+        {menuOpen && (
+          <div className="md:hidden border-t border-[--terminal-border] px-4 py-4 flex flex-col gap-4 bg-[--card]">
+            <NavLinks onNavigate={() => setMenuOpen(false)} />
+          </div>
+        )}
+      </header>
 
-        {/* Mobile menu toggle */}
-        <button className="sm:hidden text-zinc-400 hover:text-zinc-100 transition-colors" onClick={() => setMenuOpen(!menuOpen)}>
-          {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-        </button>
-      </nav>
+      <main className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 pt-16 sm:pt-20 pb-32 space-y-28 sm:space-y-32">
 
-      {/* Mobile dropdown */}
-      {menuOpen && (
-        <div className="sm:hidden relative z-20 bg-[#0a0a0a]/95 backdrop-blur-md border-b border-white/5 px-6 py-4 flex flex-col gap-4">
-          <button
-            onClick={() => { router.push("/memory"); setMenuOpen(false); }}
-            className="text-left text-sm text-zinc-300 font-medium w-full"
-          >
-            Memory
-          </button>
-          <button
-            onClick={() => { router.push("/history"); setMenuOpen(false); }}
-            className="text-left text-sm text-zinc-300 font-medium w-full"
-          >
-            Audit History
-          </button>
-          <a
-            href="https://github.com/cnm-agency/Onchor-ai"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-sm text-zinc-300 font-medium flex items-center gap-1"
-            onClick={() => setMenuOpen(false)}
-          >
-            GitHub <span className="text-zinc-600">↗</span>
-          </a>
-        </div>
-      )}
+        {/* ═════ HERO ═════════════════════════════════════════════════════ */}
+        {/*
+          Le <pre> ASCII occupe toute la largeur de la page (overflow visible)
+          et est positionné par rapport au <section> qui déborde de son max-w.
+        */}
+        <section className="text-center max-w-4xl mx-auto flex flex-col items-center relative">
+          {/* ASCII background — overflow intentionnel, whitespace-pre strict */}
+          <div className="pointer-events-none absolute -top-20 left-1/2 -translate-x-1/2 w-screen select-none overflow-hidden" aria-hidden>
+            <pre
+              className="font-mono text-[7px] leading-[0.9] text-[--terminal-brand]/20 whitespace-pre mx-auto"
+              style={{ width: "max-content" }}
+            >
+              {HERO_BG_ASCII}
+            </pre>
+          </div>
 
-      <main className="relative z-10 max-w-6xl mx-auto px-6 pt-24 pb-32 space-y-32">
+          {/* Voile pour garder le texte lisible */}
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[--background]/30 via-[--background]/60 to-[--background]" />
 
-        {/* ── Hero ───────────────────────────────────────────────────────── */}
-        <section className="text-center max-w-4xl mx-auto flex flex-col items-center pt-8 md:pt-12">
-          <div
-            className="animate-fade-in-up inline-flex items-center gap-2 mb-6 md:mb-8 bg-zinc-900/50 backdrop-blur-md border border-white/10 rounded-full px-4 py-1.5 shadow-[0_0_15px_rgba(0,123,255,0.15)]"
-          >
-            <span className="text-xs font-medium text-zinc-300">ETHGlobal Open Agents 2026</span>
+          <div className="animate-fade-in-up inline-flex items-center gap-2 mb-6 sm:mb-8 border border-[--terminal-border] px-3 py-1 rounded-sm">
+            <span className="w-1.5 h-1.5 rounded-full bg-[--terminal-accent] animate-pulse-brand" />
+            <span className="text-[10px] uppercase tracking-[0.25em] font-mono text-[--terminal-muted]">
+              ETHGlobal · Open Agents 2026
+            </span>
           </div>
 
           <h1
-            className="animate-fade-in-up opacity-0 text-4xl sm:text-5xl md:text-7xl font-bold tracking-tight mb-6 md:mb-8 text-balance text-[#0DFC67] leading-[1.1] sm:whitespace-nowrap"
-            style={{ animationDelay: '100ms' }}
+            className="animate-fade-in-up opacity-0 text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6 sm:mb-8 text-balance leading-[1.05]"
+            style={{ animationDelay: "100ms" }}
           >
-            The audit tool that <br className="sm:hidden" /><span className="text-zinc-400">remembers.</span>
+            <span className="text-[--terminal-label]">The audit tool that</span>{" "}
+            <span className="text-[--terminal-brand] glow-brand">remembers.</span>
           </h1>
 
+          <div
+            className="animate-fade-in-up opacity-0 flex flex-col items-center justify-center gap-3 mb-8 sm:mb-10"
+            style={{ animationDelay: "200ms" }}
+          >
+            <CopyCommand cmd={INSTALL_CMD} />
+            <a
+              href="#playground"
+              className="font-mono text-xs uppercase tracking-[0.18em] text-[--terminal-muted] hover:text-[--terminal-accent] transition-colors px-3 py-2"
+            >
+              try the playground ↓
+            </a>
+          </div>
+
           <p
-            className="animate-fade-in-up opacity-0 text-base md:text-lg text-zinc-400 max-w-2xl text-balance mb-10 md:mb-12 leading-relaxed px-4 md:px-0"
-            style={{ animationDelay: '200ms' }}
+            className="animate-fade-in-up opacity-0 text-base sm:text-lg text-[--terminal-muted] max-w-2xl text-balance leading-relaxed font-mono mt-10 sm:mt-14"
+            style={{ animationDelay: "300ms" }}
           >
-            A minimalist CLI agent that cross-references your Solidity against a continuously growing vulnerability database and anchors every confirmed finding onchain.
+            A Solidity security copilot with persistent collective memory.
+            Cross-references your code against thousands of past audits and
+            anchors every confirmed finding onchain.
           </p>
-
-          <div
-            className="animate-fade-in-up opacity-0 w-full max-w-md mx-auto px-4 md:px-0"
-            style={{ animationDelay: '300ms' }}
-          >
-            <CodeLine command="pip install Onchor-ai" />
-          </div>
         </section>
 
-        {/* ── Getting started ─────────────────────────────────────────────── */}
-        <section className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start max-w-5xl mx-auto">
-          <div>
-            <h2 className="text-2xl font-semibold tracking-tight mb-4 text-[#0DFC67]">Quick start</h2>
-            <p className="text-zinc-400 mb-8 leading-relaxed">
-              Initialize your environment, fund your local wallet with USDC, and start auditing smart contracts directly from your terminal.
+        {/* ═════ INTERACTIVE PLAYGROUND ══════════════════════════════════ */}
+        <section
+          id="playground"
+          className="max-w-5xl mx-auto w-full scroll-mt-24"
+        >
+          <div className="text-center mb-6">
+            <span className="text-[10px] uppercase tracking-[0.25em] font-mono text-[--terminal-muted]">
+              live · interactive
+            </span>
+            <h2 className="mt-2 text-2xl sm:text-3xl font-semibold tracking-tight text-[--terminal-label]">
+              Try it in your browser
+            </h2>
+            <p className="mt-3 text-sm text-[--terminal-muted] max-w-xl mx-auto font-mono">
+              <span className="text-[--terminal-comment]">#</span> the same shell
+              you get with{" "}
+              <span className="text-[--terminal-accent]">onchor-ai</span>.
+              type <span className="text-[--terminal-accent]">help</span>,{" "}
+              <span className="text-[--terminal-accent]">audit</span> or{" "}
+              <span className="text-[--terminal-accent]">memory</span>.
             </p>
-            <div className="space-y-4">
-              <div className="p-5 bg-zinc-900/40 border border-white/5 rounded-3xl">
-                <h3 className="text-sm font-medium mb-3 text-[#0DFC67]">1. Install</h3>
-                <CodeLine command="pip install Onchor-ai" />
-              </div>
-              <div className="p-5 bg-zinc-900/40 border border-white/5 rounded-3xl">
-                <h3 className="text-sm font-medium mb-3 text-[#0DFC67]">2. Initialize</h3>
-                <CodeLine command="Onchor-ai init" />
-              </div>
-              <div className="p-5 bg-zinc-900/40 border border-white/5 rounded-3xl">
-                <h3 className="text-sm font-medium mb-3 text-[#0DFC67]">3. Audit</h3>
-                <CodeLine command="Onchor-ai audit ./src/" />
-              </div>
-            </div>
           </div>
 
-          <div className="bg-[#0f0f11] border border-white/10 rounded-[2rem] p-6 lg:p-8 overflow-hidden shadow-2xl relative">
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
-            <div className="flex items-center gap-2 mb-6">
-              <div className="w-3 h-3 rounded-full bg-zinc-800" />
-              <div className="w-3 h-3 rounded-full bg-zinc-800" />
-              <div className="w-3 h-3 rounded-full bg-zinc-800" />
-              <span className="text-xs text-zinc-600 font-mono ml-2">Onchor-ai audit</span>
-            </div>
-            <div className="space-y-1.5 overflow-x-auto pb-2 whitespace-nowrap">
-              {DEMO_LINES.map((line, i) => (
-                <div key={i} className={`font-mono text-xs leading-relaxed ${line.cls}`}>
-                  {line.text}
-                </div>
-              ))}
-              <div className="flex items-center gap-1 mt-4">
-                <span className="font-mono text-xs text-zinc-500">$</span>
-                <span className="w-2 h-3 bg-zinc-400 animate-pulse inline-block" />
-              </div>
-            </div>
-          </div>
+          <TerminalWindow title="onchor-ai" live className="h-[480px] sm:h-[520px]" bodyClassName="p-0">
+            <Shell />
+          </TerminalWindow>
         </section>
 
-
-
-        {/* ── Pipeline ───────────────────────────────────────────────────── */}
+        {/* ═════ HOW IT WORKS — 6 phases ═══════════════════════════════════ */}
         <section className="max-w-5xl mx-auto w-full">
-          <h2 className="text-2xl font-semibold tracking-tight mb-8 text-center text-[#0DFC67]">How it works</h2>
-          <div
-            className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 px-6 md:px-0 md:grid md:grid-cols-2 lg:grid-cols-3 md:overflow-visible md:pb-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
-            onScroll={handleScroll}
-          >
+          <div className="text-center mb-10">
+            <span className="text-[10px] uppercase tracking-[0.25em] font-mono text-[--terminal-muted]">
+              architecture
+            </span>
+            <h2 className="mt-2 text-2xl sm:text-3xl font-semibold tracking-tight text-[--terminal-label]">
+              How it works
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             {PHASES.map((phase) => (
-              <div key={phase.id} className="snap-center shrink-0 w-[85vw] sm:w-[350px] md:w-auto bg-zinc-900/30 border border-white/5 p-8 rounded-[2rem] hover:bg-zinc-900/50 transition-colors flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-lg font-medium text-zinc-200">{phase.name}</span>
-                    <span className="text-xs font-mono text-zinc-500 bg-white/5 px-2.5 py-1 rounded-lg flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-zinc-500" />
-                      Step {phase.id}
-                    </span>
-                  </div>
-                  <p className="text-sm text-zinc-400 leading-relaxed">{phase.desc}</p>
+              <div
+                key={phase.id}
+                className="terminal-box rounded-sm p-5 hover:border-[--terminal-brand]/60 transition-colors flex flex-col"
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <span className="font-mono text-sm font-semibold text-[--terminal-label]">
+                    {phase.name}
+                  </span>
+                  <span className="text-[10px] font-mono text-[--terminal-muted] border border-[--terminal-border] px-2 py-0.5 rounded-sm flex items-center gap-1.5">
+                    <span className="w-1 h-1 rounded-full bg-[--terminal-brand]" />
+                    phase.{phase.id}
+                  </span>
                 </div>
+                <p className="text-sm text-[--terminal-muted] leading-relaxed font-mono">
+                  {phase.desc}
+                </p>
                 {phase.core && (
-                  <div className="mt-6 self-start inline-flex items-center gap-2 text-xs font-medium bg-zinc-200 text-zinc-900 px-3 py-1.5 rounded-lg">
-                    <span className="w-1.5 h-1.5 rounded-full bg-zinc-900 animate-pulse" />
-                    Core execution
+                  <div className="mt-4 self-start inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] font-mono bg-[--terminal-brand] text-[--background] px-2.5 py-1 rounded-sm">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[--background] animate-pulse" />
+                    core execution
                   </div>
                 )}
               </div>
             ))}
           </div>
-          {/* Mobile pagination dots */}
-          <div className="flex justify-center gap-2 mt-4 md:hidden">
-            {PHASES.map((_, i) => (
-              <div
-                key={i}
-                className={`w-1.5 h-1.5 rounded-full transition-colors duration-300 ${i === activePhaseIndex ? "bg-[#0DFC67] w-3" : "bg-zinc-700"}`}
-              />
-            ))}
-          </div>
         </section>
 
-        {/* ── Stack ──────────────────────────────────────────────────────── */}
-        <section className="text-center w-full mx-auto overflow-hidden">
-          <h2 className="text-2xl font-semibold tracking-tight mb-8 text-[#0DFC67]">Built with modern primitives</h2>
+        {/* ═════ STACK ════════════════════════════════════════════════════ */}
+        <section className="max-w-5xl mx-auto w-full text-center">
+          <div className="mb-10">
+            <span className="text-[10px] uppercase tracking-[0.25em] font-mono text-[--terminal-muted]">
+              built with
+            </span>
+            <h2 className="mt-2 text-2xl sm:text-3xl font-semibold tracking-tight text-[--terminal-label]">
+              Modern primitives
+            </h2>
+          </div>
 
-          {/* Desktop View: Centered wrapped pills */}
-          <div className="hidden md:flex flex-wrap justify-center gap-3 max-w-5xl mx-auto">
+          <div className="flex flex-wrap justify-center gap-2.5">
             {STACK.map((s) => (
-              <div key={s.name} className="bg-zinc-900/40 border border-white/5 px-5 py-3.5 rounded-full flex items-center gap-3">
-                <span className="font-medium text-sm text-zinc-200">{s.name}</span>
-                <span className="w-1 h-1 rounded-full bg-zinc-700 shrink-0" />
-                <span className="text-sm text-zinc-500 whitespace-nowrap">{s.role}</span>
+              <div
+                key={s.name}
+                className="terminal-box px-4 py-2.5 rounded-sm flex items-center gap-3"
+              >
+                <span className="font-mono text-xs text-[--terminal-brand]">{s.name}</span>
+                <span className="text-[--terminal-comment]">::</span>
+                <span className="font-mono text-xs text-[--terminal-muted] whitespace-nowrap">
+                  {s.role}
+                </span>
               </div>
             ))}
           </div>
-
-          {/* Mobile View: Two-line marquee */}
-          <div className="md:hidden flex flex-col gap-3 w-full relative">
-            {/* Gradient masks for smooth fading edges */}
-            <div className="absolute inset-y-0 left-0 w-12 bg-gradient-to-r from-[#0a0a0a] to-transparent z-10 pointer-events-none" />
-            <div className="absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-[#0a0a0a] to-transparent z-10 pointer-events-none" />
-
-            {/* Line 1: Marquee Right */}
-            <div className="flex w-max animate-marquee-right gap-3">
-              {[...STACK, ...STACK, ...STACK, ...STACK].map((s, i) => (
-                <div key={`l1-${i}`} className="shrink-0 bg-zinc-900/40 border border-white/5 px-5 py-3.5 rounded-full flex items-center gap-3">
-                  <span className="font-medium text-sm text-zinc-200">{s.name}</span>
-                  <span className="w-1 h-1 rounded-full bg-zinc-700 shrink-0" />
-                  <span className="text-sm text-zinc-500 whitespace-nowrap">{s.role}</span>
-                </div>
-              ))}
-            </div>
-
-            {/* Line 2: Marquee Left */}
-            <div className="flex w-max animate-marquee-left gap-3">
-              {[...[...STACK].reverse(), ...[...STACK].reverse(), ...[...STACK].reverse(), ...[...STACK].reverse()].map((s, i) => (
-                <div key={`l2-${i}`} className="shrink-0 bg-zinc-900/40 border border-white/5 px-5 py-3.5 rounded-full flex items-center gap-3">
-                  <span className="font-medium text-sm text-zinc-200">{s.name}</span>
-                  <span className="w-1 h-1 rounded-full bg-zinc-700 shrink-0" />
-                  <span className="text-sm text-zinc-500 whitespace-nowrap">{s.role}</span>
-                </div>
-              ))}
-            </div>
-          </div>
         </section>
 
-        {/* ── Pricing ────────────────────────────────────────────────────── */}
-        <section className="max-w-4xl mx-auto w-full px-4 md:px-0">
-          <div className="bg-zinc-900/30 border border-white/5 rounded-[2rem] md:rounded-[2.5rem] p-6 sm:p-8 md:p-14 text-center">
-            <h2 className="text-2xl font-semibold tracking-tight mb-4 text-[#0DFC67]">Simple pricing</h2>
-            <p className="text-zinc-400 mb-8 md:mb-10 max-w-lg mx-auto text-sm md:text-base">Pay per use via HTTP-native USDC. No API keys required.</p>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-8">
-              {[
-                { scope: "≤ 3 files", price: "0.50", example: "Simple ERC20" },
-                { scope: "≤ 10 files", price: "1.00", example: "Vault + Router" },
-                { scope: "≤ 30 files", price: "2.00", example: "Full DeFi protocol" },
-                { scope: "> 30 files", price: "4.00", example: "Uniswap v4 scale" },
-              ].map((tier) => (
+        {/* ═════ PRICING ══════════════════════════════════════════════════ */}
+        <section className="max-w-4xl mx-auto w-full">
+          <TerminalWindow title="onchor-ai pricing">
+            <div className="text-center mb-8">
+              <span className="text-[10px] uppercase tracking-[0.25em] font-mono text-[--terminal-muted]">
+                x402 · base-sepolia
+              </span>
+              <h2 className="mt-2 text-xl sm:text-2xl font-semibold tracking-tight text-[--terminal-label]">
+                Simple pricing
+              </h2>
+              <p className="mt-2 text-sm text-[--terminal-muted] font-mono">
+                <span className="text-[--terminal-comment]">#</span> pay per use
+                via HTTP-native USDC. no API keys required.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+              {PRICING.map((tier) => (
                 <div
                   key={tier.scope}
-                  className={`relative bg-zinc-900/40 border rounded-2xl md:rounded-3xl p-4 md:p-6 text-center flex flex-col justify-center transition-transform hover:-translate-y-1 border-white/5`}
+                  className="terminal-box rounded-sm p-4 text-center flex flex-col justify-center transition-colors hover:border-[--terminal-brand]/70"
                 >
-
-                  <div className="text-xl md:text-2xl font-semibold text-zinc-100 mb-1 md:mb-2">${tier.price}</div>
-                  <div className="text-xs md:text-sm font-medium text-zinc-400 mb-1 md:mb-2">{tier.scope}</div>
-                  <div className="text-[10px] md:text-xs text-zinc-600 leading-tight">{tier.example}</div>
+                  <div className="text-xl md:text-2xl font-semibold text-[--terminal-accent] font-mono mb-1">
+                    ${tier.price}
+                  </div>
+                  <div className="text-[11px] md:text-xs font-mono text-[--terminal-label] mb-1">
+                    {tier.scope}
+                  </div>
+                  <div className="text-[10px] md:text-[11px] font-mono text-[--terminal-comment] leading-tight">
+                    {tier.example}
+                  </div>
                 </div>
               ))}
             </div>
-            <p className="text-xs md:text-sm text-zinc-500 max-w-xs mx-auto md:max-w-none">
-              Run free without anchoring using the <span className="font-mono bg-white/5 px-1.5 md:px-2 py-0.5 md:py-1 rounded-md text-zinc-300">--local</span> flag.
+
+            <p className="text-xs sm:text-sm text-[--terminal-muted] text-center font-mono">
+              Run free without anchoring with the{" "}
+              <span className="border border-[--terminal-border] px-1.5 py-0.5 rounded-sm text-[--terminal-accent]">
+                --local
+              </span>{" "}
+              flag.
             </p>
-          </div>
+          </TerminalWindow>
         </section>
 
       </main>
 
-      {/* Footer */}
-      <footer className="relative z-10 border-t border-white/5 px-6 py-8 mt-12">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 text-center md:text-left">
-          <span className="text-sm text-zinc-500">Marius · Cyriac · Nohem — CNM Agency</span>
-          <span className="text-sm text-zinc-500">ETHGlobal Open Agents 2026</span>
+      {/* ═════ FOOTER ═══════════════════════════════════════════════════════ */}
+      <footer className="relative z-10 border-t border-[--terminal-border] px-4 sm:px-6 py-6">
+        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
+          <span className="text-xs font-mono text-[--terminal-muted]">
+            <span className="text-[--terminal-comment]">#</span> Marius · Cyriac · Nohem — CNM Agency
+          </span>
+          <span className="text-xs font-mono text-[--terminal-muted]">
+            <span className="text-[--terminal-comment]">#</span> ETHGlobal Open Agents 2026
+          </span>
         </div>
       </footer>
-
     </div>
   );
 }
