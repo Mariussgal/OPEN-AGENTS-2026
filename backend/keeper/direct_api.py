@@ -83,10 +83,10 @@ async def anchor_contribution(
             
             if tx_hash:
                 logger.info(f"✅ Vrai transfert USDC effectué ! TX: {tx_hash}")
+                return tx_hash
             else:
                 logger.warning("⚠️ Facilitateur a répondu OK mais sans hash de transaction.")
-                
-            return tx_hash or "anchored_only"
+                return "payment_failed"
 
     except Exception as e:
         logger.error(f"❌ Erreur x402 : {e}")

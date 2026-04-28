@@ -323,8 +323,8 @@ async def send_reward(contributor_address: str, amount: float):
     """
     print(f"💰 Requête de récompense reçue : {amount} USDC pour {contributor_address}")
     # On simule un pattern_hash et root_hash pour l'appel (car le paiement est lié à l'ancrage)
-    # On arrondit pour éviter les erreurs de précision flottante (ex: 0.15000000000000002)
-    clean_amount = round(amount, 2)
+    # Forcer 2 décimales pour éviter le 0.15000000000000002
+    clean_amount = round(float(amount), 2)
     dummy_hash   = "0x" + hashlib.sha256(contributor_address.encode()).hexdigest()
     tx_hash      = await anchor_contribution(dummy_hash, dummy_hash, contributor_address, amount_usdc=clean_amount)
     
