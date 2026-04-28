@@ -6,3 +6,4 @@ payments
 pipeline
 server
 storage
+ui

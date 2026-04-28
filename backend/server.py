@@ -327,9 +327,33 @@ async def send_reward(contributor_address: str, amount: float):
     clean_amount = round(float(amount), 2)
     dummy_hash   = "0x" + hashlib.sha256(contributor_address.encode()).hexdigest()
     tx_hash      = await anchor_contribution(dummy_hash, dummy_hash, contributor_address, amount_usdc=clean_amount)
-    if tx_hash in ["payment_failed", "error"]:
-        raise HTTPException(status_code=500, detail="Échec du transfert USDC.")
+
+    
+    if tx_hash in ["payment_failed", "error", "no_gas"]:
+        detail = "Échec du transfert USDC."
+        if tx_hash == "no_gas":
+            detail = "Wallet serveur sans ETH — rechargez-le via faucet Base Sepolia"
+        raise HTTPException(status_code=500, detail=detail)
+        
     return {"status": "success", "tx": tx_hash}
+
+
+
+@app.get("/user/balance")
+async def get_user_balance(address: str):
+    """Récupère le solde USDC réel on-chain pour une adresse donnée."""
+    from web3 import Web3
+    try:
+        w3 = Web3(Web3.HTTPProvider("https://sepolia.base.org"))
+        USDC_ADDRESS = "0x036CbD53842c5426634e7929541eC2318f3dCF7e"
+        abi = [{"constant": True, "inputs": [{"name": "_owner", "type": "address"}],
+                "name": "balanceOf", "outputs": [{"name": "balance", "type": "uint256"}],
+                "type": "function"}]
+        contract = w3.eth.contract(address=USDC_ADDRESS, abi=abi)
+        raw = contract.functions.balanceOf(Web3.to_checksum_address(address)).call()
+        return {"balance": raw / 1_000_000}
+    except Exception as e:
+        return {"balance": 0.0, "error": str(e)}
 
 
 @app.get("/wallet")

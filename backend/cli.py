@@ -10,6 +10,9 @@ import json
 import os
 from typing import Any
 
+from dotenv import load_dotenv
+load_dotenv()
+
 import click
 import httpx
 from rich.panel import Panel
@@ -96,17 +99,30 @@ def init() -> None:
 
 @cli.command()
 def status() -> None:
-    """Affiche la configuration et le solde courant."""
+    """Affiche la configuration et le solde courant (réel)."""
     section("Status")
     cfg = load_config()
+    
+    # Récupération du solde réel via le serveur
+    address = os.getenv("RECEIVER_ADDRESS")
+    real_balance = 0.0
+    if address:
+        try:
+            with httpx.Client(timeout=10.0) as client:
+                resp = client.get(f"{API_URL}/user/balance", params={"address": address})
+                real_balance = resp.json().get("balance", 0.0)
+        except Exception:
+            real_balance = cfg.get("credit_usdc", 0.0) # Fallback
+
     console.print(
         kv_panel(
             "Profil Onchor.ai",
             {
-                "Version":   cfg.get("version", "?"),
-                "Mode":      cfg.get("mode", "?"),
-                "Solde USDC": f"{cfg.get('credit_usdc', 0.0):.2f}",
-                "API URL":   API_URL,
+                "Version": cfg.get("version", "?"),
+                "Mode": cfg.get("mode", "?"),
+                "Solde USDC (Réel)": f"{real_balance:.2f} USDC",
+                "Adresse Wallet": address or "Non configurée",
+                "API URL": API_URL,
             },
         )
     )
@@ -123,8 +139,17 @@ def audit(path: str, local: bool, dev: bool) -> None:
 
     mode_label = "DEV" if dev else ("LOCAL" if local else "PAID")
     info(f"Mode : [accent]{mode_label}[/accent]")
-    if not (local or dev) and user_config["credit_usdc"] > 0:
-        info(f"Solde disponible : [accent]{user_config['credit_usdc']:.2f} USDC[/accent]")
+    
+    # Récupération du solde réel pour l'affichage
+    address = os.getenv("RECEIVER_ADDRESS")
+    if not (local or dev) and address:
+        try:
+            with httpx.Client(timeout=10.0) as client:
+                resp = client.get(f"{API_URL}/user/balance", params={"address": address})
+                real_balance = resp.json().get("balance", 0.0)
+                info(f"Solde disponible : [accent]{real_balance:.2f} USDC[/accent]")
+        except Exception:
+            pass
 
     try:
         if local or dev:

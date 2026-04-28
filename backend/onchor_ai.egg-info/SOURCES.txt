@@ -1,10 +1,17 @@
 cli.py
 pyproject.toml
 server.py
+ui.py
 keeper/__init__.py
+keeper/direct_api.py
+keeper/mcp_tools.py
+keeper/test_keeperhub.py
 keeper/workflow.py
 memory/__init__.py
+memory/cognee_client.py
 memory/cognee_setup.py
+memory/normalizer.py
+memory/privacy_guard.py
 onchor_ai.egg-info/PKG-INFO
 onchor_ai.egg-info/SOURCES.txt
 onchor_ai.egg-info/dependency_links.txt
@@ -19,6 +26,8 @@ pipeline/__init__.py
 pipeline/phase1_inventory.py
 pipeline/phase2_slither.py
 pipeline/phase3_triage.py
+pipeline/phase4_agent.py
+pipeline/phase5_anchor.py
 pipeline/phase_resolve.py
 storage/__init__.py
 storage/og_client.py
