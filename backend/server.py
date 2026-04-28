@@ -22,6 +22,7 @@ from pipeline.phase1_inventory import run_inventory
 from pipeline.phase2_slither import run_slither
 from pipeline.phase3_triage import run_triage
 from pipeline.phase4_agent import run_investigation
+from pipeline.phase5_anchor import run_phase5_anchor
 from payments.x402_pricing import calculate_price
 
 load_dotenv()
@@ -238,6 +239,10 @@ async def run_audit(
     triage_data          = await run_triage(slither_data, inventory_data)
     investigation_data   = await run_investigation(scope, slither_data, inventory_data, triage_data)
 
+    # Phase 5 : Ancrage de sécurité (filet de sécurité)
+    anchored_findings = await run_phase5_anchor(investigation_data.get("findings", []))
+    investigation_data["findings"] = anchored_findings
+
     # Sauvegarder l'audit pour l'historique frontend
     audit_record = {
         "id":         str(uuid.uuid4()),
@@ -246,13 +251,14 @@ async def run_audit(
             "kind":  "address" if path.startswith("0x") else "path",
             "value": os.path.basename(path) if not path.startswith("0x") else path,
         },
-        "mode":       "paid",
-        "price_paid": price_usd,
-        "triage":       triage_data,
-        "slither":      slither_data,
-        "inventory":    inventory_data,
+        "mode":          "paid",
+        "price_paid":    price_usd,
+        "triage":        triage_data,
+        "slither":       slither_data,
+        "inventory":     inventory_data,
         "investigation": investigation_data,
-        "scope":        {"files_found": nb_files, "is_onchain": scope.is_onchain},
+        "anchored_count": len([f for f in anchored_findings if f.get("tx_hash")]),
+        "scope":         {"files_found": nb_files, "is_onchain": scope.is_onchain},
     }
     _save_audit(audit_record)
 
@@ -291,6 +297,10 @@ async def run_audit_local(path: str):
     triage_data          = await run_triage(slither_data, inventory_data)
     investigation_data   = await run_investigation(scope, slither_data, inventory_data, triage_data)
 
+    # Phase 5 : Security anchoring (safety net)
+    anchored_findings = await run_phase5_anchor(investigation_data.get("findings", []))
+    investigation_data["findings"] = anchored_findings
+
     return {
         "status": "success",
         "scope": {
@@ -301,6 +311,7 @@ async def run_audit_local(path: str):
         "slither": slither_data,
         "triage": triage_data,
         "investigation": investigation_data,
+        "anchored_count": len([f for f in anchored_findings if f.get("tx_hash")]),
     }
 
 
