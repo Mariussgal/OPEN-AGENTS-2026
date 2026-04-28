@@ -55,7 +55,7 @@ def _sign_eip3009(
             "value":       int(amount),
             "validAfter":  valid_after,
             "validBefore": valid_before,
-            "nonce":       nonce_bytes,
+            "nonce":       nonce_hex,
         },
     )
 
@@ -91,7 +91,7 @@ def sign_server_reward(contributor_address: str, amount_usdc: float = 0.15) -> d
         private_key=private_key,
         asset_address=USDC_ADDRESS,
         token_name="USD Coin",
-        token_version="2",
+        token_version="USDC",
         chain_id=CHAIN_ID,
         pay_to=contributor_address,
         amount=amount_atomic,
