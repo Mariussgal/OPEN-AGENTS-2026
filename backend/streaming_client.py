@@ -80,8 +80,6 @@ def _summary_for_done(event: dict[str, Any]) -> str:
         bits = [f"{n} finding(s)"]
         if turns is not None:
             bits.append(f"{turns} turn(s)")
-        if model:
-            bits.append(model.split("/")[-1])
         return "  ·  ".join(bits)
 
     if phase == "anchor":

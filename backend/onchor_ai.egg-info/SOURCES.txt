@@ -1,6 +1,7 @@
 cli.py
 pyproject.toml
 server.py
+streaming_client.py
 ui.py
 keeper/__init__.py
 keeper/direct_api.py
@@ -28,6 +29,9 @@ pipeline/phase2_slither.py
 pipeline/phase3_triage.py
 pipeline/phase4_agent.py
 pipeline/phase5_anchor.py
+pipeline/phase6_report.py
 pipeline/phase_resolve.py
+pipeline/phases.py
+pipeline/streaming.py
 storage/__init__.py
 storage/og_client.py

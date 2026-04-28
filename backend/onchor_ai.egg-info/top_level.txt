@@ -6,4 +6,5 @@ payments
 pipeline
 server
 storage
+streaming_client
 ui

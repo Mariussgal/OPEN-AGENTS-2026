@@ -105,7 +105,7 @@ async def stream_audit_pipeline(
 
     # ── Phase 3 — Triage ─────────────────────────────────────────────────────
     yield _emit({"phase": "triage", "status": "start",
-                 "msg": "Cost-gate triage (claude-haiku-4-5)..."})
+                 "msg": "Cost-gate triage..."})
     triage_data = await run_triage(slither_data, inventory_data)
     yield _emit({
         "phase":      "triage",
@@ -116,7 +116,7 @@ async def stream_audit_pipeline(
 
     # ── Phase 4 — Investigate (adversarial agent) ────────────────────────────
     yield _emit({"phase": "investigate", "status": "start",
-                 "msg": "Spawning adversarial agent (claude-sonnet-4-5, 7 tools)..."})
+                 "msg": "Spawning adversarial agent (7 tools)..."})
     investigation_data = await run_investigation(scope, slither_data, inventory_data, triage_data)
     yield _emit({
         "phase":          "investigate",

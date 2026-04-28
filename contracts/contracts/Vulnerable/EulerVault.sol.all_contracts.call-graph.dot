@@ -8,9 +8,9 @@ label = "EulerVault"
 "94_withdraw" [label="withdraw"]
 }subgraph cluster_solidity {
 label = "[Solidity]"
-"require(bool,string)" 
 "balance(address)" 
-"94_withdraw" -> "require(bool,string)"
+"require(bool,string)" 
 "94_getBalance" -> "balance(address)"
+"94_withdraw" -> "require(bool,string)"
 }
 }

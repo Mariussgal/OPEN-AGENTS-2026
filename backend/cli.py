@@ -466,7 +466,7 @@ def _handle_optional_contribution(findings: list[dict], user_config: dict[str, A
         user_config["credit_usdc"] += reward
         save_config(user_config)
 
-        success(f"{reward_count} pattern(s) payé(s) on-chain.")
+        success(f"{payable_count} pattern(s) payé(s) on-chain.")
         
         real_balance = user_config["credit_usdc"]
         try:
@@ -480,7 +480,7 @@ def _handle_optional_contribution(findings: list[dict], user_config: dict[str, A
             kv_panel(
                 "Récompense",
                 {
-                    "Patterns payés": str(reward_count),
+                    "Patterns payés": str(payable_count),
                     "TX hash":        tx_hash or "—",
                     "Nouveau solde":  f"{real_balance:.2f} USDC",
                 },
