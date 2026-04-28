@@ -1,127 +1,241 @@
-import click
-import httpx
+"""
+Onchor.ai — CLI.
+
+UX terminal construite sur `click` + `rich` pour un rendu propre :
+logo ASCII, panels de verdict, tableau des findings, spinners pendant l'audit.
+"""
+
+import asyncio
 import json
 import os
-import asyncio
+from typing import Any
+
+import click
+import httpx
+
+from ui import (
+    console,
+    error,
+    findings_table,
+    info,
+    kv_panel,
+    section,
+    show_banner,
+    success,
+    verdict_panel,
+    warn,
+)
 
 API_URL = "http://localhost:8000"
+CONFIG_DIR = ".onchor"
+CONFIG_PATH = os.path.join(CONFIG_DIR, "config.json")
 
-def load_config():
+
+# ─── Config helpers ────────────────────────────────────────────────────────────
+def load_config() -> dict[str, Any]:
     """Charge la configuration et le solde de l'utilisateur."""
-    if os.path.exists(".onchor/config.json"):
-        with open(".onchor/config.json", "r") as f:
+    if os.path.exists(CONFIG_PATH):
+        with open(CONFIG_PATH, "r") as f:
             config = json.load(f)
-            # S'assure que le champ crédit existe pour les anciens fichiers
-            if "credit_usdc" not in config:
-                config["credit_usdc"] = 0.0
+            config.setdefault("credit_usdc", 0.0)
             return config
     return {"version": "0.1.0", "mode": "local", "credit_usdc": 0.0}
 
-def save_config(config):
+
+def save_config(config: dict[str, Any]) -> None:
     """Sauvegarde la configuration et le nouveau solde."""
-    os.makedirs(".onchor", exist_ok=True)
-    with open(".onchor/config.json", "w") as f:
+    os.makedirs(CONFIG_DIR, exist_ok=True)
+    with open(CONFIG_PATH, "w") as f:
         json.dump(config, f, indent=2)
 
-@click.group()
-def cli():
-    """
-    ONCHOR.AI 🛡️
-    Solidity Security Copilot with Persistent Collective Memory.
-    """
-    pass
+
+# ─── CLI ───────────────────────────────────────────────────────────────────────
+@click.group(invoke_without_command=True)
+@click.option("--no-banner", is_flag=True, help="Masque la bannière de démarrage.")
+@click.option(
+    "--icon-size",
+    type=click.Choice(["none", "small", "medium", "large"], case_sensitive=False),
+    default="medium",
+    show_default=True,
+    help="Taille du logo iconique (Onchor seal).",
+)
+@click.option("--minimal", is_flag=True, help="Alias de --icon-size none (banner sans icône).")
+@click.pass_context
+def cli(ctx: click.Context, no_banner: bool, icon_size: str, minimal: bool) -> None:
+    """Onchor.ai — Solidity Security Copilot with Persistent Collective Memory."""
+    if not no_banner:
+        size = "none" if minimal else icon_size.lower()
+        show_banner(icon_size=size)
+
+    if ctx.invoked_subcommand is None:
+        console.print()
+        info("Tape [accent]onchor-ai --help[/accent] pour voir les commandes disponibles.")
+        console.print(
+            kv_panel(
+                "Commandes disponibles",
+                {
+                    "onchor-ai init": "Initialise le projet (crée .onchor/config.json)",
+                    "onchor-ai audit <path>": "Audit d'un fichier, dossier ou adresse 0x",
+                    "onchor-ai status": "Affiche la configuration et le solde",
+                },
+            )
+        )
+
 
 @cli.command()
-def init():
+def init() -> None:
     """Initialise le dossier de configuration Onchor.ai."""
-    if not os.path.exists(".onchor"):
+    section("Initialisation")
+    if not os.path.exists(CONFIG_DIR):
         save_config({"version": "0.1.0", "mode": "local", "credit_usdc": 0.0})
-        click.secho("🚀 Projet initialisé. Dossier .onchor créé.", fg="green")
+        success(f"Projet initialisé — dossier [accent]{CONFIG_DIR}/[/accent] créé.")
     else:
-        click.echo("Le projet est déjà initialisé.")
+        warn(f"Le dossier [accent]{CONFIG_DIR}/[/accent] existe déjà — rien à faire.")
+
 
 @cli.command()
-@click.argument('path')
-@click.option('--local', is_flag=True, help='Mode local, sans paiement.')
-@click.option('--dev',   is_flag=True, help='Mode dev, bypass total.')
-def audit(path, local, dev):
+def status() -> None:
+    """Affiche la configuration et le solde courant."""
+    section("Status")
+    cfg = load_config()
+    console.print(
+        kv_panel(
+            "Profil Onchor.ai",
+            {
+                "Version": cfg.get("version", "?"),
+                "Mode": cfg.get("mode", "?"),
+                "Solde USDC": f"{cfg.get('credit_usdc', 0.0):.2f}",
+                "API URL": API_URL,
+            },
+        )
+    )
+
+
+@cli.command()
+@click.argument("path")
+@click.option("--local", is_flag=True, help="Mode local — gratuit, pas de paiement.")
+@click.option("--dev", is_flag=True, help="Mode dev — bypass total (x402, anchor, paid memory).")
+def audit(path: str, local: bool, dev: bool) -> None:
     """Lance un audit sur un fichier, un répertoire ou une adresse 0x."""
-    click.secho(f"\n[Onchor.ai] Audit : {path}", fg="blue", bold=True)
-    
-    # On charge le profil utilisateur (pour avoir son solde actuel)
+    section(f"Audit · {path}")
     user_config = load_config()
+
+    mode_label = "DEV" if dev else ("LOCAL" if local else "PAID")
+    info(f"Mode : [accent]{mode_label}[/accent]")
+    if not (local or dev) and user_config["credit_usdc"] > 0:
+        info(f"Solde disponible : [accent]{user_config['credit_usdc']:.2f} USDC[/accent]")
 
     try:
         if local or dev:
-            # ── Free tier ──────────────────────────────────────────────────
-            click.secho(f"ℹ️  Mode {'DEV' if dev else 'LOCAL'} — gratuit", fg="cyan")
-            with httpx.Client(timeout=120.0) as client:
-                resp = client.post(f"{API_URL}/audit/local", params={"path": path})
-                resp.raise_for_status()
-                data = resp.json()
+            with console.status("[brand]Analyse en cours…[/brand]", spinner="dots"):
+                with httpx.Client(timeout=120.0) as client:
+                    resp = client.post(f"{API_URL}/audit/local", params={"path": path})
+                    resp.raise_for_status()
+                    data = resp.json()
         else:
-            # ── Paid tier ────────────────────────────────────────
+            # Mode PAID : le client x402 demande une confirmation interactive
+            # → pas de spinner Rich (il mangerait le prompt). Le client trace
+            # déjà sa progression via click.secho.
             from payments.x402_client import run_paid_audit
-            # Affichage du solde disponible avant l'audit
-            if user_config["credit_usdc"] > 0:
-                click.secho(f"💳 Solde disponible : {user_config['credit_usdc']:.2f} USDC", fg="cyan")
-                
             data = asyncio.run(run_paid_audit(API_URL, path))
 
-        click.secho("\n✅ Audit terminé.", fg="green", bold=True)
-        click.echo(json.dumps(data, indent=2, ensure_ascii=False))
+        success("Audit terminé.")
+        _render_audit_result(data)
 
-        # --- Étape 8 - Opt-in Contribution (100% Réel et Économiquement viable) ---
-        investigation = data.get("investigation", {})
-        findings = investigation.get("findings", [])
-        if not findings:
-            findings = data.get("slither", {}).get("findings", [])
+        # ── Opt-in contribution (paid uniquement) ──────────────────────────────
+        investigation = data.get("investigation", {}) or {}
+        findings = investigation.get("findings") or data.get("slither", {}).get("findings", []) or []
 
         if findings and not local and not dev:
-            click.secho(f"\n🌟 {len(findings)} vulnérabilité(s) identifiée(s) lors de cet audit.", fg="yellow")
-            opt_in = click.confirm(
-                "Voulez-vous partager ces patterns de façon ANONYME à la mémoire collective ?\n"
-                "🎁 Récompense : Vous gagnerez 0.05 USDC par pattern validé."
-            )
-            
-            if opt_in:
-                # --- PROTECTION ECONOMIQUE ---
-                # On ne récompense que les 3 vulnérabilités les plus critiques maximum
-                MAX_REWARDABLE = 3
-                payable_count = min(len(findings), MAX_REWARDABLE)
-                
-                # Calcul réaliste et plafonné : 0.05 USDC par vraie vulnérabilité (max 0.15 USDC)
-                reward = payable_count * 0.05
-                
-                # --- PAIEMENT RÉEL VIA X402 ---
-                click.secho(f"  ⟳  Envoi de la récompense ({reward:.2f} USDC) sur Base Sepolia...", fg="cyan")
-                try:
-                    contributor_address = os.getenv("RECEIVER_ADDRESS")
-                    with httpx.Client(timeout=30.0) as client:
-                        reward_resp = client.post(
-                            f"{API_URL}/audit/reward",
-                            params={"contributor_address": contributor_address, "amount": reward}
-                        )
-                        reward_resp.raise_for_status()
-                        reward_data = reward_resp.json()
-                        tx_hash = reward_data.get("tx")
-                    
-                    # Mise à jour REELLE du profil local
-                    user_config["credit_usdc"] += reward
-                    save_config(user_config)
-                    
-                    click.secho(f"✅ Succès ! {payable_count} pattern(s) payé(s) on-chain.", fg="green")
-                    click.secho(f"🔗 TX: {tx_hash}", fg="dim")
-                    click.secho(f"🏦 Nouveau solde : {user_config['credit_usdc']:.2f} USDC", fg="cyan", bold=True)
-                except Exception as e:
-                    click.secho(f"⚠️ Erreur lors du paiement : {e}", fg="red")
-            else:
-                click.secho("🔒 Contribution refusée. Vos données restent strictement locales.", fg="dim")
+            _handle_optional_contribution(findings, user_config)
 
     except click.Abort:
-        click.echo("\nAudit annulé.")
+        warn("Audit annulé.")
     except Exception as e:
-        click.secho(f"\n❌ Erreur : {e}", fg="red")
+        error(f"Erreur : {e}")
 
-if __name__ == '__main__':
+
+# ─── Rendu du résultat ─────────────────────────────────────────────────────────
+def _render_audit_result(data: dict[str, Any]) -> None:
+    """Affiche un rendu structuré du résultat (verdict + findings + JSON brut)."""
+    investigation = data.get("investigation") or {}
+    triage = data.get("triage") or {}
+
+    verdict = (
+        investigation.get("verdict")
+        or triage.get("verdict")
+        or data.get("verdict")
+        or "UNKNOWN"
+    )
+    risk_score = triage.get("risk_score") or data.get("risk_score")
+    if isinstance(risk_score, (int, float)):
+        risk_score = float(risk_score)
+    else:
+        risk_score = None
+
+    section("Verdict")
+    console.print(verdict_panel(verdict, risk_score))
+
+    findings = (
+        investigation.get("findings")
+        or data.get("slither", {}).get("findings")
+        or []
+    )
+    if findings:
+        section(f"Findings ({len(findings)})")
+        console.print(findings_table(findings))
+    else:
+        info("Aucun finding détecté.")
+
+    section("Rapport brut (JSON)")
+    console.print_json(data=data)
+
+
+# ─── Contribution opt-in ───────────────────────────────────────────────────────
+def _handle_optional_contribution(findings: list[dict], user_config: dict[str, Any]) -> None:
+    section("Contribution mémoire collective")
+    info(
+        f"[accent]{len(findings)}[/accent] vulnérabilité(s) identifiée(s). "
+        "Partager ces patterns ANONYMES à la mémoire collective ?"
+    )
+    info("Récompense : [accent]0.05 USDC[/accent] par pattern validé (max 3).")
+
+    if not click.confirm("Contribuer ?", default=False):
+        warn("Contribution refusée — vos données restent strictement locales.")
+        return
+
+    MAX_REWARDABLE = 3
+    payable_count = min(len(findings), MAX_REWARDABLE)
+    reward = payable_count * 0.05
+
+    info(f"Envoi de la récompense ({reward:.2f} USDC) sur Base Sepolia…")
+    try:
+        contributor_address = os.getenv("RECEIVER_ADDRESS")
+        with httpx.Client(timeout=30.0) as client:
+            reward_resp = client.post(
+                f"{API_URL}/audit/reward",
+                params={"contributor_address": contributor_address, "amount": reward},
+            )
+            reward_resp.raise_for_status()
+            tx_hash = reward_resp.json().get("tx")
+
+        user_config["credit_usdc"] += reward
+        save_config(user_config)
+
+        success(f"{payable_count} pattern(s) payé(s) on-chain.")
+        console.print(
+            kv_panel(
+                "Récompense",
+                {
+                    "Patterns payés": str(payable_count),
+                    "TX hash": tx_hash or "—",
+                    "Nouveau solde": f"{user_config['credit_usdc']:.2f} USDC",
+                },
+            )
+        )
+    except Exception as e:
+        error(f"Erreur lors du paiement : {e}")
+
+
+if __name__ == "__main__":
     cli()
