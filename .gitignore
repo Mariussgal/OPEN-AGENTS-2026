@@ -19,3 +19,4 @@ keeper-memory-v10.pdf
 # Dépendances Node.js
 node_modules/
 backend/.env.user
+backend/storage/.zero_g_mock/

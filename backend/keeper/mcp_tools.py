@@ -1,40 +1,57 @@
 # backend/keeper/mcp_tools.py
-"""
-Outils MCP pour l'agent.
-L'outil anchor_finding_mcp déclenche maintenant un paiement RÉEL via x402.
-"""
-
 import logging
 from keeper.direct_api import anchor_contribution
+from storage.zero_g_client import (
+    normalize_pattern_hash,
+    pattern_storage_payload,
+    store_pattern,
+)
 
 logger = logging.getLogger(__name__)
 
 
-async def anchor_finding_mcp(pattern_hash: str, root_hash_0g: str, contributor_address: str = None) -> str:
-    """
-    Ancre une découverte on-chain et déclenche le paiement de la récompense (0.15 USDC).
+async def anchor_finding_mcp(
+    pattern_hash: str,
+    root_hash_0g: str | None = None,
+    *,
+    title: str = "",
+    reason: str = "",
+    severity: str = "",
+    confidence: str = "",
+    file: str = "",
+    line: str | int | None = None,
+    contributor_address: str | None = None,
+) -> str:
+    ph = normalize_pattern_hash(pattern_hash)
 
-    Args:
-        pattern_hash       : SHA-256 du snippet (0x...)
-        root_hash_0g       : Merkle root 0G Storage (0x...)
-        contributor_address : Adresse du portefeuille qui recevra les USDC (Base Sepolia).
-    """
-    if not pattern_hash.startswith("0x"):
-        pattern_hash = "0x" + pattern_hash
-    if not root_hash_0g.startswith("0x"):
-        root_hash_0g = "0x" + root_hash_0g
+    rh_raw = (root_hash_0g or "").strip()
+    if rh_raw:
+        rh = rh_raw if rh_raw.startswith("0x") else ("0x" + rh_raw if len(rh_raw) == 64 else rh_raw)
+    else:
+        payload = pattern_storage_payload(
+            ph,
+            title=title,
+            reason=reason,
+            severity=severity or None,
+            confidence=confidence or None,
+            file=file or None,
+            line=line,
+        )
+        try:
+            rh = store_pattern(payload)
+        except Exception as e:
+            logger.exception("[anchor_finding_mcp] store_pattern")
+            return f"0G storage error: {e}"
 
-    logger.info(f"[Agent tool 7] anchor_finding_mcp — Ancrage Proof-of-Concept pour {contributor_address} (0.0 USDC)")
+    logger.info(f"[anchor_finding_mcp] pattern={ph[:16]}... root={rh[:16]}...")
 
-    # Appelle la nouvelle logique dans direct_api.py qui gère le protocole x402
-    # L'agent ancre sans récompense monétaire automatique
-    tx_hash = await anchor_contribution(pattern_hash, root_hash_0g, contributor_address, amount_usdc=0.0)
+    tx_hash = await anchor_contribution(ph, rh, contributor_address or "0x" + "0" * 40, amount_usdc=0.0)
 
     if tx_hash == "payment_failed":
-        logger.error("[Agent tool 7] Échec du paiement x402.")
+        logger.error("payment_failed")
     elif tx_hash == "already_anchored":
-        logger.info("[Agent tool 7] Pattern déjà ancré — skip")
+        logger.info("already_anchored")
     else:
-        logger.info(f"[Agent tool 7] Succès ! Récompense envoyée — tx: {tx_hash}")
+        logger.info(f"result: {tx_hash}")
 
     return tx_hash

@@ -45,6 +45,7 @@ RULES:
 2. Always call query_memory before escalating to CONFIRMED
 3. Only anchor LIKELY and CONFIRMED (never SUSPECTED)
 4. Never stop at the first finding
+5. anchor_finding: pass pattern_hash, title, reason, severity, confidence, file, line. Omit root_hash (server uploads JSON to 0G).
 
 FINDING FORMAT (use this exact format):
 FINDING: <HIGH|MEDIUM|LOW> | <SUSPECTED|LIKELY|CONFIRMED> | <title> | <file>:<line>
@@ -145,14 +146,20 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "anchor_finding",
-            "description": "Anchor a LIKELY or CONFIRMED finding onchain via KeeperHub. Never call for SUSPECTED.",
+            "description": "Anchor a LIKELY or CONFIRMED finding onchain. JSON stored on 0G; omit root_hash unless overriding.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "pattern_hash": {"type": "string", "description": "SHA-256 of the normalized snippet"},
-                    "root_hash": {"type": "string", "description": "0G Storage rootHash"}
+                    "pattern_hash": {"type": "string", "description": "SHA-256 hex of normalized snippet"},
+                    "root_hash": {"type": "string", "description": "Optional 0G root — leave empty for server-side upload"},
+                    "title": {"type": "string", "description": "Finding title"},
+                    "reason": {"type": "string", "description": "Technical reason"},
+                    "severity": {"type": "string", "description": "HIGH|MEDIUM|LOW"},
+                    "confidence": {"type": "string"},
+                    "file": {"type": "string"},
+                    "line": {"type": "string"}
                 },
-                "required": ["pattern_hash", "root_hash"]
+                "required": ["pattern_hash", "title", "reason"]
             }
         }
     }
@@ -311,8 +318,14 @@ async def dispatch_tool(tool_name: str, tool_args: dict, scope_files: list[str])
         from keeper.mcp_tools import anchor_finding_mcp
         return await anchor_finding_mcp(
             tool_args["pattern_hash"],
-            tool_args["root_hash"],
-            contributor_address=os.getenv("RECEIVER_ADDRESS")
+            tool_args.get("root_hash"),
+            title=tool_args.get("title", ""),
+            reason=tool_args.get("reason", ""),
+            severity=tool_args.get("severity", ""),
+            confidence=tool_args.get("confidence", ""),
+            file=tool_args.get("file", ""),
+            line=tool_args.get("line"),
+            contributor_address=os.getenv("RECEIVER_ADDRESS"),
         )
     else:
         return f"ERROR: Unknown tool '{tool_name}'"
