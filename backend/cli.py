@@ -132,7 +132,12 @@ def status() -> None:
 @click.argument("path")
 @click.option("--local", is_flag=True, help="Mode local — gratuit, pas de paiement.")
 @click.option("--dev",   is_flag=True, help="Mode dev — bypass total.")
-def audit(path: str, local: bool, dev: bool) -> None:
+@click.option(
+    "--no-stream",
+    is_flag=True,
+    help="Désactive le streaming des phases (legacy, single POST + spinner).",
+)
+def audit(path: str, local: bool, dev: bool, no_stream: bool) -> None:
     """Lance un audit sur un fichier, un répertoire ou une adresse 0x."""
     section(f"Audit · {path}")
     user_config = load_config()
@@ -155,15 +160,7 @@ def audit(path: str, local: bool, dev: bool) -> None:
             info(f"Solde disponible (cache) : [accent]{real_balance:.2f} USDC[/accent]")
 
     try:
-        if local or dev:
-            with console.status("[brand]Analyse en cours…[/brand]", spinner="dots"):
-                with httpx.Client(timeout=120.0) as client:
-                    resp = client.post(f"{API_URL}/audit/local", params={"path": path})
-                    resp.raise_for_status()
-                    data = resp.json()
-        else:
-            from payments.x402_client import run_paid_audit
-            data = asyncio.run(run_paid_audit(API_URL, path))
+        data = asyncio.run(_run_audit_async(path, local=local, dev=dev, stream=not no_stream))
 
         success("Audit terminé.")
         _render_audit_result(data)
@@ -182,6 +179,37 @@ def audit(path: str, local: bool, dev: bool) -> None:
         warn("Audit annulé.")
     except Exception as e:
         error(f"Erreur : {e}")
+
+
+async def _run_audit_async(
+    path: str,
+    *,
+    local: bool,
+    dev: bool,
+    stream: bool,
+) -> dict[str, Any]:
+    """Dispatch des 4 combinaisons : local/paid × stream/legacy."""
+    if local or dev:
+        if stream:
+            from streaming_client import run_streaming_audit_local
+            return await run_streaming_audit_local(API_URL, path)
+        # Legacy — POST unique + spinner.
+        with console.status("[brand]Analyse en cours…[/brand]", spinner="dots"):
+            async with httpx.AsyncClient(timeout=600.0) as client:
+                resp = await client.post(f"{API_URL}/audit/local", params={"path": path})
+                resp.raise_for_status()
+                return resp.json()
+
+    # Mode paid.
+    if stream:
+        from payments.x402_client import prepare_x_payment
+        from streaming_client import run_streaming_paid_audit
+        x_payment, _price, _nb = await prepare_x_payment(API_URL, path)
+        return await run_streaming_paid_audit(API_URL, path, x_payment)
+
+    # Legacy paid — POST unique vers /audit.
+    from payments.x402_client import run_paid_audit
+    return await run_paid_audit(API_URL, path)
 
 
 # ─── Rendu du résultat ─────────────────────────────────────────────────────────
