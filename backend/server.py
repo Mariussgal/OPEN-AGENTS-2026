@@ -24,6 +24,7 @@ from pipeline.phase3_triage import run_triage
 from pipeline.phase4_agent import run_investigation
 from pipeline.phase5_anchor import run_phase5_anchor
 from payments.x402_pricing import calculate_price
+from keeper.direct_api import anchor_contribution
 
 load_dotenv()
 
@@ -207,7 +208,7 @@ async def run_audit(
         )
 
     # Settlement — c'est ici que l'USDC bouge vraiment onchain
-    async with httpx.AsyncClient(timeout=60.0, follow_redirects=True) as http:
+    async with httpx.AsyncClient(timeout=300.0, follow_redirects=True) as http:
         settle_resp = await http.post(
             f"{FACILITATOR_URL}/settle",
             json={
@@ -226,7 +227,7 @@ async def run_audit(
             detail=f"Settlement échoué : {settle_data.get('error', 'inconnu')}",
         )
 
-    tx_hash = settle_data.get("txHash")
+    tx_hash = settle_data.get("transaction") # Au lieu de .get("txHash")
     print(f"✅ USDC settlé onchain — tx: {tx_hash}")
 
     # Paiement confirmé — lancer le pipeline
@@ -313,6 +314,23 @@ async def run_audit_local(path: str):
         "investigation": investigation_data,
         "anchored_count": len([f for f in anchored_findings if f.get("tx_hash")]),
     }
+
+@app.post("/audit/reward")
+async def send_reward(contributor_address: str, amount: float):
+    """
+    Route déclenchée par le CLI uniquement si l'utilisateur accepte l'Opt-in.
+    Déclenche un VRAI transfert USDC (testnet) via x402.
+    """
+    print(f"💰 Requête de récompense reçue : {amount} USDC pour {contributor_address}")
+    # On simule un pattern_hash et root_hash pour l'appel (car le paiement est lié à l'ancrage)
+    # On arrondit pour éviter les erreurs de précision flottante (ex: 0.15000000000000002)
+    clean_amount = round(amount, 2)
+    tx_hash = await anchor_contribution(dummy_hash, dummy_hash, contributor_address, amount_usdc=clean_amount)
+    
+    if tx_hash in ["payment_failed", "error"]:
+        raise HTTPException(status_code=500, detail="Échec du transfert USDC.")
+        
+    return {"status": "success", "tx": tx_hash}
 
 
 @app.get("/wallet")

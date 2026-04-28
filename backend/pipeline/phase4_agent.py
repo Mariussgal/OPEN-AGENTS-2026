@@ -308,9 +308,11 @@ async def dispatch_tool(tool_name: str, tool_args: dict, scope_files: list[str])
             tool_args.get("args", [])
         )
     elif tool_name == "anchor_finding":
-        return await tool_anchor_finding(
+        from keeper.mcp_tools import anchor_finding_mcp
+        return await anchor_finding_mcp(
             tool_args["pattern_hash"],
-            tool_args["root_hash"]
+            tool_args["root_hash"],
+            contributor_address=os.getenv("RECEIVER_ADDRESS")
         )
     else:
         return f"ERROR: Unknown tool '{tool_name}'"
@@ -424,6 +426,10 @@ query memory, and confirm or dismiss each finding. Anchor LIKELY and CONFIRMED o
     while turns < MAX_TURNS:
         turns += 1
         print(f"  [Turn {turns}/{MAX_TURNS}]", end=" ", flush=True)
+
+        # AJOUT : Pause pour éviter le Rate Limit de la Vercel AI Gateway
+        # 4 secondes x 10 turns = 40 secondes (en dessous du quota de 60s)
+        await asyncio.sleep(4.0) 
 
         response = await asyncio.to_thread(
             client.chat.completions.create,

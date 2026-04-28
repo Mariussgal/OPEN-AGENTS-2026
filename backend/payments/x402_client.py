@@ -11,7 +11,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-
 def _sign_eip3009(
     private_key: str,
     asset_address: str,
@@ -23,14 +22,14 @@ def _sign_eip3009(
     max_timeout_seconds: int,
 ) -> dict:
     """
-    Signe manuellement une autorisation EIP-3009 (transferWithAuthorization).
-    Le facilitator Coinbase exécutera le transfert USDC onchain avec cette signature.
-    Le client n'a pas besoin d'ETH — le facilitator paie le gas.
+    Signe une autorisation EIP-3009 (transferWithAuthorization).
+    Utilisé par le client pour payer un audit ou par le serveur pour payer une récompense.
+    Le facilitateur exécute le transfert USDC on-chain. Gaz gratuit pour le signataire.
     """
     account      = Account.from_key(private_key)
     valid_after  = 0
     valid_before = int(time.time()) + max_timeout_seconds
-    nonce_bytes  = secrets.token_bytes(32)  # bytes32 aléatoire — anti-replay
+    nonce_bytes  = secrets.token_bytes(32)  # bytes32 aléatoire anti-replay
     nonce_hex    = "0x" + nonce_bytes.hex()
 
     signed = account.sign_typed_data(
@@ -72,9 +71,39 @@ def _sign_eip3009(
         },
     }
 
+def sign_server_reward(contributor_address: str, amount_usdc: float = 0.15) -> dict:
+    """
+    Génère la signature EIP-3009 pour que le serveur paie un contributeur.
+    Réutilise la clé privée du serveur (OG_PRIVATE_KEY).
+    """
+    private_key = os.getenv("OG_PRIVATE_KEY")
+    if not private_key:
+        raise ValueError("OG_PRIVATE_KEY manquante pour le remboursement")
 
-def _build_x_payment_header(requirement: dict, private_key: str) -> str:
+    # Configuration Base Sepolia USDC
+    USDC_ADDRESS = "0x036CbD53842c5426634e7929541eC2318f3dCF7e"
+    CHAIN_ID = 84532
+    
+    # Conversion en unités atomiques (6 décimales pour USDC)
+    amount_atomic = str(int(amount_usdc * 1_000_000))
+
+    return _sign_eip3009(
+        private_key=private_key,
+        asset_address=USDC_ADDRESS,
+        token_name="USD Coin",
+        token_version="2",
+        chain_id=CHAIN_ID,
+        pay_to=contributor_address,
+        amount=amount_atomic,
+        max_timeout_seconds=3600  # 1 heure de validité
+    )
+
+def _build_x_payment_header(requirement: dict, private_key: str, price_usd: float) -> str:
+    """Construit le header X-PAYMENT standard pour le protocole x402."""
     chain_id = int(requirement["network"].split(":")[1])
+    # Conversion du prix numérique en unités atomiques USDC (6 décimales)
+    amount_atomic = str(int(price_usd * 1_000_000))
+    
     inner    = _sign_eip3009(
         private_key         = private_key,
         asset_address       = requirement["asset"],
@@ -82,39 +111,35 @@ def _build_x_payment_header(requirement: dict, private_key: str) -> str:
         token_version       = requirement["extra"]["version"],
         chain_id            = chain_id,
         pay_to              = requirement["payTo"],
-        amount              = requirement["amount"],
-        max_timeout_seconds = requirement.get("maxTimeoutSeconds", 300),
+        amount              = amount_atomic,
+        max_timeout_seconds = 3600
     )
-
-    payload = {
+    
+    return base64.b64encode(json.dumps({
         "x402Version": 2,
         "scheme":      requirement["scheme"],
         "network":     requirement["network"],
-        "accepted":    requirement,   # ← champ manquant — le requirement sélectionné
+        "accepted":    requirement,
         "payload":     inner,
-    }
-
-    return base64.b64encode(json.dumps(payload).encode()).decode()
-
+    }).encode()).decode()
 
 async def fetch_quote(api_url: str, path: str) -> dict:
-    async with httpx.AsyncClient(timeout=30.0) as http:
-        resp = await http.get(f"{api_url}/audit/quote", params={"path": path})
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(f"{api_url}/audit/quote", params={"path": path})
         resp.raise_for_status()
         return resp.json()
-
 
 async def run_paid_audit(api_url: str, path: str) -> dict:
     private_key = os.getenv("OG_PRIVATE_KEY")
     if not private_key:
-        raise ValueError("OG_PRIVATE_KEY manquante dans le .env")
+        raise click.ClickException("Clé privée OG_PRIVATE_KEY manquante.")
 
     resource_url = f"{api_url}/audit"
 
-    # ── Étape 1 : Quote ───────────────────────────────────────────────────────
+    # 1. Quote
     click.secho("  ⟳  Récupération du prix...", fg="cyan")
     quote    = await fetch_quote(api_url, path)
-    price    = quote["price_usd"]
+    price    = float(quote["price_usd"])
     nb_files = quote["files_count"]
     reqs     = quote["payment_requirements"]
 
@@ -123,14 +148,14 @@ async def run_paid_audit(api_url: str, path: str) -> dict:
     if not click.confirm("  Procéder au paiement x402 ?"):
         raise click.Abort()
 
-    # ── Étape 2 : Signature EIP-3009 manuelle ────────────────────────────────
+    # 2. Signature EIP-3009
     click.secho("  ⟳  Signature du paiement (EIP-3009)...", fg="cyan")
-    x_payment = _build_x_payment_header(reqs[0], private_key)
+    x_payment = _build_x_payment_header(reqs[0], private_key, price)
     click.secho("  ✓  Payload signé (EIP-712)", fg="green")
 
-    # ── Étape 3 : Envoi avec X-PAYMENT ───────────────────────────────────────
+    # 3. Envoi au serveur avec X-PAYMENT
     click.secho("  ⟳  Envoi au serveur avec X-PAYMENT...", fg="cyan")
-    async with httpx.AsyncClient(timeout=120.0) as http:
+    async with httpx.AsyncClient(timeout=300.0) as http:
         resp = await http.post(
             resource_url,
             params={"path": path},

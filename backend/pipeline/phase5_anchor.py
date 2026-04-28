@@ -40,7 +40,9 @@ async def run_phase5_anchor(findings: List[Dict]) -> List[Dict]:
         
         try:
             # 1. Direct Execution API call
-            exec_id = await anchor_contribution(pattern_hash, root_hash_0g)
+            # On utilise l'adresse de réception du serveur comme placeholder car récompense = 0.0
+            placeholder_addr = os.getenv("RECEIVER_ADDRESS", "0x" + "0" * 40)
+            exec_id = await anchor_contribution(pattern_hash, root_hash_0g, placeholder_addr, amount_usdc=0.0)
             
             if exec_id:
                 # 2. Polling to get the final transactionHash
