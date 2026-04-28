@@ -129,12 +129,20 @@ async def fetch_quote(api_url: str, path: str) -> dict:
         resp.raise_for_status()
         return resp.json()
 
-async def run_paid_audit(api_url: str, path: str) -> dict:
+
+async def prepare_x_payment(api_url: str, path: str) -> tuple[str, float, int]:
+    """Récupère le quote, demande confirmation user, signe l'autorisation EIP-3009.
+
+    Returns:
+        (x_payment_header, price_usd, nb_files)
+
+    Raises:
+        click.Abort si l'utilisateur refuse le paiement.
+        click.ClickException si la clé privée est manquante.
+    """
     private_key = os.getenv("OG_PRIVATE_KEY")
     if not private_key:
         raise click.ClickException("Clé privée OG_PRIVATE_KEY manquante.")
-
-    resource_url = f"{api_url}/audit"
 
     # 1. Quote
     click.secho("  ⟳  Récupération du prix...", fg="cyan")
@@ -153,11 +161,17 @@ async def run_paid_audit(api_url: str, path: str) -> dict:
     x_payment = _build_x_payment_header(reqs[0], private_key, price)
     click.secho("  ✓  Payload signé (EIP-712)", fg="green")
 
-    # 3. Envoi au serveur avec X-PAYMENT
+    return x_payment, price, nb_files
+
+
+async def run_paid_audit(api_url: str, path: str) -> dict:
+    """Mode paid non-streaming (legacy). Conservé pour rétrocompat."""
+    x_payment, _price, _nb = await prepare_x_payment(api_url, path)
+
     click.secho("  ⟳  Envoi au serveur avec X-PAYMENT...", fg="cyan")
     async with httpx.AsyncClient(timeout=300.0) as http:
         resp = await http.post(
-            resource_url,
+            f"{api_url}/audit",
             params={"path": path},
             headers={"X-PAYMENT": x_payment},
         )

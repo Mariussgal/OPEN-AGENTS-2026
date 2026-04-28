@@ -33,7 +33,7 @@ requires-python = ">=3.10"
 onchor-ai = "cli:cli"
 
 [tool.setuptools]
-py-modules = ["cli", "server", "ui"]
+py-modules = ["cli", "server", "ui", "streaming_client"]
 
 [tool.setuptools.packages.find]
 where = ["."]

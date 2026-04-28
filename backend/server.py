@@ -6,8 +6,9 @@ import json
 import hashlib
 from fastapi import FastAPI, Request, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from dotenv import load_dotenv
-from typing import Optional
+from typing import Any, AsyncGenerator, Optional
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -23,6 +24,7 @@ from pipeline.phase3_triage import run_triage
 from pipeline.phase4_agent import run_investigation
 from pipeline.phase5_anchor import run_phase5_anchor
 from pipeline.phase6_report import run_report          # ← NEW
+from pipeline.streaming import stream_audit_pipeline   # ← NEW (NDJSON streaming)
 from payments.x402_pricing import calculate_price
 from keeper.direct_api import anchor_contribution
 
@@ -319,6 +321,157 @@ async def run_audit_local(path: str):
         "report":          report,                       # ← NEW
         "anchored_count":  report["summary"]["anchored_count"],
     }
+
+
+# ── Streaming variants (NDJSON) ──────────────────────────────────────────────
+# Versions streaming des routes ci-dessus. Émettent un event JSON par ligne
+# (`application/x-ndjson`) au fil de l'exécution des 7 phases pour que le CLI
+# puisse afficher une progress bar dynamique. Le payload final est strictement
+# identique à celui des routes non-stream.
+
+
+@app.post("/audit/local/stream")
+async def run_audit_local_stream(path: str):
+    """Variante streaming de /audit/local — NDJSON, 1 event par phase."""
+    return StreamingResponse(
+        stream_audit_pipeline(path),
+        media_type="application/x-ndjson",
+        headers={
+            "X-Accel-Buffering": "no",
+            "Cache-Control":     "no-cache",
+        },
+    )
+
+
+@app.post("/audit/stream")
+async def run_audit_stream(
+    request: Request,
+    path: str,
+    x_payment: Optional[str] = Header(default=None),
+):
+    """Variante streaming de /audit (paid) — NDJSON, 1 event par phase.
+
+    Le paiement x402 (verify + settle) émet deux events `phase: payment` au
+    début du flux. Le pipeline démarre seulement si le settlement réussit.
+    """
+    if not x_payment:
+        raise HTTPException(
+            status_code=402,
+            detail="X-PAYMENT header manquant. Appelle GET /audit/quote d'abord.",
+        )
+
+    # ── Pré-validation x402 (synchrone — peut 4xx avant streaming) ───────────
+    scope     = await resolve_scope(path)
+    nb_files  = len(scope.files)
+    price_usd = calculate_price(nb_files)
+    reqs      = _build_requirements(nb_files, price_usd)
+    reqs_dict = [r.model_dump() for r in reqs]
+
+    try:
+        from x402.schemas import PaymentPayload
+        payload_json = base64.b64decode(x_payment).decode("utf-8")
+        payload_dict = json.loads(payload_json)
+        PaymentPayload.model_validate(payload_dict)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"X-PAYMENT header invalide : {e}")
+
+    async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as http:
+        verify_resp = await http.post(
+            f"{FACILITATOR_URL}/verify",
+            json={
+                "x402Version":         payload_dict.get("x402Version", 2),
+                "paymentPayload":      payload_dict,
+                "paymentRequirements": reqs_dict[0],
+            },
+        )
+        verify_data = verify_resp.json()
+
+    if not verify_data.get("isValid"):
+        raise HTTPException(
+            status_code=402,
+            detail=f"Paiement invalide : {verify_data.get('invalidReason', 'inconnu')}",
+        )
+
+    # ── Wrapper async generator : payment events → pipeline → persistance ───
+    async def _stream() -> AsyncGenerator[bytes, None]:
+        def emit(event: dict[str, Any]) -> bytes:
+            return (json.dumps(event, default=str) + "\n").encode("utf-8")
+
+        # 1. Settle x402 — exécute le transfert USDC onchain.
+        yield emit({"phase": "payment", "status": "start",
+                    "msg": "Settling USDC payment via x402 facilitator..."})
+        async with httpx.AsyncClient(timeout=300.0, follow_redirects=True) as http:
+            settle_resp = await http.post(
+                f"{FACILITATOR_URL}/settle",
+                json={
+                    "x402Version":         payload_dict.get("x402Version", 2),
+                    "paymentPayload":      payload_dict,
+                    "paymentRequirements": reqs_dict[0],
+                },
+            )
+            settle_data = settle_resp.json()
+
+        if not settle_data.get("success"):
+            yield emit({"phase": "payment", "status": "fail",
+                        "error": settle_data.get("error", "settlement failed")})
+            return
+
+        tx_hash = settle_data.get("transaction")
+        print(f"USDC settlé onchain — tx: {tx_hash}")
+        yield emit({"phase": "payment", "status": "done",
+                    "tx_hash": tx_hash, "amount_usd": price_usd})
+
+        # 2. Pipeline streaming — capture le payload final pour persistance.
+        full_result: dict[str, Any] = {}
+        async for chunk in stream_audit_pipeline(
+            path,
+            target_address=path if path.startswith("0x") else None,
+        ):
+            yield chunk
+            try:
+                event = json.loads(chunk.decode("utf-8").rstrip("\n"))
+                if event.get("phase") == "report" and event.get("status") == "done":
+                    full_result = event.get("result") or {}
+            except Exception:
+                pass
+
+        # 3. Persistance audit (post-pipeline) — historique paid.
+        if full_result:
+            try:
+                report = full_result.get("report") or {}
+                triage = full_result.get("triage") or {}
+                audit_record = {
+                    "id":             str(uuid.uuid4()),
+                    "created_at":     datetime.utcnow().isoformat() + "Z",
+                    "target": {
+                        "kind":  "address" if path.startswith("0x") else "path",
+                        "value": os.path.basename(path) if not path.startswith("0x") else path,
+                    },
+                    "mode":            "paid",
+                    "price_paid":      price_usd,
+                    "triage":          triage,
+                    "slither":         full_result.get("slither", {}),
+                    "inventory":       full_result.get("inventory", {}),
+                    "investigation":   full_result.get("investigation", {}),
+                    "report":          report,
+                    "anchored_count":  report.get("summary", {}).get("anchored_count", 0),
+                    "scope": {
+                        "files_found": nb_files,
+                        "is_onchain":  scope.is_onchain,
+                    },
+                }
+                _save_audit(audit_record)
+            except Exception as e:
+                print(f"⚠ Audit persistence failed: {e}")
+
+    return StreamingResponse(
+        _stream(),
+        media_type="application/x-ndjson",
+        headers={
+            "X-Accel-Buffering": "no",
+            "Cache-Control":     "no-cache",
+        },
+    )
 
 
 @app.post("/audit/reward")
