@@ -325,7 +325,8 @@ async def send_reward(contributor_address: str, amount: float):
     # On simule un pattern_hash et root_hash pour l'appel (car le paiement est lié à l'ancrage)
     # On arrondit pour éviter les erreurs de précision flottante (ex: 0.15000000000000002)
     clean_amount = round(amount, 2)
-    tx_hash = await anchor_contribution(dummy_hash, dummy_hash, contributor_address, amount_usdc=clean_amount)
+    dummy_hash   = "0x" + hashlib.sha256(contributor_address.encode()).hexdigest()
+    tx_hash      = await anchor_contribution(dummy_hash, dummy_hash, contributor_address, amount_usdc=clean_amount)
     
     if tx_hash in ["payment_failed", "error"]:
         raise HTTPException(status_code=500, detail="Échec du transfert USDC.")

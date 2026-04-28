@@ -2,6 +2,8 @@
 import os
 import httpx
 import logging
+import base64
+import json
 from typing import Optional
 from payments.x402_client import sign_server_reward
 
@@ -9,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 FACILITATOR_URL  = os.getenv("X402_FACILITATOR_URL", "https://api.x402.org")
 NETWORK          = "eip155:84532"
+API_BASE_URL      = os.getenv("API_BASE_URL", "http://localhost:8000")
 
 async def anchor_contribution(
     pattern_hash: str,
@@ -27,54 +30,63 @@ async def anchor_contribution(
             return "anchored_only"
 
         # 1. Signature du transfert USDC par le serveur (EIP-3009)
-        # On arrondit pour éviter les erreurs de BigInt (ex: 0.15000000000000002)
         clean_amount = round(amount_usdc, 2)
         reward_payload = sign_server_reward(contributor_address, amount_usdc=clean_amount)
         
-        # 2. Construction des requirements
-        requirement = {
-            "scheme": "exact",
-            "network": NETWORK,
-            "payTo": contributor_address,
-            "asset": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
-            "price": f"${clean_amount:.2f}",
-            "extra": {
-                "name": "USD Coin",
-                "symbol": "USDC",
-                "decimals": 6,
-                "version": "2",
-                "chainId": 84532
-            }
-        }
+        # 2. Construction des requirements via le serveur x402 officiel (pour être identique au paiement audit)
+        from server import x402_server, API_BASE_URL as SERVER_URL
+        from x402.server import ResourceConfig
         
-        # 3. Construction du payload x402 complet
+        config = ResourceConfig(
+            scheme="exact",
+            network=NETWORK,
+            pay_to=contributor_address,
+            price=f"${clean_amount:.2f}",
+            resource=f"{SERVER_URL}/audit/reward",
+            description=f"Onchor.ai contribution reward",
+        )
+        requirements = x402_server.build_payment_requirements(config)
+        requirement = requirements[0].model_dump()
+        
+        # 3. Construction du payload x402 (Standard protocol)
         payment_payload = {
             "x402Version": 2,
-            "scheme": "exact",
-            "network": NETWORK,
-            "accepted": requirement,
-            "payload": reward_payload
+            "scheme":      "exact",
+            "network":     NETWORK,
+            "accepted":    requirement,
+            "payload":     reward_payload
         }
 
+        # 4. Settle body pour le facilitateur
         settle_body = {
-            "x402Version": 2,
-            "paymentPayload": payment_payload,
-            "paymentRequirements": requirement # Singulier
+            "x402Version":         2,
+            "paymentPayload":      payment_payload,
+            "paymentRequirements": requirement
         }
 
         logger.info(f"💰 Récompense x402 demandée : {clean_amount} USDC vers {contributor_address}")
 
         async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as http:
+            # On envoie le settle_body au facilitateur
             resp = await http.post(f"{FACILITATOR_URL}/settle", json=settle_body)
+            
+            # DEBUG: On affiche TOUTE la réponse pour comprendre pourquoi le TX est vide
+            logger.info(f"🔍 Facilitator response ({resp.status_code}): {resp.text}")
             
             if not resp.is_success:
                 logger.error(f"❌ Échec x402 settle: {resp.status_code} - {resp.text}")
                 return "payment_failed"
 
             data = resp.json()
-            tx_hash = data.get("transaction") 
-            logger.info(f"✅ Vrai transfert USDC effectué ! TX: {tx_hash}")
-            return tx_hash
+            # On cherche plusieurs clés possibles pour le hash de transaction
+            tx_hash = data.get("transaction") or data.get("transactionHash") or data.get("tx")
+            
+            if tx_hash:
+                logger.info(f"✅ Vrai transfert USDC effectué ! TX: {tx_hash}")
+            else:
+                logger.warning("⚠️ Facilitateur a répondu OK mais sans hash de transaction.")
+                
+            return tx_hash or "anchored_only"
 
     except Exception as e:
         logger.error(f"❌ Erreur x402 : {e}")
