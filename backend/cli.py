@@ -142,6 +142,7 @@ def audit(path: str, local: bool, dev: bool) -> None:
     
     # Récupération du solde réel pour l'affichage
     address = os.getenv("RECEIVER_ADDRESS")
+    real_balance = 0.0
     if not (local or dev) and address:
         try:
             with httpx.Client(timeout=10.0) as client:
@@ -149,7 +150,9 @@ def audit(path: str, local: bool, dev: bool) -> None:
                 real_balance = resp.json().get("balance", 0.0)
                 info(f"Solde disponible : [accent]{real_balance:.2f} USDC[/accent]")
         except Exception:
-            pass
+            # Fallback si le serveur est éteint
+            real_balance = user_config.get("credit_usdc", 0.0)
+            info(f"Solde disponible (cache) : [accent]{real_balance:.2f} USDC[/accent]")
 
     try:
         if local or dev:
@@ -435,14 +438,23 @@ def _handle_optional_contribution(findings: list[dict], user_config: dict[str, A
         user_config["credit_usdc"] += reward
         save_config(user_config)
 
-        success(f"{payable_count} pattern(s) payé(s) on-chain.")
+        success(f"{reward_count} pattern(s) payé(s) on-chain.")
+        
+        real_balance = user_config["credit_usdc"]
+        try:
+            with httpx.Client(timeout=10.0) as client:
+                resp = client.get(f"{API_URL}/user/balance", params={"address": contributor_address})
+                real_balance = resp.json().get("balance", real_balance)
+        except Exception:
+            pass
+
         console.print(
             kv_panel(
                 "Récompense",
                 {
-                    "Patterns payés": str(payable_count),
+                    "Patterns payés": str(reward_count),
                     "TX hash":        tx_hash or "—",
-                    "Nouveau solde":  f"{user_config['credit_usdc']:.2f} USDC",
+                    "Nouveau solde":  f"{real_balance:.2f} USDC",
                 },
             )
         )
