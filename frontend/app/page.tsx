@@ -168,12 +168,12 @@ function CopyCommand({
   return (
     <div
       className={[
-        "group inline-flex items-center gap-3 terminal-box rounded-sm pl-3 pr-1 py-1.5 hover:border-[--terminal-brand]/60 transition-colors",
+        "group inline-flex items-center gap-3 terminal-box rounded-sm pl-3 pr-1 py-1.5 hover:border-[--terminal-brand]/60 transition-colors max-w-full",
         className,
       ].join(" ")}
     >
       {showPrompt && <span className="font-mono text-xs text-[--terminal-accent] shrink-0">$</span>}
-      <code className="font-mono text-xs sm:text-sm text-[--terminal-label] truncate">{cmd}</code>
+      <code className="font-mono text-xs sm:text-sm text-[--terminal-label] truncate min-w-0">{cmd}</code>
       <button
         onClick={copy}
         aria-label="Copy install command"
@@ -292,23 +292,22 @@ export default function HomePage() {
       <main className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 pt-16 sm:pt-20 pb-32 space-y-28 sm:space-y-32">
 
         {/* ═════ HERO ═════════════════════════════════════════════════════ */}
-        <section className="text-center max-w-4xl mx-auto flex flex-col items-center justify-center relative min-h-[calc(100vh-140px)] py-12 sm:py-20">
-          {/* ASCII background — overflow intentionnel, whitespace-pre strict */}
-          <div className="pointer-events-none absolute -top-20 left-1/2 -translate-x-1/2 w-screen select-none overflow-hidden" aria-hidden>
+        <section className="text-center max-w-4xl mx-auto flex flex-col items-center justify-center relative min-h-[60vh] sm:min-h-[calc(100vh-140px)] py-10 sm:py-20">
+          {/* ASCII background — below title on mobile, top-aligned on sm+ */}
+          <div className="pointer-events-none absolute top-32 bottom-0 sm:-top-20 sm:bottom-auto left-1/2 -translate-x-1/2 w-screen select-none overflow-hidden flex justify-center items-start sm:block" aria-hidden>
             <pre
-              className="font-mono text-[7px] leading-[0.9] text-[--terminal-brand]/20 whitespace-pre mx-auto"
+              className="font-mono text-[7px] leading-[0.9] text-[--terminal-brand]/20 whitespace-pre scale-[0.65] origin-top sm:scale-100 sm:mx-auto"
               style={{ width: "max-content" }}
             >
               {HERO_BG_ASCII}
             </pre>
           </div>
 
-          {/* Voile pour garder le texte lisible */}
+          {/* Veil to keep text readable */}
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[--background]/30 via-[--background]/60 to-[--background]" />
 
-
           <h1
-            className="animate-fade-in-up opacity-0 text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6 sm:mb-8 text-balance leading-[1.05]"
+            className="animate-fade-in-up opacity-0 text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-5 sm:mb-8 text-balance leading-[1.05] px-2 -mt-16 sm:mt-0"
             style={{ animationDelay: "100ms" }}
           >
             <span className="text-[--terminal-label]">The audit tool that</span>{" "}
@@ -316,14 +315,14 @@ export default function HomePage() {
           </h1>
 
           <div
-            className="animate-fade-in-up opacity-0 flex flex-col items-center justify-center gap-3 mb-8 sm:mb-10"
+            className="animate-fade-in-up opacity-0 flex flex-col items-center justify-center gap-3 mb-6 sm:mb-10 w-full px-4 sm:px-0"
             style={{ animationDelay: "200ms" }}
           >
-            <CopyCommand cmd={INSTALL_CMD} />
+            <CopyCommand cmd={INSTALL_CMD} className="w-full sm:w-auto max-w-xs sm:max-w-none" />
           </div>
 
           <p
-            className="animate-fade-in-up opacity-0 text-base sm:text-lg text-[--terminal-muted] max-w-2xl text-balance leading-relaxed font-mono mt-10 sm:mt-14"
+            className="animate-fade-in-up opacity-0 text-sm sm:text-lg text-[--terminal-muted] max-w-2xl text-balance leading-relaxed font-mono mt-80 sm:mt-14 px-2"
             style={{ animationDelay: "300ms" }}
           >
             A Solidity security copilot with persistent collective memory.
@@ -333,7 +332,7 @@ export default function HomePage() {
 
           <a
             href="#playground"
-            className="animate-fade-in-up opacity-0 font-mono text-xs uppercase tracking-[0.18em] text-[--terminal-muted] hover:text-[--terminal-accent] transition-colors px-3 py-2 mt-10 sm:mt-16"
+            className="animate-fade-in-up opacity-0 font-mono text-xs uppercase tracking-[0.18em] text-[--terminal-muted] hover:text-[--terminal-accent] transition-colors px-3 py-2 mt-6 sm:mt-16"
             style={{ animationDelay: "800ms" }}
           >
             try the playground ↓
