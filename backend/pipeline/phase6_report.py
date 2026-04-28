@@ -422,7 +422,7 @@ async def run_report(
             "subname":   ens_subname,
             "url":       ens_url,
             "certified": high_count == 0 and ens_subname is not None,
-            "parent":    os.getenv("ENS_PARENT_CERT", "certified.keeper-memory.eth"),
+            "parent":    os.getenv("ENS_PARENT_CERT", "certified.onchor-ai.eth"),
         },
         "pipeline": {
             "slither_findings":    len(raw_slither),
