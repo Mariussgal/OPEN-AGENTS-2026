@@ -21,6 +21,7 @@ from pipeline.phase_resolve import resolve_scope
 from pipeline.phase1_inventory import run_inventory
 from pipeline.phase2_slither import run_slither
 from pipeline.phase3_triage import run_triage
+from pipeline.phase4_agent import run_investigation
 from payments.x402_pricing import calculate_price
 
 load_dotenv()
@@ -232,9 +233,10 @@ async def run_audit(
     if scope.is_onchain and scope.files:
         target = os.path.dirname(scope.files[0])
 
-    inventory_data = await run_inventory(scope)
-    slither_data   = await run_slither(target)
-    triage_data    = await run_triage(slither_data, inventory_data)
+    inventory_data       = await run_inventory(scope)
+    slither_data         = await run_slither(target)
+    triage_data          = await run_triage(slither_data, inventory_data)
+    investigation_data   = await run_investigation(scope, slither_data, inventory_data, triage_data)
 
     # Sauvegarder l'audit pour l'historique frontend
     audit_record = {
@@ -246,10 +248,11 @@ async def run_audit(
         },
         "mode":       "paid",
         "price_paid": price_usd,
-        "triage":     triage_data,
-        "slither":    slither_data,
-        "inventory":  inventory_data,
-        "scope":      {"files_found": nb_files, "is_onchain": scope.is_onchain},
+        "triage":       triage_data,
+        "slither":      slither_data,
+        "inventory":    inventory_data,
+        "investigation": investigation_data,
+        "scope":        {"files_found": nb_files, "is_onchain": scope.is_onchain},
     }
     _save_audit(audit_record)
 
@@ -271,6 +274,7 @@ async def run_audit(
         "inventory": inventory_data,
         "slither": slither_data,
         "triage": triage_data,
+        "investigation": investigation_data,
     }
 
 
@@ -282,9 +286,10 @@ async def run_audit_local(path: str):
     if scope.is_onchain and scope.files:
         target = os.path.dirname(scope.files[0])
 
-    inventory_data = await run_inventory(scope)
-    slither_data   = await run_slither(target)
-    triage_data    = await run_triage(slither_data, inventory_data)
+    inventory_data       = await run_inventory(scope)
+    slither_data         = await run_slither(target)
+    triage_data          = await run_triage(slither_data, inventory_data)
+    investigation_data   = await run_investigation(scope, slither_data, inventory_data, triage_data)
 
     return {
         "status": "success",
@@ -295,6 +300,7 @@ async def run_audit_local(path: str):
         "inventory": inventory_data,
         "slither": slither_data,
         "triage": triage_data,
+        "investigation": investigation_data,
     }
 
 

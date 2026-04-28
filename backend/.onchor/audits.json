@@ -1,5 +1,403 @@
 [
   {
+    "id": "61cdfd62-2bc4-4d78-bb6c-fbf80d2777f6",
+    "created_at": "2026-04-28T09:20:20.599377Z",
+    "target": {
+      "kind": "path",
+      "value": "EulerVault.sol"
+    },
+    "mode": "paid",
+    "price_paid": 0.5,
+    "triage": {
+      "risk_score": 8,
+      "verdict": "DANGER",
+      "reasoning": "Le contrat pr\u00e9sente une vuln\u00e9rabilit\u00e9 de r\u00e9entrance dans la fonction withdraw, permettant \u00e0 un attaquant d'extraire des fonds de mani\u00e8re r\u00e9p\u00e9t\u00e9e. Cette faille, d\u00e9j\u00e0 exploit\u00e9e par le pass\u00e9, repr\u00e9sente un risque \u00e9lev\u00e9 de pertes financi\u00e8res significatives.",
+      "file_details": [
+        {
+          "file": "EulerVault.sol",
+          "risk_score": 8,
+          "verdict": "DANGER",
+          "reasoning": "Le contrat pr\u00e9sente une vuln\u00e9rabilit\u00e9 de r\u00e9entrance dans la fonction withdraw, ce qui permet \u00e0 un attaquant d'extraire des fonds de mani\u00e8re r\u00e9p\u00e9t\u00e9e avant que l'\u00e9tat du contrat ne soit mis \u00e0 jour. Cette faille a d\u00e9j\u00e0 \u00e9t\u00e9 exploit\u00e9e dans le pass\u00e9, ce qui augmente le risque de pertes financi\u00e8res significatives."
+        }
+      ]
+    },
+    "slither": {
+      "success": true,
+      "findings_count": 3,
+      "findings": [
+        {
+          "check": "reentrancy-eth",
+          "impact": "High",
+          "description": "Reentrancy in EulerVault.withdraw(uint256) (../contracts/contracts/Vulnerable/EulerVault.sol#22-33):\n\tExternal calls:\n\t- (ok,None) = msg.sender.call{value: amount}() (../contracts/contracts/Vulnerable/EulerVault.sol#26)\n\tState variables written after the call(s):\n\t- balances[msg.sender] -= amount (../contracts/contracts/Vulnerable/EulerVault.sol#30)\n\tEulerVault.balances (../contracts/contracts/Vulnerable/EulerVault.sol#11) can be used in cross function reentrancies:\n\t- EulerVault.balances (../contracts/contracts/Vulnerable/EulerVault.sol#11)\n\t- EulerVault.deposit() (../contracts/contracts/Vulnerable/EulerVault.sol#16-19)\n\t- EulerVault.withdraw(uint256) (../contracts/contracts/Vulnerable/EulerVault.sol#22-33)\n",
+          "file": "../contracts/contracts/Vulnerable/EulerVault.sol"
+        },
+        {
+          "check": "reentrancy-events",
+          "impact": "Low",
+          "description": "Reentrancy in EulerVault.withdraw(uint256) (../contracts/contracts/Vulnerable/EulerVault.sol#22-33):\n\tExternal calls:\n\t- (ok,None) = msg.sender.call{value: amount}() (../contracts/contracts/Vulnerable/EulerVault.sol#26)\n\tEvent emitted after the call(s):\n\t- Withdrawal(msg.sender,amount) (../contracts/contracts/Vulnerable/EulerVault.sol#32)\n",
+          "file": "../contracts/contracts/Vulnerable/EulerVault.sol"
+        },
+        {
+          "check": "low-level-calls",
+          "impact": "Informational",
+          "description": "Low level call in EulerVault.withdraw(uint256) (../contracts/contracts/Vulnerable/EulerVault.sol#22-33):\n\t- (ok,None) = msg.sender.call{value: amount}() (../contracts/contracts/Vulnerable/EulerVault.sol#26)\n",
+          "file": "../contracts/contracts/Vulnerable/EulerVault.sol"
+        }
+      ]
+    },
+    "inventory": {
+      "files_analyzed": 1,
+      "details": [
+        {
+          "file": "../contracts/contracts/Vulnerable/EulerVault.sol",
+          "flags": [],
+          "stats": {
+            "functions_count": 3,
+            "modifiers_count": 0,
+            "events_count": 2,
+            "flags": []
+          },
+          "pattern_hash": "17a1a6b68b12d1c0177bc64d02dbe1394c0b551e727186be98ef568bc862ac83",
+          "duplicates": [],
+          "is_duplicate": false
+        }
+      ],
+      "duplicates_detected": 0,
+      "known_findings": [
+        {
+          "contract": "EulerVault",
+          "type": "Historical Memory",
+          "description": "1. EulerVault has a vulnerability related to Reentrancy Attack.\n2. There was a historical exploit on EulerVault in March 2022.\n3. This vulnerability can lead to financial loss.\n4. Reentrancy Attack exploits smart contracts.\n5. EulerVault is used in Decentralized Finance (DeFi).",
+          "pattern_hash": "cb25fc9dd3968a27081bc1393248aad7ec0352aea2a65b72f3c0d2f054da13b8"
+        }
+      ],
+      "known_findings_count": 1
+    },
+    "investigation": {
+      "findings": [
+        {
+          "severity": "HIGH",
+          "confidence": "CONFIRMED",
+          "title": "Classic Reentrancy in withdraw() - External Call Before State Update",
+          "file": "EulerVault.sol",
+          "line": "22-33",
+          "reason": "The withdraw() function executes msg.sender.call{value: amount}(\"\") at line 26 before updating balances[msg.sender] -= amount at line 30, enabling an attacker to recursively call withdraw() and drain the contract."
+        },
+        {
+          "severity": "MEDIUM",
+          "confidence": "CONFIRMED",
+          "title": "Missing Event Emission Before External Call",
+          "file": "EulerVault.sol",
+          "line": "32",
+          "reason": "The Withdrawal event is emitted after the external call and state update, making it unreliable for off-chain monitoring during reentrancy attacks."
+        }
+      ],
+      "anchored": [
+        "Anchored \u2014 executionId: unknown | tx: pending"
+      ],
+      "turns_used": 6,
+      "model": "anthropic/claude-sonnet-4-5"
+    },
+    "scope": {
+      "files_found": 1,
+      "is_onchain": false
+    },
+    "verdict": "HIGH_RISK",
+    "findings": [
+      {
+        "id": "f-001",
+        "severity": "HIGH",
+        "confidence": "CONFIRMED",
+        "title": "reentrancy-eth",
+        "file": "../contracts/contracts/Vulnerable/EulerVault.sol",
+        "description": "Reentrancy in EulerVault.withdraw(uint256) (../contracts/contracts/Vulnerable/EulerVault.sol#22-33):\n\tExternal calls:\n\t- (ok,None) = msg.sender.call{value: amount}() (../contracts/contracts/Vulnerable/EulerVault.sol#26)\n\tState variables written after the call(s):\n\t- balances[msg.sender] -= amount (../contracts/contracts/Vulnerable/EulerVault.sol#30)\n\tEulerVault.balances (../contracts/contracts/Vulnerable/EulerVault.sol#11) can be used in cross function reentrancies:\n\t- EulerVault.balances (../contracts/contracts/Vulnerable/EulerVault.sol#11)\n\t- EulerVault.deposit() (../contracts/contracts/Vulnerable/EulerVault.sol#16-19)\n\t- EulerVault.withdraw(uint256) (../contracts/contracts/Vulnerable/EulerVault.sol#22-33)\n",
+        "recommendation": "See description above."
+      },
+      {
+        "id": "f-002",
+        "severity": "LOW",
+        "confidence": "LIKELY",
+        "title": "reentrancy-events",
+        "file": "../contracts/contracts/Vulnerable/EulerVault.sol",
+        "description": "Reentrancy in EulerVault.withdraw(uint256) (../contracts/contracts/Vulnerable/EulerVault.sol#22-33):\n\tExternal calls:\n\t- (ok,None) = msg.sender.call{value: amount}() (../contracts/contracts/Vulnerable/EulerVault.sol#26)\n\tEvent emitted after the call(s):\n\t- Withdrawal(msg.sender,amount) (../contracts/contracts/Vulnerable/EulerVault.sol#32)\n",
+        "recommendation": "See description above."
+      },
+      {
+        "id": "f-003",
+        "severity": "INFO",
+        "confidence": "LIKELY",
+        "title": "low-level-calls",
+        "file": "../contracts/contracts/Vulnerable/EulerVault.sol",
+        "description": "Low level call in EulerVault.withdraw(uint256) (../contracts/contracts/Vulnerable/EulerVault.sol#22-33):\n\t- (ok,None) = msg.sender.call{value: amount}() (../contracts/contracts/Vulnerable/EulerVault.sol#26)\n",
+        "recommendation": "See description above."
+      }
+    ],
+    "memory_hits": [
+      {
+        "query": "EulerVault",
+        "match": "1. EulerVault has a vulnerability related to Reentrancy Attack.\n2. There was a h",
+        "confidence_boost": 2
+      }
+    ]
+  },
+  {
+    "id": "9204b8c7-2c47-406a-a97a-0c8f7f2d77fb",
+    "created_at": "2026-04-28T09:12:18.187027Z",
+    "target": {
+      "kind": "path",
+      "value": "EulerVault.sol"
+    },
+    "mode": "paid",
+    "price_paid": 0.5,
+    "triage": {
+      "risk_score": 8,
+      "verdict": "DANGER",
+      "reasoning": "Le contrat pr\u00e9sente une vuln\u00e9rabilit\u00e9 de r\u00e9entrance dans la fonction withdraw, permettant \u00e0 un attaquant de retirer des fonds de mani\u00e8re r\u00e9p\u00e9t\u00e9e avant que l'\u00e9tat du contrat ne soit mis \u00e0 jour. Cette faille critique augmente consid\u00e9rablement le risque financier, justifiant un verdict de DANGER.",
+      "file_details": [
+        {
+          "file": "EulerVault.sol",
+          "risk_score": 8,
+          "verdict": "DANGER",
+          "reasoning": "Le contrat pr\u00e9sente une vuln\u00e9rabilit\u00e9 de r\u00e9entrance dans la fonction withdraw, ce qui permet \u00e0 un attaquant de retirer des fonds de mani\u00e8re r\u00e9p\u00e9t\u00e9e avant que l'\u00e9tat du contrat ne soit mis \u00e0 jour. Cela a d\u00e9j\u00e0 conduit \u00e0 des exploits historiques, ce qui augmente consid\u00e9rablement le risque financier."
+        }
+      ]
+    },
+    "slither": {
+      "success": true,
+      "findings_count": 3,
+      "findings": [
+        {
+          "check": "reentrancy-eth",
+          "impact": "High",
+          "description": "Reentrancy in EulerVault.withdraw(uint256) (../contracts/contracts/Vulnerable/EulerVault.sol#22-33):\n\tExternal calls:\n\t- (ok,None) = msg.sender.call{value: amount}() (../contracts/contracts/Vulnerable/EulerVault.sol#26)\n\tState variables written after the call(s):\n\t- balances[msg.sender] -= amount (../contracts/contracts/Vulnerable/EulerVault.sol#30)\n\tEulerVault.balances (../contracts/contracts/Vulnerable/EulerVault.sol#11) can be used in cross function reentrancies:\n\t- EulerVault.balances (../contracts/contracts/Vulnerable/EulerVault.sol#11)\n\t- EulerVault.deposit() (../contracts/contracts/Vulnerable/EulerVault.sol#16-19)\n\t- EulerVault.withdraw(uint256) (../contracts/contracts/Vulnerable/EulerVault.sol#22-33)\n",
+          "file": "../contracts/contracts/Vulnerable/EulerVault.sol"
+        },
+        {
+          "check": "reentrancy-events",
+          "impact": "Low",
+          "description": "Reentrancy in EulerVault.withdraw(uint256) (../contracts/contracts/Vulnerable/EulerVault.sol#22-33):\n\tExternal calls:\n\t- (ok,None) = msg.sender.call{value: amount}() (../contracts/contracts/Vulnerable/EulerVault.sol#26)\n\tEvent emitted after the call(s):\n\t- Withdrawal(msg.sender,amount) (../contracts/contracts/Vulnerable/EulerVault.sol#32)\n",
+          "file": "../contracts/contracts/Vulnerable/EulerVault.sol"
+        },
+        {
+          "check": "low-level-calls",
+          "impact": "Informational",
+          "description": "Low level call in EulerVault.withdraw(uint256) (../contracts/contracts/Vulnerable/EulerVault.sol#22-33):\n\t- (ok,None) = msg.sender.call{value: amount}() (../contracts/contracts/Vulnerable/EulerVault.sol#26)\n",
+          "file": "../contracts/contracts/Vulnerable/EulerVault.sol"
+        }
+      ]
+    },
+    "inventory": {
+      "files_analyzed": 1,
+      "details": [
+        {
+          "file": "../contracts/contracts/Vulnerable/EulerVault.sol",
+          "flags": [],
+          "stats": {
+            "functions_count": 3,
+            "modifiers_count": 0,
+            "events_count": 2,
+            "flags": []
+          },
+          "pattern_hash": "17a1a6b68b12d1c0177bc64d02dbe1394c0b551e727186be98ef568bc862ac83",
+          "duplicates": [],
+          "is_duplicate": false
+        }
+      ],
+      "duplicates_detected": 0,
+      "known_findings": [
+        {
+          "contract": "EulerVault",
+          "type": "Historical Memory",
+          "description": "1. EulerVault has a vulnerability related to Reentrancy Attack.\n2. There was a historical exploit on EulerVault in March 2022.\n3. This vulnerability can lead to financial loss.\n4. Reentrancy Attack exploits smart contracts.\n5. EulerVault is used in Decentralized Finance (DeFi).",
+          "pattern_hash": "cb25fc9dd3968a27081bc1393248aad7ec0352aea2a65b72f3c0d2f054da13b8"
+        }
+      ],
+      "known_findings_count": 1
+    },
+    "investigation": {
+      "findings": [
+        {
+          "severity": "HIGH",
+          "confidence": "CONFIRMED",
+          "title": "Classic Reentrancy in withdraw() - External Call Before State Update",
+          "file": "EulerVault.sol:22-33**",
+          "line": null,
+          "reason": ""
+        }
+      ],
+      "anchored": [
+        "Anchored \u2014 executionId: unknown | tx: pending"
+      ],
+      "turns_used": 5,
+      "model": "anthropic/claude-sonnet-4-5"
+    },
+    "scope": {
+      "files_found": 1,
+      "is_onchain": false
+    },
+    "verdict": "HIGH_RISK",
+    "findings": [
+      {
+        "id": "f-001",
+        "severity": "HIGH",
+        "confidence": "CONFIRMED",
+        "title": "reentrancy-eth",
+        "file": "../contracts/contracts/Vulnerable/EulerVault.sol",
+        "description": "Reentrancy in EulerVault.withdraw(uint256) (../contracts/contracts/Vulnerable/EulerVault.sol#22-33):\n\tExternal calls:\n\t- (ok,None) = msg.sender.call{value: amount}() (../contracts/contracts/Vulnerable/EulerVault.sol#26)\n\tState variables written after the call(s):\n\t- balances[msg.sender] -= amount (../contracts/contracts/Vulnerable/EulerVault.sol#30)\n\tEulerVault.balances (../contracts/contracts/Vulnerable/EulerVault.sol#11) can be used in cross function reentrancies:\n\t- EulerVault.balances (../contracts/contracts/Vulnerable/EulerVault.sol#11)\n\t- EulerVault.deposit() (../contracts/contracts/Vulnerable/EulerVault.sol#16-19)\n\t- EulerVault.withdraw(uint256) (../contracts/contracts/Vulnerable/EulerVault.sol#22-33)\n",
+        "recommendation": "See description above."
+      },
+      {
+        "id": "f-002",
+        "severity": "LOW",
+        "confidence": "LIKELY",
+        "title": "reentrancy-events",
+        "file": "../contracts/contracts/Vulnerable/EulerVault.sol",
+        "description": "Reentrancy in EulerVault.withdraw(uint256) (../contracts/contracts/Vulnerable/EulerVault.sol#22-33):\n\tExternal calls:\n\t- (ok,None) = msg.sender.call{value: amount}() (../contracts/contracts/Vulnerable/EulerVault.sol#26)\n\tEvent emitted after the call(s):\n\t- Withdrawal(msg.sender,amount) (../contracts/contracts/Vulnerable/EulerVault.sol#32)\n",
+        "recommendation": "See description above."
+      },
+      {
+        "id": "f-003",
+        "severity": "INFO",
+        "confidence": "LIKELY",
+        "title": "low-level-calls",
+        "file": "../contracts/contracts/Vulnerable/EulerVault.sol",
+        "description": "Low level call in EulerVault.withdraw(uint256) (../contracts/contracts/Vulnerable/EulerVault.sol#22-33):\n\t- (ok,None) = msg.sender.call{value: amount}() (../contracts/contracts/Vulnerable/EulerVault.sol#26)\n",
+        "recommendation": "See description above."
+      }
+    ],
+    "memory_hits": [
+      {
+        "query": "EulerVault",
+        "match": "1. EulerVault has a vulnerability related to Reentrancy Attack.\n2. There was a h",
+        "confidence_boost": 2
+      }
+    ]
+  },
+  {
+    "id": "02266d84-13ef-41a6-afb4-63b018b5ba90",
+    "created_at": "2026-04-28T09:08:14.295705Z",
+    "target": {
+      "kind": "path",
+      "value": "EulerVault.sol"
+    },
+    "mode": "paid",
+    "price_paid": 0.5,
+    "triage": {
+      "risk_score": 8,
+      "verdict": "DANGER",
+      "reasoning": "Le contrat pr\u00e9sente une vuln\u00e9rabilit\u00e9 de r\u00e9entrance dans la fonction withdraw, permettant \u00e0 un attaquant de retirer des fonds de mani\u00e8re r\u00e9p\u00e9t\u00e9e avant que l'\u00e9tat du contrat ne soit mis \u00e0 jour. Cela expose le contrat \u00e0 des pertes financi\u00e8res significatives. De plus, l'\u00e9mission d'\u00e9v\u00e9nements apr\u00e8s des appels externes augmente le risque d'exploitation. L'historique d'exploitation du contrat renforce la gravit\u00e9 de la situation.",
+      "file_details": [
+        {
+          "file": "EulerVault.sol",
+          "risk_score": 8,
+          "verdict": "DANGER",
+          "reasoning": "Le contrat pr\u00e9sente une vuln\u00e9rabilit\u00e9 de r\u00e9entrance dans la fonction withdraw, permettant \u00e0 un attaquant de retirer des fonds de mani\u00e8re r\u00e9p\u00e9t\u00e9e avant que l'\u00e9tat du contrat ne soit mis \u00e0 jour. Cela peut entra\u00eener des pertes financi\u00e8res significatives. De plus, des \u00e9v\u00e9nements sont \u00e9mis apr\u00e8s l'appel externe, ce qui augmente le risque d'exploitation. L'historique d'exploitation du contrat renforce la gravit\u00e9 de la situation."
+        }
+      ]
+    },
+    "slither": {
+      "success": true,
+      "findings_count": 3,
+      "findings": [
+        {
+          "check": "reentrancy-eth",
+          "impact": "High",
+          "description": "Reentrancy in EulerVault.withdraw(uint256) (../contracts/contracts/Vulnerable/EulerVault.sol#22-33):\n\tExternal calls:\n\t- (ok,None) = msg.sender.call{value: amount}() (../contracts/contracts/Vulnerable/EulerVault.sol#26)\n\tState variables written after the call(s):\n\t- balances[msg.sender] -= amount (../contracts/contracts/Vulnerable/EulerVault.sol#30)\n\tEulerVault.balances (../contracts/contracts/Vulnerable/EulerVault.sol#11) can be used in cross function reentrancies:\n\t- EulerVault.balances (../contracts/contracts/Vulnerable/EulerVault.sol#11)\n\t- EulerVault.deposit() (../contracts/contracts/Vulnerable/EulerVault.sol#16-19)\n\t- EulerVault.withdraw(uint256) (../contracts/contracts/Vulnerable/EulerVault.sol#22-33)\n",
+          "file": "../contracts/contracts/Vulnerable/EulerVault.sol"
+        },
+        {
+          "check": "reentrancy-events",
+          "impact": "Low",
+          "description": "Reentrancy in EulerVault.withdraw(uint256) (../contracts/contracts/Vulnerable/EulerVault.sol#22-33):\n\tExternal calls:\n\t- (ok,None) = msg.sender.call{value: amount}() (../contracts/contracts/Vulnerable/EulerVault.sol#26)\n\tEvent emitted after the call(s):\n\t- Withdrawal(msg.sender,amount) (../contracts/contracts/Vulnerable/EulerVault.sol#32)\n",
+          "file": "../contracts/contracts/Vulnerable/EulerVault.sol"
+        },
+        {
+          "check": "low-level-calls",
+          "impact": "Informational",
+          "description": "Low level call in EulerVault.withdraw(uint256) (../contracts/contracts/Vulnerable/EulerVault.sol#22-33):\n\t- (ok,None) = msg.sender.call{value: amount}() (../contracts/contracts/Vulnerable/EulerVault.sol#26)\n",
+          "file": "../contracts/contracts/Vulnerable/EulerVault.sol"
+        }
+      ]
+    },
+    "inventory": {
+      "files_analyzed": 1,
+      "details": [
+        {
+          "file": "../contracts/contracts/Vulnerable/EulerVault.sol",
+          "flags": [],
+          "stats": {
+            "functions_count": 3,
+            "modifiers_count": 0,
+            "events_count": 2,
+            "flags": []
+          },
+          "pattern_hash": "17a1a6b68b12d1c0177bc64d02dbe1394c0b551e727186be98ef568bc862ac83",
+          "duplicates": [],
+          "is_duplicate": false
+        }
+      ],
+      "duplicates_detected": 0,
+      "known_findings": [
+        {
+          "contract": "EulerVault",
+          "type": "Historical Memory",
+          "description": "1. EulerVault has a vulnerability related to Reentrancy Attack.\n2. There was a historical exploit on EulerVault in March 2022.\n3. This vulnerability can lead to financial loss.\n4. Reentrancy Attack exploits smart contracts.\n5. EulerVault is used in Decentralized Finance (DeFi).",
+          "pattern_hash": "cb25fc9dd3968a27081bc1393248aad7ec0352aea2a65b72f3c0d2f054da13b8"
+        }
+      ],
+      "known_findings_count": 1
+    },
+    "investigation": {
+      "findings": [],
+      "anchored": [
+        "Anchored \u2014 executionId: unknown | tx: pending"
+      ],
+      "turns_used": 6,
+      "model": "anthropic/claude-sonnet-4-5"
+    },
+    "scope": {
+      "files_found": 1,
+      "is_onchain": false
+    },
+    "verdict": "HIGH_RISK",
+    "findings": [
+      {
+        "id": "f-001",
+        "severity": "HIGH",
+        "confidence": "CONFIRMED",
+        "title": "reentrancy-eth",
+        "file": "../contracts/contracts/Vulnerable/EulerVault.sol",
+        "description": "Reentrancy in EulerVault.withdraw(uint256) (../contracts/contracts/Vulnerable/EulerVault.sol#22-33):\n\tExternal calls:\n\t- (ok,None) = msg.sender.call{value: amount}() (../contracts/contracts/Vulnerable/EulerVault.sol#26)\n\tState variables written after the call(s):\n\t- balances[msg.sender] -= amount (../contracts/contracts/Vulnerable/EulerVault.sol#30)\n\tEulerVault.balances (../contracts/contracts/Vulnerable/EulerVault.sol#11) can be used in cross function reentrancies:\n\t- EulerVault.balances (../contracts/contracts/Vulnerable/EulerVault.sol#11)\n\t- EulerVault.deposit() (../contracts/contracts/Vulnerable/EulerVault.sol#16-19)\n\t- EulerVault.withdraw(uint256) (../contracts/contracts/Vulnerable/EulerVault.sol#22-33)\n",
+        "recommendation": "See description above."
+      },
+      {
+        "id": "f-002",
+        "severity": "LOW",
+        "confidence": "LIKELY",
+        "title": "reentrancy-events",
+        "file": "../contracts/contracts/Vulnerable/EulerVault.sol",
+        "description": "Reentrancy in EulerVault.withdraw(uint256) (../contracts/contracts/Vulnerable/EulerVault.sol#22-33):\n\tExternal calls:\n\t- (ok,None) = msg.sender.call{value: amount}() (../contracts/contracts/Vulnerable/EulerVault.sol#26)\n\tEvent emitted after the call(s):\n\t- Withdrawal(msg.sender,amount) (../contracts/contracts/Vulnerable/EulerVault.sol#32)\n",
+        "recommendation": "See description above."
+      },
+      {
+        "id": "f-003",
+        "severity": "INFO",
+        "confidence": "LIKELY",
+        "title": "low-level-calls",
+        "file": "../contracts/contracts/Vulnerable/EulerVault.sol",
+        "description": "Low level call in EulerVault.withdraw(uint256) (../contracts/contracts/Vulnerable/EulerVault.sol#22-33):\n\t- (ok,None) = msg.sender.call{value: amount}() (../contracts/contracts/Vulnerable/EulerVault.sol#26)\n",
+        "recommendation": "See description above."
+      }
+    ],
+    "memory_hits": [
+      {
+        "query": "EulerVault",
+        "match": "1. EulerVault has a vulnerability related to Reentrancy Attack.\n2. There was a h",
+        "confidence_boost": 2
+      }
+    ]
+  },
+  {
     "id": "ed66baaf-b000-4435-bde0-cd731a49161b",
     "created_at": "2026-04-27T21:52:50.990806Z",
     "target": {
