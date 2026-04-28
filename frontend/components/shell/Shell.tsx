@@ -28,14 +28,14 @@ function ProgressView({ line }: { line: ProgressLine }) {
     line.status === "done"
       ? "text-[--terminal-accent]"
       : line.status === "fail"
-      ? "text-[--terminal-red]"
-      : "text-[--terminal-brand]";
+        ? "text-[--terminal-red]"
+        : "text-[--terminal-brand]";
   const pctColor =
     line.status === "done"
       ? "text-[--terminal-accent] glow-accent"
       : line.status === "fail"
-      ? "text-[--terminal-red]"
-      : "text-[--terminal-brand]";
+        ? "text-[--terminal-red]"
+        : "text-[--terminal-brand]";
 
   return (
     <div className="whitespace-pre font-mono">
@@ -111,11 +111,6 @@ export function Shell() {
   const { entries, input, setInput, submit, navigateHistory, autocomplete } = useShell();
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
-
-  // Garde le focus sur l'input dès que le composant se monte / on clique dans le shell.
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
 
   // Autoscroll en bas à chaque nouvel entry.
   useEffect(() => {
