@@ -1,6 +1,11 @@
-import { ethers } from "ethers";
+import { ethers, namehash } from "ethers";
 import * as dotenv from "dotenv";
 dotenv.config();
+
+/** Parent pour les certificats d’audit (sous-domaines type contract-abcd12.<parent>). */
+const PARENT_CERT = process.env.ENS_PARENT_CERT || "certified.onchor-ai.eth";
+/** Parent pour les profils auditeurs. */
+const PARENT_AUDITORS = process.env.ENS_PARENT_AUDITORS || "auditors.onchor-ai.eth";
 
 const ENS_REGISTRY = "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e";
 const PUBLIC_RESOLVER = "0x8FADE66B79cC9f707aB26799354482EB93a5B7dD";
@@ -12,17 +17,6 @@ const RESOLVER_ABI = [
     "function setText(bytes32 node, string key, string value) external",
     "function text(bytes32 node, string key) external view returns (string)",
 ];
-
-function namehash(name: string): string {
-    let node = "0x0000000000000000000000000000000000000000000000000000000000000000";
-    if (name === "") return node;
-    for (const label of name.split(".").reverse()) {
-        node = ethers.keccak256(
-            ethers.concat([node, ethers.keccak256(ethers.toUtf8Bytes(label))])
-        );
-    }
-    return node;
-}
 
 async function getContracts() {
     const provider = new ethers.JsonRpcProvider(
@@ -46,11 +40,12 @@ async function mintCert(
     const { wallet, registry, resolver } = await getContracts();
 
     const label = `contract-${contractAddress.slice(2, 8).toLowerCase()}`;
-    const parentNode = namehash("certified.Onchor-ai.eth");
+    const parentNode = namehash(PARENT_CERT);
     const labelHash = ethers.keccak256(ethers.toUtf8Bytes(label));
-    const subnameNode = namehash(`${label}.certified.Onchor-ai.eth`);
+    const fullName = `${label}.${PARENT_CERT}`;
+    const subnameNode = namehash(fullName);
 
-    console.log(`Minting ${label}.certified.Onchor-ai.eth...`);
+    console.log(`Minting ${fullName}...`);
     const tx1 = await registry.setSubnodeRecord(
         parentNode, labelHash, wallet.address, PUBLIC_RESOLVER, 0
     );
@@ -72,10 +67,9 @@ async function mintCert(
         console.log(`✓ ${key} = ${value}`);
     }
 
-    const subname = `${label}.certified.Onchor-ai.eth`;
-    console.log(`\nENS_SUBNAME=${subname}`);
+    console.log(`\nENS_SUBNAME=${fullName}`);
     console.log(`ENS_NODE=${subnameNode}`);
-    return subname;
+    return fullName;
 }
 
 async function mintAuditor(
@@ -87,11 +81,12 @@ async function mintAuditor(
     const { wallet, registry, resolver } = await getContracts();
 
     const label = walletAddress.slice(2, 10).toLowerCase();
-    const parentNode = namehash("auditors.Onchor-ai.eth");
+    const parentNode = namehash(PARENT_AUDITORS);
     const labelHash = ethers.keccak256(ethers.toUtf8Bytes(label));
-    const subnameNode = namehash(`${label}.auditors.Onchor-ai.eth`);
+    const fullName = `${label}.${PARENT_AUDITORS}`;
+    const subnameNode = namehash(fullName);
 
-    console.log(`Minting ${label}.auditors.Onchor-ai.eth...`);
+    console.log(`Minting ${fullName}...`);
     const tx1 = await registry.setSubnodeRecord(
         parentNode, labelHash, wallet.address, PUBLIC_RESOLVER, 0
     );
@@ -110,9 +105,8 @@ async function mintAuditor(
         console.log(`✓ ${key} = ${value}`);
     }
 
-    const subname = `${label}.auditors.Onchor-ai.eth`;
-    console.log(`\nENS_SUBNAME=${subname}`);
-    return subname;
+    console.log(`\nENS_SUBNAME=${fullName}`);
+    return fullName;
 }
 
 // CLI interface — called from Python via subprocess

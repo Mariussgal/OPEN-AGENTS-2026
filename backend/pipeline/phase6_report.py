@@ -17,9 +17,22 @@ import json
 import os
 import subprocess
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Optional
 
 from openai import OpenAI
+
+
+def _default_contracts_dir() -> str:
+    """
+    Dossier Hardhat à la racine du dépôt (sibling de backend/).
+    Si absent (paquet installé ailleurs), retombe sur ./contracts (CWD).
+    """
+    backend_pkg = Path(__file__).resolve().parent.parent
+    candidate = backend_pkg.parent / "contracts"
+    if candidate.is_dir():
+        return str(candidate)
+    return "./contracts"
 
 
 # ─── LLM client ───────────────────────────────────────────────────────────────
@@ -154,7 +167,7 @@ def _mint_ens_cert(
 ) -> Optional[str]:
     """
     Appelle ensManager.ts via subprocess pour minter le certificat ENS.
-    Retourne le subname (ex: vault-0xabcd.certified.keeper-memory.eth) ou None.
+    Retourne le subname (ex: contract-abcd12.certified.onchor-ai.eth) ou None.
     """
     try:
         result = subprocess.run(
@@ -286,10 +299,11 @@ async def run_report(
         triage_data       : sortie de run_triage()
         investigation_data: sortie de run_investigation() après Phase 5
         target_address    : adresse 0x si audit onchain
-        contracts_dir     : chemin vers le dossier Hardhat/Foundry (default: ./contracts)
+        contracts_dir     : chemin vers le dossier npm/hardhat contenant scripts/ensManager.ts
+                            (défaut: ../contracts depuis backend, ou CONTRACTS_DIR)
     """
     print("📋 [Phase 6] Génération du rapport final...")
-    _contracts_dir = contracts_dir or os.getenv("CONTRACTS_DIR", "./contracts")
+    _contracts_dir = contracts_dir or os.getenv("CONTRACTS_DIR") or _default_contracts_dir()
     client = _get_llm_client()
 
     # ── 1. Merge findings ──────────────────────────────────────────────────────
