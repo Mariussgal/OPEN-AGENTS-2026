@@ -230,46 +230,49 @@ export default function HomePage() {
 
       {/* ═════ HEADER — sticky, 3 colonnes égales ══════════════════════════ */}
       <header className="sticky top-0 z-30 backdrop-blur-md bg-[--background]/80 border-b border-[--terminal-border]">
-        {/* Layout desktop : 3 colonnes flex — brand | install centré | nav */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center">
+        {/* Layout desktop : 3 colonnes — brand | text centré | nav */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 grid grid-cols-3 items-center">
 
           {/* Col 1 — brand (gauche) */}
-          <button
-            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-            className="flex items-center gap-2.5 shrink-0"
-          >
-            <Image
-              src="/OnchorAI-logo.png"
-              alt="Onchor.ai"
-              width={26}
-              height={26}
-              className="rounded-sm"
-            />
-            <span className="font-mono text-sm tracking-tight">
-              <span className="text-[--terminal-brand] font-semibold">onchor</span>
-              <span className="text-[--terminal-comment]">.</span>
-              <span className="text-[--terminal-accent]">ai</span>
-            </span>
-            <span className="hidden sm:inline-block text-[10px] uppercase tracking-[0.2em] text-[--terminal-muted] border border-[--terminal-border] px-1.5 py-0.5 rounded-sm">
-              v0.1.0
-            </span>
-          </button>
+          <div className="flex justify-start">
+            <button
+              onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+              className="flex items-center gap-2.5 shrink-0"
+            >
+              <Image
+                src="/OnchorAI-logo.png"
+                alt="Onchor.ai"
+                width={26}
+                height={26}
+                className="rounded-sm"
+              />
+              <span className="font-mono text-sm tracking-tight">
+                <span className="text-[--terminal-brand] font-semibold">onchor</span>
+                <span className="text-[--terminal-comment]">.</span>
+                <span className="text-[--terminal-accent]">ai</span>
+              </span>
+              <span className="hidden sm:inline-block text-[10px] uppercase tracking-[0.2em] text-[--terminal-muted] border border-[--terminal-border] px-1.5 py-0.5 rounded-sm">
+                v0.1.0
+              </span>
+            </button>
+          </div>
 
-          {/* Col 2 — install command (centre absolu) */}
-          <div className="hidden md:flex flex-1 justify-center px-4">
-            <CopyCommand cmd={INSTALL_CMD} className="w-full max-w-xs" />
+          {/* Col 2 — text (centre) */}
+          <div className="hidden md:flex justify-center">
+            <span className="text-[10px] uppercase tracking-[0.25em] font-mono text-[--terminal-muted] whitespace-nowrap">
+              ETHGlobal · Open Agents 2026
+            </span>
           </div>
 
           {/* Col 3 — nav (droite) */}
-          <nav className="hidden md:flex items-center gap-6 ml-auto shrink-0">
-            <NavLinks />
-          </nav>
+          <div className="flex justify-end items-center gap-4">
+            <nav className="hidden md:flex items-center gap-6">
+              <NavLinks />
+            </nav>
 
-          {/* Mobile : install compacte + burger */}
-          <div className="flex md:hidden items-center gap-2 ml-auto">
-            <CopyCommand cmd={INSTALL_CMD} className="max-w-[160px]" showPrompt={false} />
+            {/* Mobile : burger */}
             <button
-              className="text-[--terminal-muted] hover:text-[--terminal-accent] transition-colors p-1"
+              className="md:hidden text-[--terminal-muted] hover:text-[--terminal-accent] transition-colors p-1"
               onClick={() => setMenuOpen(!menuOpen)}
               aria-label="Toggle menu"
             >
@@ -289,11 +292,7 @@ export default function HomePage() {
       <main className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 pt-16 sm:pt-20 pb-32 space-y-28 sm:space-y-32">
 
         {/* ═════ HERO ═════════════════════════════════════════════════════ */}
-        {/*
-          Le <pre> ASCII occupe toute la largeur de la page (overflow visible)
-          et est positionné par rapport au <section> qui déborde de son max-w.
-        */}
-        <section className="text-center max-w-4xl mx-auto flex flex-col items-center relative">
+        <section className="text-center max-w-4xl mx-auto flex flex-col items-center justify-center relative min-h-[calc(100vh-140px)] py-12 sm:py-20">
           {/* ASCII background — overflow intentionnel, whitespace-pre strict */}
           <div className="pointer-events-none absolute -top-20 left-1/2 -translate-x-1/2 w-screen select-none overflow-hidden" aria-hidden>
             <pre
@@ -307,12 +306,6 @@ export default function HomePage() {
           {/* Voile pour garder le texte lisible */}
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[--background]/30 via-[--background]/60 to-[--background]" />
 
-          <div className="animate-fade-in-up inline-flex items-center gap-2 mb-6 sm:mb-8 border border-[--terminal-border] px-3 py-1 rounded-sm">
-            <span className="w-1.5 h-1.5 rounded-full bg-[--terminal-accent] animate-pulse-brand" />
-            <span className="text-[10px] uppercase tracking-[0.25em] font-mono text-[--terminal-muted]">
-              ETHGlobal · Open Agents 2026
-            </span>
-          </div>
 
           <h1
             className="animate-fade-in-up opacity-0 text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6 sm:mb-8 text-balance leading-[1.05]"
@@ -327,12 +320,6 @@ export default function HomePage() {
             style={{ animationDelay: "200ms" }}
           >
             <CopyCommand cmd={INSTALL_CMD} />
-            <a
-              href="#playground"
-              className="font-mono text-xs uppercase tracking-[0.18em] text-[--terminal-muted] hover:text-[--terminal-accent] transition-colors px-3 py-2"
-            >
-              try the playground ↓
-            </a>
           </div>
 
           <p
@@ -343,6 +330,13 @@ export default function HomePage() {
             Cross-references your code against thousands of past audits and
             anchors every confirmed finding onchain.
           </p>
+
+          <a
+            href="#playground"
+            className="font-mono text-xs uppercase tracking-[0.18em] text-[--terminal-muted] hover:text-[--terminal-accent] transition-colors px-3 py-2 mt-12"
+          >
+            try the playground ↓
+          </a>
         </section>
 
         {/* ═════ INTERACTIVE PLAYGROUND ══════════════════════════════════ */}
