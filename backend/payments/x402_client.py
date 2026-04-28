@@ -84,8 +84,8 @@ def sign_server_reward(contributor_address: str, amount_usdc: float = 0.15) -> d
     USDC_ADDRESS = "0x036CbD53842c5426634e7929541eC2318f3dCF7e"
     CHAIN_ID = 84532
     
-    # Conversion en unités atomiques (6 décimales pour USDC)
-    amount_atomic = str(int(amount_usdc * 1_000_000))
+    # Conversion en unités atomiques (6 décimales pour USDC) avec arrondi strict
+    amount_atomic = str(int(round(amount_usdc, 2) * 1_000_000))
 
     return _sign_eip3009(
         private_key=private_key,

@@ -111,7 +111,7 @@ def audit(path, local, dev):
                     save_config(user_config)
                     
                     click.secho(f"✅ Succès ! {payable_count} pattern(s) payé(s) on-chain.", fg="green")
-                    click.secho(f"🔗 TX: {tx_hash}", fg="dim")
+                    click.secho(f"🔗 TX: {tx_hash}", fg="white")
                     click.secho(f"🏦 Nouveau solde : {user_config['credit_usdc']:.2f} USDC", fg="cyan", bold=True)
                 except Exception as e:
                     click.secho(f"⚠️ Erreur lors du paiement : {e}", fg="red")

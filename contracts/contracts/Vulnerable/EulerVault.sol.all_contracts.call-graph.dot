@@ -4,8 +4,8 @@ node [shape=box]
 subgraph cluster_94_EulerVault {
 label = "EulerVault"
 "94_withdraw" [label="withdraw"]
-"94_getBalance" [label="getBalance"]
 "94_deposit" [label="deposit"]
+"94_getBalance" [label="getBalance"]
 }subgraph cluster_solidity {
 label = "[Solidity]"
 "require(bool,string)" 
