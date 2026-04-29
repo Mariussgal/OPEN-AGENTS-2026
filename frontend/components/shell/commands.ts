@@ -140,7 +140,7 @@ const init: CommandHandler = () => ({
     t("muted", "[init] generating local wallet..."),
     t("muted", "[init] encrypting keystore (AES-256-GCM)..."),
     t("muted", "[init] writing ~/.onchor/config.json..."),
-    t("muted", "[init] writing ~/.keeper-memory/memory/..."),
+    t("muted", "[init] writing ~/.onchor-ai/memory/..."),
     blank(),
     t("accent", "✓ wallet generated"),
     t("log", "  address    : 0x4DB6Bf931e0AC52E6a35601da70aAB3fF26657C4"),

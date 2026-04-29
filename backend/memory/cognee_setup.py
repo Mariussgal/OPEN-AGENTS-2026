@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # 2. Chemin ABSOLU GLOBAL pour persister entre tous les projets de la machine
-GLOBAL_MEMORY_DIR = os.path.expanduser("~/.keeper-memory/memory")
+GLOBAL_MEMORY_DIR = os.path.expanduser("~/.onchor-ai/memory")
 COGNEE_SYSTEM_DIR = os.path.join(GLOBAL_MEMORY_DIR, ".cognee_system")
 COGNEE_DATA_DIR = os.path.join(GLOBAL_MEMORY_DIR, ".cognee_data")
 

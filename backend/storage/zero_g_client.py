@@ -22,7 +22,7 @@ _DOWNLOAD_JS = _ZERO_G_DIR / "0g_download.js"
 _STORAGE_DIR = Path(__file__).resolve().parent
 _MOCK_ROOT = _STORAGE_DIR / ".zero_g_mock"
 
-SCHEMA_PATTERN_V1 = "keeper-memory/pattern/v1"
+SCHEMA_PATTERN_V1 = "onchor-ai/pattern/v1"
 StorageMode = Literal["live", "merkle", "mock"]
 
 
