@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity 0.8.24;
 
-/**
- * @title SecureVault
- * @dev Un contrat simple et sécurisé pour tester la certification ENS.
- */
 contract SecureVault {
     mapping(address => uint256) public balances;
     bool private locked;
@@ -32,17 +28,15 @@ contract SecureVault {
     function withdraw(uint256 amount) external nonReentrant {
         require(balances[msg.sender] >= amount, "Insufficient balance");
         
-        // Effet avant l'interaction (Checks-Effects-Interactions)
         balances[msg.sender] -= amount;
         
-        // Interaction
         (bool success, ) = msg.sender.call{value: amount}("");
         require(success, "Transfer failed");
         
         emit Withdrawn(msg.sender, amount);
     }
 
-    receive() external payable nonReentrant {
+    receive() external payable {
         _deposit(msg.sender, msg.value);
     }
 }
