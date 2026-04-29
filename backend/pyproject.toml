@@ -7,7 +7,7 @@ name = "onchor-ai"
 version = "0.1.2"
 description = "Onchor.ai - Solidity Security Copilot with Persistent Collective Memory"
 readme = "README.md"
-license = { text = "MIT" }
+license = "MIT"
 authors = [{ name = "CNM Agency", email = "contact@cnm.agency" }]
 dependencies = [
     "click>=8.1.7",

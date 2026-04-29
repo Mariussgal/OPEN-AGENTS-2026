@@ -1,9 +1,9 @@
 Metadata-Version: 2.4
 Name: onchor-ai
-Version: 0.1.0
+Version: 0.1.2
 Summary: Onchor.ai - Solidity Security Copilot with Persistent Collective Memory
 Author-email: CNM Agency <contact@cnm.agency>
-License: MIT
+License-Expression: MIT
 Project-URL: Homepage, https://github.com/Mariussgal/OPEN-AGENTS-2026
 Requires-Python: >=3.10
 Description-Content-Type: text/markdown
