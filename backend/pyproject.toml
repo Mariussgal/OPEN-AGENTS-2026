@@ -6,9 +6,9 @@ build-backend = "setuptools.build_meta"
 name = "onchor-ai"
 version = "0.1.0"
 description = "Onchor.ai - Solidity Security Copilot with Persistent Collective Memory"
-authors = [
-    { name = "Onchor.ai Team" }
-]
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "CNM Agency", email = "contact@cnm.agency" }]
 dependencies = [
     "click>=8.1.7",
     "fastapi>=0.109.0",
@@ -30,6 +30,11 @@ dependencies = [
 ]
 requires-python = ">=3.10"
 
+
+[project.urls]
+Homepage = "https://github.com/Mariussgal/OPEN-AGENTS-2026"
+
+
 [project.scripts]
 onchor-ai = "cli:cli"
 
@@ -39,3 +44,5 @@ py-modules = ["cli", "server", "ui", "streaming_client", "onboarding"]
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["pipeline*", "payments*", "memory*", "keeper*", "storage*", "onchor_ens*"]
+
+
