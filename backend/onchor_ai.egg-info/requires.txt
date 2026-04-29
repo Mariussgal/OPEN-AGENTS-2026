@@ -14,3 +14,4 @@ anthropic>=0.17.0
 requests>=2.31.0
 x402[evm,fastapi,httpx]>=0.1.0
 rich>=13.7.0
+rich-click>=1.7.0

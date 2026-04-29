@@ -22,6 +22,16 @@ def is_evm_tx_hash(val: object) -> bool:
 
 KEEPERHUB_EXECUTE = "https://app.keeperhub.com/api/execute/contract-call"
 
+# GET uniquement (onboarding / doctor) — évite POST /execute/contract-call comme simple « ping » clé sur chaque install.
+KEEPERHUB_VALIDATE_READ_FALLBACK_URLS = [
+    u.strip()
+    for u in os.getenv(
+        "KEEPERHUB_VALIDATION_URL_FALLBACKS",
+        "https://app.keeperhub.com/api/workflows,https://app.keeperhub.com/api/me",
+    ).split(",")
+    if u.strip()
+]
+
 
 def _normalize_keeperhub_bearer_token(api_key: str) -> str:
     """

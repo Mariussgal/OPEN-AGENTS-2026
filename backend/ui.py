@@ -182,6 +182,33 @@ def kv_panel(title: str, items: dict[str, str]) -> Panel:
     return Panel(table, title=f"[brand]{title}[/brand]", border_style="brand.dim")
 
 
+def credentials_summary_table(rows: list[dict[str, str]]) -> Table:
+    """Table onboarding : credential · statut · détail."""
+    table = Table(
+        show_header=True,
+        header_style="label",
+        border_style="rule",
+        expand=True,
+    )
+    table.add_column("Credential", overflow="fold", style="label")
+    table.add_column("Statut", justify="center", width=14)
+    table.add_column("Détail", overflow="fold", style="white")
+
+    for r in rows:
+        raw_st = str(r.get("status", "") or "").strip().lower()
+        if raw_st in ("valid", "ok", "validated"):
+            st = "[ok]✓ validé[/ok]"
+        elif raw_st in ("invalid", "bad", "error"):
+            st = "[danger]✗ invalide[/danger]"
+        elif raw_st in ("skip", "skipped", "optional"):
+            st = "[muted]— ignoré[/muted]"
+        else:
+            st = f"[muted]{r.get('status', '—')}[/muted]"
+        table.add_row(r.get("name", "—"), st, str(r.get("detail", "")))
+
+    return table
+
+
 # ─── Verdict & findings ────────────────────────────────────────────────────────
 SEVERITY_STYLES = {
     "HIGH": "danger",

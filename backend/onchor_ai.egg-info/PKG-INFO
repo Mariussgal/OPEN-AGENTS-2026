@@ -20,3 +20,4 @@ Requires-Dist: anthropic>=0.17.0
 Requires-Dist: requests>=2.31.0
 Requires-Dist: x402[evm,fastapi,httpx]>=0.1.0
 Requires-Dist: rich>=13.7.0
+Requires-Dist: rich-click>=1.7.0

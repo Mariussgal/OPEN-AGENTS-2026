@@ -1,6 +1,7 @@
 cli
 keeper
 memory
+onboarding
 onchor_ens
 payments
 pipeline

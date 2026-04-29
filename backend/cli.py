@@ -8,12 +8,39 @@ logo ASCII, panels de verdict, tableau des findings, spinners pendant l'audit.
 import asyncio
 import json
 import os
+import sys
+from pathlib import Path
 from typing import Any
 
 from dotenv import load_dotenv
+
+_REPO_ROOT = Path(__file__).resolve().parent
+_KEEPER_HOME_ENV = Path.home() / ".onchor-ai" / ".env"
+
+load_dotenv(_REPO_ROOT / ".env")
+load_dotenv(_KEEPER_HOME_ENV, override=True)
 load_dotenv()
 
-import click
+# rich-click : panels, couleurs — aligné sur la palette ui.py (brand / accent / rule).
+from rich_click import rich_click as _rch
+
+_rch.COLOR_SYSTEM = "auto"
+_rch.USE_CLICK_SHORT_HELP = True
+_rch.SHOW_USAGE = True
+_rch.COMMANDS_PANEL_TITLE = "Commandes disponibles"
+_rch.OPTIONS_PANEL_TITLE = "Options"
+_rch.STYLE_COMMAND = "bold #00E0B8"
+_rch.STYLE_OPTION = "cyan"
+_rch.STYLE_OPTION_HELP = "dim"
+_rch.STYLE_USAGE = "dim bold"
+_rch.STYLE_HELPTEXT = "white"
+_rch.STYLE_EPILOG_TEXT = "dim"
+_rch.STYLE_COMMANDS_PANEL_BORDER = "#3A3358"
+_rch.STYLE_OPTIONS_PANEL_BORDER = "#3A3358"
+_rch.STYLE_COMMANDS_TABLE_BORDER_STYLE = "#3A3358"
+_rch.MAX_WIDTH = 120
+
+import rich_click as click
 import httpx
 from rich.panel import Panel
 from rich.table import Table
@@ -33,9 +60,38 @@ from ui import (
     SEVERITY_STYLES,
 )
 
-API_URL     = "http://localhost:8000"
-CONFIG_DIR  = ".onchor"
-CONFIG_PATH = os.path.join(CONFIG_DIR, "config.json")
+API_URL        = "http://localhost:8000"
+CONFIG_DIR     = ".onchor"
+CONFIG_LEGACY  = os.path.join(CONFIG_DIR, "config.json")
+CONFIG_USER    = os.path.join(str(Path.home()), ".onchor-ai", "config.json")
+
+
+def _should_run_onboarding() -> bool:
+    if os.getenv("ONCHOR_SKIP_ONBOARDING", "").strip().lower() in ("1", "true", "yes"):
+        return False
+    av = sys.argv[1:]
+    if len(av) >= 1 and av[0] == "doctor":
+        return False
+    if "--help" in av or "-h" in av:
+        return False
+    try:
+        from onboarding import needs_first_run_onboarding
+
+        return needs_first_run_onboarding()
+    except Exception:
+        return False
+
+
+def _config_read_paths() -> list[str]:
+    return [CONFIG_USER, CONFIG_LEGACY]
+
+
+def _pick_config_write_path() -> str:
+    if os.path.isfile(CONFIG_USER):
+        return CONFIG_USER
+    if os.path.isfile(CONFIG_LEGACY):
+        return CONFIG_LEGACY
+    return CONFIG_USER
 
 
 def _normalize_audit_path(path: str) -> str:
@@ -52,22 +108,37 @@ def _normalize_audit_path(path: str) -> str:
 
 # ─── Config helpers ────────────────────────────────────────────────────────────
 def load_config() -> dict[str, Any]:
-    if os.path.exists(CONFIG_PATH):
-        with open(CONFIG_PATH, "r") as f:
-            config = json.load(f)
-            config.setdefault("credit_usdc", 0.0)
-            return config
+    for path in _config_read_paths():
+        if os.path.exists(path):
+            with open(path, "r") as f:
+                config = json.load(f)
+                config.setdefault("credit_usdc", 0.0)
+                return config
     return {"version": "0.1.0", "mode": "local", "credit_usdc": 0.0}
 
 
 def save_config(config: dict[str, Any]) -> None:
-    os.makedirs(CONFIG_DIR, exist_ok=True)
-    with open(CONFIG_PATH, "w") as f:
+    path = _pick_config_write_path()
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w") as f:
         json.dump(config, f, indent=2)
 
 
 # ─── CLI ───────────────────────────────────────────────────────────────────────
-@click.group(invoke_without_command=True)
+@click.group(
+    invoke_without_command=True,
+    context_settings={"help_option_names": ["-h", "--help"]},
+    epilog=(
+        "\nExemples rapides :\n\n"
+        "  onchor-ai doctor       valider les clés et les APIs réseau (sans tout l’assistant)\n\n"
+        "  onchor-ai audit .      audit d’un dossier ou fichier Solidity local\n\n"
+        "  onchor-ai audit 0x…    audit d’un contrat vérifié (Etherscan)\n\n"
+        "  onchor-ai status       solde USDC, wallet et mode serveur local\n\n"
+        "Au premier lancement sans ~/.onchor-ai/config.json : l’assistant s’affiche.\n\n"
+        "Contourner ponctuellement : ONCHOR_SKIP_ONBOARDING=1\n\n"
+        "Options détaillées : onchor-ai audit -h ou onchor-ai doctor -h\n"
+    ),
+)
 @click.option("--no-banner", is_flag=True, help="Masque la bannière de démarrage.")
 @click.option(
     "--icon-size",
@@ -78,7 +149,19 @@ def save_config(config: dict[str, Any]) -> None:
 @click.option("--minimal", is_flag=True, help="Alias de --icon-size none.")
 @click.pass_context
 def cli(ctx: click.Context, no_banner: bool, icon_size: str, minimal: bool) -> None:
-    """Onchor.ai — Solidity Security Copilot with Persistent Collective Memory."""
+    """Onchor.ai — Solidity Security Copilot avec mémoire collective.
+
+    Audit contracts, paiements USDC testnet (x402), ancrages KeeperHub, patterns 0G.
+    Détail et options propres à chaque commande : utilise -h après le nom de la commande.
+    """
+    if _should_run_onboarding():
+        from onboarding import run_onboarding_wizard
+
+        run_onboarding_wizard()
+        load_dotenv(_REPO_ROOT / ".env")
+        load_dotenv(_KEEPER_HOME_ENV, override=True)
+        load_dotenv(override=True)
+
     if not no_banner:
         size = "none" if minimal else icon_size.lower()
         show_banner(icon_size=size)
@@ -93,12 +176,25 @@ def cli(ctx: click.Context, no_banner: bool, icon_size: str, minimal: bool) -> N
                     "onchor-ai init":         "Initialise le projet",
                     "onchor-ai audit <path>": "Audit d'un fichier, dossier ou adresse 0x",
                     "onchor-ai status":       "Configuration et solde",
+                    "onchor-ai doctor":      "Valide uniquement les clés / RPC (sans assistant)",
                 },
             )
         )
 
 
-@cli.command()
+@cli.command(
+    "doctor",
+    short_help="Vérifier clés & connexions réseau (~/.onchor-ai ou .env).",
+)
+def doctor_cmd() -> None:
+    """Re-valide connexions et clés (équivalent étape 7) sans assistant ni nouveau portefeuille."""
+    from onboarding import run_doctor_validation
+
+    if not run_doctor_validation():
+        raise click.Exit(code=1)
+
+
+@cli.command(short_help="Initialiser le dossier projet .onchor/ (config locale).")
 def init() -> None:
     """Initialise le dossier de configuration Onchor.ai."""
     section("Initialisation")
@@ -109,7 +205,7 @@ def init() -> None:
         warn(f"Le dossier [accent]{CONFIG_DIR}/[/accent] existe déjà — rien à faire.")
 
 
-@cli.command()
+@cli.command(short_help="Afficher mode, version, solde USDC côté serveur local.")
 def status() -> None:
     """Affiche la configuration et le solde courant (réel)."""
     section("Status")
@@ -140,7 +236,13 @@ def status() -> None:
     )
 
 
-@cli.command()
+@cli.command(
+    short_help="Auditer fichier, dossier ou adresse 0x (contrat vérifié).",
+    help=(
+        "Lance un audit sur un fichier, un répertoire ou une adresse 0x. "
+        "Modes : payant (USDC x402 sur Base Sepolia), --local (sans paiement) ou --dev."
+    ),
+)
 @click.argument("path")
 @click.option("--local", is_flag=True, help="Mode local — gratuit, pas de paiement.")
 @click.option("--dev",   is_flag=True, help="Mode dev — bypass total.")
@@ -150,7 +252,6 @@ def status() -> None:
     help="Désactive le streaming des phases (legacy, single POST + spinner).",
 )
 def audit(path: str, local: bool, dev: bool, no_stream: bool) -> None:
-    """Lance un audit sur un fichier, un répertoire ou une adresse 0x."""
     path = _normalize_audit_path(path)
     section(f"Audit · {path}")
     user_config = load_config()

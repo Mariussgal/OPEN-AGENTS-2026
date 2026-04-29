@@ -1,15 +1,54 @@
 # payments/x402_client.py
-import os
-import time
-import json
+import asyncio
 import base64
+import json
+import os
 import secrets
+import time
+
 import click
 import httpx
 from eth_account import Account
 from dotenv import load_dotenv
 
 load_dotenv()
+
+USDC_BASE_SEPOLIA = "0x036CbD53842c5426634e7929541eC2318f3dCF7e"
+BASE_SEPOLIA_RPC = os.getenv("BASE_SEPOLIA_RPC_URL") or "https://sepolia.base.org"
+
+ERC20_BALANCE_ABI = [
+    {
+        "constant": True,
+        "inputs": [{"name": "_owner", "type": "address"}],
+        "name": "balanceOf",
+        "outputs": [{"name": "", "type": "uint256"}],
+        "type": "function",
+    }
+]
+
+
+def _usdc_balance_base_sepolia(address: str) -> float:
+    from web3 import Web3
+
+    w3 = Web3(Web3.HTTPProvider(BASE_SEPOLIA_RPC))
+    c = w3.eth.contract(
+        address=Web3.to_checksum_address(USDC_BASE_SEPOLIA),
+        abi=ERC20_BALANCE_ABI,
+    )
+    raw = c.functions.balanceOf(Web3.to_checksum_address(address)).call()
+    return float(raw) / 1_000_000.0
+
+
+async def _assert_usdc_covers_quote(private_key: str, price_usd: float) -> None:
+    """Bloque un audit payant si le portefeuille n’a pas assez d’USDC sur Base Sepolia."""
+    account = Account.from_key(private_key)
+    bal = await asyncio.to_thread(_usdc_balance_base_sepolia, account.address)
+    if bal + 1e-6 < price_usd:
+        raise click.ClickException(
+            f"Solde USDC Base Sepolia insuffisant : {bal:.4f} USDC (requis ~{price_usd:.4f} USDC). "
+            "Alimente le portefeuille : https://faucet.circle.com (Base Sepolia)."
+        )
+
 
 def _sign_eip3009(
     private_key: str,
@@ -152,6 +191,8 @@ async def prepare_x_payment(api_url: str, path: str) -> tuple[str, float, int]:
     reqs     = quote["payment_requirements"]
 
     click.secho(f"  →  {nb_files} fichier(s) détecté(s) — Prix : {price} USDC", fg="yellow")
+
+    await _assert_usdc_covers_quote(private_key, price)
 
     if not click.confirm("  Procéder au paiement x402 ?"):
         raise click.Abort()

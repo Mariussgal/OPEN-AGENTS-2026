@@ -1,4 +1,5 @@
 cli.py
+onboarding.py
 pyproject.toml
 server.py
 streaming_client.py
