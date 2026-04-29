@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "@0gfoundation/0g-ts-sdk": "^1.2.6",
-    "dotenv": "^16.4.7",
+    "dotenv": "^16.6.1",
     "ethers": "^6.13.1"
   }
 }

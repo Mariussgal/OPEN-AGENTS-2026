@@ -20,8 +20,8 @@ PIPELINE_PHASES: list[tuple[str, str]] = [
     ("resolve",     "Phase 0 · Resolve target"),
     ("inventory",   "Phase 1 · Inventory"),
     ("slither",     "Phase 2 · Slither static analysis"),
-    ("triage",      "Phase 3 · Triage (claude-haiku)"),
-    ("investigate", "Phase 4 · Adversarial agent (claude-sonnet)"),
+    ("triage",      "Phase 3 · Triage"),
+    ("investigate", "Phase 4 · Adversarial agent"),
     ("anchor",      "Phase 5 · Onchain anchor"),
     ("report",      "Phase 6 · Report"),
 ]

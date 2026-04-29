@@ -22,7 +22,6 @@ backend/.env.user
 backend/storage/.zero_g_mock/
 
 .venv/
-node_modules/
-__pycache__/
-.env
 .onchor/
+backend/.onchor/
+*.dot
