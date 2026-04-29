@@ -23,16 +23,24 @@ def is_evm_tx_hash(val: object) -> bool:
 KEEPERHUB_EXECUTE = "https://app.keeperhub.com/api/execute/contract-call"
 
 
-def _authorization_headers(api_key: str) -> dict[str, str]:
+def _normalize_keeperhub_bearer_token(api_key: str) -> str:
     """
-    KeeperHub attend ``Authorization: Bearer kh_<secret>``
-    (``X-API-Key`` seul → 401).
+    Normalise la clé pour ``Authorization: Bearer …``.
+    KeeperHub peut livrer des clés en ``kh-<secret>`` ou ``kh_<secret>`` ;
+    ne pas préfixer deux fois (ex. ``kh_kh-…`` → 401).
     """
     tok = api_key.strip()
     if tok.lower().startswith("bearer "):
         tok = tok[7:].strip()
-    if not tok.lower().startswith("kh_"):
-        tok = "kh_" + tok
+    low = tok.lower()
+    if low.startswith("kh-") or low.startswith("kh_"):
+        return tok
+    return "kh_" + tok
+
+
+def _authorization_headers(api_key: str) -> dict[str, str]:
+    """KeeperHub : Bearer token (pas X-API-Key seul → souvent 401)."""
+    tok = _normalize_keeperhub_bearer_token(api_key)
     return {"Authorization": f"Bearer {tok}"}
 
 

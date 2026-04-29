@@ -1,69 +1,118 @@
 import os
+from pathlib import Path
+
 from dotenv import load_dotenv
 
 # 1. Charge le .env dès le départ
 load_dotenv()
 
-# 2. Chemin ABSOLU GLOBAL pour persister entre tous les projets de la machine
-GLOBAL_MEMORY_DIR = os.path.expanduser("~/.keeper-memory/memory")
-COGNEE_SYSTEM_DIR = os.path.join(GLOBAL_MEMORY_DIR, ".cognee_system")
-COGNEE_DATA_DIR = os.path.join(GLOBAL_MEMORY_DIR, ".cognee_data")
+# 2. Chemins absolus résolus (évite chemins ambigus + SQLite « unable to open database file »)
+_GLOBAL_MEMORY = Path(os.path.expanduser("~/.keeper-memory/memory")).resolve()
+COGNEE_SYSTEM_DIR = str(_GLOBAL_MEMORY / ".cognee_system")
+COGNEE_DATA_DIR = str(_GLOBAL_MEMORY / ".cognee_data")
+COGNEE_CACHE_DIR = str(_GLOBAL_MEMORY / ".cognee_cache")
+_DATABASES_DIR = str(Path(COGNEE_SYSTEM_DIR) / "databases")
 
-# 3. Forcer les variables d'environnement AVANT d'importer Cognee
-os.makedirs(COGNEE_SYSTEM_DIR, exist_ok=True)
-os.makedirs(COGNEE_DATA_DIR, exist_ok=True)
+# 3. Répertoires utilisateur créés avant tout import Cognee (SQLite + WAL / graphe / cache)
+for _d in (
+    _GLOBAL_MEMORY,
+    Path(COGNEE_SYSTEM_DIR),
+    Path(COGNEE_DATA_DIR),
+    Path(COGNEE_CACHE_DIR),
+    Path(_DATABASES_DIR),
+):
+    _d.mkdir(parents=True, exist_ok=True)
+
+# 4. Cognee 1.x : BaseConfig est figé au premier ``get_base_config()`` pendant ``import cognee``.
+#    Les variables COGNEE_* ne sont pas lues par pydantic-settings ; il faut SYSTEM_ROOT_DIRECTORY /
+#    DATA_ROOT_DIRECTORY / CACHE_ROOT_DIRECTORY pour que SQLite ne pointe pas vers site-packages
+#    (souvent non inscriptible → OperationalError).
+os.environ["SYSTEM_ROOT_DIRECTORY"] = COGNEE_SYSTEM_DIR
+os.environ["DATA_ROOT_DIRECTORY"] = COGNEE_DATA_DIR
+os.environ["CACHE_ROOT_DIRECTORY"] = COGNEE_CACHE_DIR
+# Compat : autres modules / docs internes
 os.environ["COGNEE_SYSTEM_ROOT_DIRECTORY"] = COGNEE_SYSTEM_DIR
 os.environ["COGNEE_DATA_ROOT_DIRECTORY"] = COGNEE_DATA_DIR
 os.environ["COGNEE_SKIP_CONNECTION_TEST"] = "true"
 os.environ["MOCK_EMBEDDING"] = "true"
 
-# 4. IMPORT DE COGNEE ICI
+# 5. IMPORT DE COGNEE ICI (après makedirs + env)
 import cognee
 
-# Import de nos nouveaux modules de sécurité et normalisation
+# Cascade explicite graphe / LanceDB sous databases/
+cognee.config.system_root_directory(COGNEE_SYSTEM_DIR)
+cognee.config.data_root_directory(COGNEE_DATA_DIR)
+
+# Si un moteur SQLAlchemy a été mis en cache avec un mauvais chemin (import anticipé), on purge.
+try:
+    from cognee.infrastructure.databases.relational.create_relational_engine import (
+        create_relational_engine,
+    )
+
+    create_relational_engine.cache_clear()
+except Exception:
+    pass
+
+# Import de nos modules de sécurité et normalisation
 from memory.privacy_guard import sanitize_finding_for_memory
 from memory.normalizer import normalize_snippet
 
+
+async def _ensure_cognee_db_ready() -> None:
+    """
+    Cognee 1.x : ``recall`` / ``search`` exigent des tables relationnelles + un utilisateur par défaut.
+    Sans cet appel sur une install neuve → SearchPreconditionError (422).
+    """
+    try:
+        from cognee.infrastructure.databases.relational import create_db_and_tables
+        from cognee.modules.users.methods import get_default_user
+
+        await create_db_and_tables()
+        await get_default_user()
+    except Exception as e:
+        print(f"⚠️  [Cognee] Init DB / utilisateur par défaut : {e}")
+
+
 async def setup_cognee():
     """Initialise Cognee avec la mémoire globale."""
-    
+
+    await _ensure_cognee_db_ready()
+
     api_key = os.getenv("LLM_API_KEY")
     if not api_key:
         print("❌ ERREUR : LLM_API_KEY est absente du .env")
         return False
-    
-    # Config interne Cognee
+
     cognee.config.set_llm_provider("openai")
     cognee.config.set_llm_model("gpt-4o-mini")
-    
+
     print(f"✅ Moteur Cognee initialisé (Mémoire Globale).")
     print(f"   System DB : {COGNEE_SYSTEM_DIR}")
     print(f"   Data Dir  : {COGNEE_DATA_DIR}")
+    print(f"   Cache     : {COGNEE_CACHE_DIR}")
     return True
+
 
 async def add_finding_to_memory(finding: dict, contract_name: str):
     """Enregistre la vulnérabilité de façon sécurisée dans le graphe."""
-    
-    # 1. Nettoyage Privacy (Garde-fou)
+
     safe_finding = sanitize_finding_for_memory(finding)
-    
-    # 2. Normalisation du code/texte
-    safe_desc = normalize_snippet(safe_finding.get('description', ''))
-    
-    # 3. Formatage en texte pour Cognee
+    safe_desc = normalize_snippet(safe_finding.get("description", ""))
+
     text_data = (
         f"Vulnerability Report for {contract_name}.\n"
         f"Type: {safe_finding.get('check', 'unknown')}.\n"
         f"Severity: {safe_finding.get('impact', 'unknown')}.\n"
         f"Description: {safe_desc}\n"
     )
-    
+
     try:
         await cognee.add(text_data)
         await cognee.cognify()
         print(f"🧠 Graphe mis à jour en mémoire globale : {safe_finding.get('check')} pour {contract_name}")
     except Exception as e:
         print(f"❌ Erreur lors de l'ajout en mémoire : {e}")
+
 
 async def load_known_findings(scope):
     """Recherche des vulnérabilités connues dans la mémoire Cognee globale."""

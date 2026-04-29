@@ -11,7 +11,14 @@ def get_vercel_client():
         return None
     return OpenAI(api_key=api_key, base_url=base_url)
 
-async def map_file_analysis(client, file_info: Dict[str, Any], findings: List[Dict[str, Any]], memory: List[Dict[str, Any]]) -> Dict[str, Any]:
+async def map_file_analysis(
+    client,
+    file_info: Dict[str, Any],
+    findings: List[Dict[str, Any]],
+    memory: List[Dict[str, Any]],
+    *,
+    slither_success: bool = True,
+) -> Dict[str, Any]:
     """Phase MAP : Analyse d'un fichier spécifique."""
     file_path = file_info.get("file", "unknown")
     file_flags = file_info.get("flags", [])
@@ -20,6 +27,18 @@ async def map_file_analysis(client, file_info: Dict[str, Any], findings: List[Di
     # On compare le nom de base car filename_relative peut varier
     basename = os.path.basename(file_path)
     file_findings = [f for f in findings if os.path.basename(f.get("file", "")) == basename]
+
+    # Pas de liste vide « vide » : Slither peut avoir échoué avant tout résultat
+    if slither_success is False:
+        return {
+            "file": basename,
+            "risk_score": 6.0,
+            "verdict": "CAUTION",
+            "reasoning": (
+                "Analyse statique Slither indisponible (compilation solc, dépendances ou exécution). "
+                "Absence de findings Slither ≠ code sûr ; fiabiliser l'outil ou le pragma avant de conclure."
+            ),
+        }
     
     if not file_findings and not file_flags:
         return {
@@ -112,17 +131,33 @@ async def run_triage(slither_data: Dict[str, Any], inventory_data: Dict[str, Any
     findings = slither_data.get("findings", [])
     memory = inventory_data.get("known_findings", [])
     files_info = inventory_data.get("details", [])
+    slither_ok = slither_data.get("success", True)
 
     # 1. Phase MAP : Analyse chaque fichier en parallèle
-    tasks = [map_file_analysis(client, f, findings, memory) for f in files_info]
+    tasks = [
+        map_file_analysis(client, f, findings, memory, slither_success=slither_ok)
+        for f in files_info
+    ]
     map_results = await asyncio.gather(*tasks)
     
     print(f"✅ [Phase 3] {len(map_results)} fichiers analysés. Passage au Reduce...")
 
     # 2. Phase REDUCE : Synthèse globale
     final_triage = await reduce_results(client, map_results)
+
+    # Garde : si Slither a échoué explicitement, ne jamais conclure SAFE seul
+    if slither_data.get("success") is False:
+        if (final_triage.get("verdict") or "").upper() == "SAFE":
+            final_triage["verdict"] = "CAUTION"
+        final_triage["risk_score"] = max(float(final_triage.get("risk_score") or 0), 6.0)
+        extra = (
+            "Analyse statique Slither non exécutée ; prudence requise jusqu'à compilation réussie."
+        )
+        prev = (final_triage.get("reasoning") or "").strip()
+        final_triage["reasoning"] = f"{prev} {extra}".strip() if prev else extra
     
     # On ajoute le détail par fichier pour le frontend
     final_triage["file_details"] = map_results
+    final_triage["slither_success"] = slither_ok
     
     return final_triage
