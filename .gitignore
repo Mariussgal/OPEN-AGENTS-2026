@@ -20,3 +20,4 @@ keeper-memory-v10.pdf
 node_modules/
 backend/.env.user
 backend/storage/.zero_g_mock/
+backend/.onchor/
