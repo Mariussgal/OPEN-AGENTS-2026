@@ -11,7 +11,7 @@ jobs:
       - run: pip install build twine
       - run: python -m build
         working-directory: backend
-      - run: twine upload dist/*
+      - run: twine upload backend/dist/*
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
