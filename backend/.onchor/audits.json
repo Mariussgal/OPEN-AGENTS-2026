@@ -1,5 +1,833 @@
 [
   {
+    "id": "c2f53f65-3125-4711-8009-2853be13e759",
+    "created_at": "2026-04-29T08:32:46.342944Z",
+    "target": {
+      "kind": "path",
+      "value": "SecureVault.sol"
+    },
+    "mode": "paid",
+    "price_paid": 0.5,
+    "triage": {
+      "risk_score": 4,
+      "verdict": "CAUTION",
+      "reasoning": "Le contrat pr\u00e9sente des risques li\u00e9s \u00e0 l'utilisation d'une version de Solidity avec des probl\u00e8mes connus et \u00e0 l'emploi d'appels bas niveau, ce qui pourrait exposer le contrat \u00e0 des vuln\u00e9rabilit\u00e9s. Bien qu'aucune faille critique n'ait \u00e9t\u00e9 identifi\u00e9e, ces \u00e9l\u00e9ments n\u00e9cessitent une vigilance accrue.",
+      "file_details": [
+        {
+          "file": "SecureVault.sol",
+          "risk_score": 4,
+          "verdict": "CAUTION",
+          "reasoning": "Le contrat utilise une version de Solidity (0.8.20) contenant des probl\u00e8mes connus, ce qui peut introduire des vuln\u00e9rabilit\u00e9s. De plus, l'utilisation d'appels bas niveau (msg.sender.call) peut \u00eatre risqu\u00e9e si elle n'est pas correctement g\u00e9r\u00e9e, exposant le contrat \u00e0 des attaques potentielles. Bien qu'aucune faille critique n'ait \u00e9t\u00e9 d\u00e9tect\u00e9e, ces \u00e9l\u00e9ments justifient une attention particuli\u00e8re."
+        }
+      ]
+    },
+    "slither": {
+      "success": true,
+      "findings_count": 2,
+      "findings": [
+        {
+          "check": "solc-version",
+          "impact": "Informational",
+          "description": "Version constraint ^0.8.20 contains known severe issues (https://solidity.readthedocs.io/en/latest/bugs.html)\n\t- VerbatimInvalidDeduplication\n\t- FullInlinerNonExpressionSplitArgumentEvaluationOrder\n\t- MissingSideEffectsOnSelectorAccess.\nIt is used by:\n\t- ^0.8.20 (../contracts/contracts/Secure/SecureVault.sol#2)\n",
+          "file": "../contracts/contracts/Secure/SecureVault.sol"
+        },
+        {
+          "check": "low-level-calls",
+          "impact": "Informational",
+          "description": "Low level call in SecureVault.withdraw(uint256) (../contracts/contracts/Secure/SecureVault.sol#32-43):\n\t- (success,None) = msg.sender.call{value: amount}() (../contracts/contracts/Secure/SecureVault.sol#39)\n",
+          "file": "../contracts/contracts/Secure/SecureVault.sol"
+        }
+      ]
+    },
+    "inventory": {
+      "files_analyzed": 1,
+      "details": [
+        {
+          "file": "../contracts/contracts/Secure/SecureVault.sol",
+          "flags": [],
+          "stats": {
+            "functions_count": 3,
+            "modifiers_count": 1,
+            "events_count": 2,
+            "flags": []
+          },
+          "pattern_hash": "f76bad086c7e58b27f89a3b960a8e5e27ae441f1a519eafbbff05fc5bfc7b97e",
+          "duplicates": [],
+          "is_duplicate": false
+        }
+      ],
+      "duplicates_detected": 0,
+      "known_findings": [],
+      "known_findings_count": 0
+    },
+    "investigation": {
+      "findings": [
+        {
+          "severity": "HIGH",
+          "confidence": "LIKELY",
+          "title": "Cross-Function Reentrancy Guard DoS - Funds Lock via receive()",
+          "file": "SecureVault.sol",
+          "line": "45",
+          "reason": "The nonReentrant modifier on receive() causes withdraw() to revert when user's contract attempts to receive ETH, because locked is still true during the external call in withdraw(), permanently locking user funds"
+        }
+      ],
+      "anchored": [],
+      "turns_used": 9,
+      "model": "anthropic/claude-sonnet-4-5"
+    },
+    "report": {
+      "verdict": "FINDINGS_FOUND",
+      "risk_score": 4,
+      "audit_date": "2026-04-29",
+      "report_hash": "0x108559ba1d2a443da1718ee3df850423bbc2c25b812eeee4745ca5681ab5d8fa",
+      "target": {
+        "address": "0x0000000000000000000000000000000000000000",
+        "files": [
+          "../contracts/contracts/Secure/SecureVault.sol"
+        ],
+        "upstream": null
+      },
+      "summary": {
+        "total_findings": 3,
+        "high_count": 1,
+        "medium_count": 0,
+        "low_count": 0,
+        "anchored_count": 0
+      },
+      "findings": [
+        {
+          "id": "F-001",
+          "severity": "HIGH",
+          "confidence": "LIKELY",
+          "title": "Cross-Function Reentrancy Guard DoS - Funds Lock via receive()",
+          "file": "SecureVault.sol",
+          "line": "45",
+          "description": "The nonReentrant modifier on receive() causes withdraw() to revert when user's contract attempts to receive ETH, because locked is still true during the external call in withdraw(), permanently locking user funds",
+          "fix_sketch": "```solidity\n// Remove nonReentrant from receive() function (line 45)\n// Keep nonReentrant only on withdraw() and deposit()\n// The reentrancy guard in withdraw() already protects the state-changing logic\n// Allowing receive() to execute without the guard prevents the cross-function lock\n```",
+          "prior_audit_ref": "The DAO (2016) \u00b7 Euler Finance (2023) \u2014 Rekt.news / Immunefi",
+          "onchain_proof": null,
+          "pattern_hash": null
+        },
+        {
+          "id": "F-002",
+          "severity": "INFO",
+          "confidence": "SUSPECTED",
+          "title": "solc-version",
+          "file": "../contracts/contracts/Secure/SecureVault.sol",
+          "line": null,
+          "description": "Version constraint ^0.8.20 contains known severe issues (https://solidity.readthedocs.io/en/latest/bugs.html)\n\t- VerbatimInvalidDeduplication\n\t- FullInlinerNonExpressionSplitArgumentEvaluationOrder\n\t- MissingSideEffectsOnSelectorAccess.\nIt is used by:\n\t- ^0.8.20 (../contracts/contracts/Secure/SecureVault.sol#2)\n",
+          "fix_sketch": "// INFO severity \u2014 manual review recommended for 'solc-version'",
+          "prior_audit_ref": null,
+          "onchain_proof": null,
+          "pattern_hash": null
+        },
+        {
+          "id": "F-003",
+          "severity": "INFO",
+          "confidence": "SUSPECTED",
+          "title": "low-level-calls",
+          "file": "../contracts/contracts/Secure/SecureVault.sol",
+          "line": null,
+          "description": "Low level call in SecureVault.withdraw(uint256) (../contracts/contracts/Secure/SecureVault.sol#32-43):\n\t- (success,None) = msg.sender.call{value: amount}() (../contracts/contracts/Secure/SecureVault.sol#39)\n",
+          "fix_sketch": "// INFO severity \u2014 manual review recommended for 'low-level-calls'",
+          "prior_audit_ref": null,
+          "onchain_proof": null,
+          "pattern_hash": null
+        }
+      ],
+      "memory": {
+        "hits": 0,
+        "sources": []
+      },
+      "onchain": {
+        "anchor_registry": "0x4DC06573aa7b214645f649E4b9412Fe5aEd775F8",
+        "network": "Ethereum Sepolia",
+        "etherscan_base": "https://sepolia.etherscan.io/tx/",
+        "tx_proof": "0x0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "ens": {
+        "subname": null,
+        "url": null,
+        "certified": false,
+        "parent": "certified.onchor-ai.eth"
+      },
+      "pipeline": {
+        "slither_findings": 2,
+        "investigation_turns": 9,
+        "model": "anthropic/claude-sonnet-4-5",
+        "anchors_phase4": 0
+      },
+      "generated": "2026-04-29T08:32:46.342618+00:00Z"
+    },
+    "anchored_count": 0,
+    "scope": {
+      "files_found": 1,
+      "is_onchain": false
+    },
+    "verdict": "MEDIUM_RISK",
+    "findings": [
+      {
+        "id": "f-001",
+        "severity": "INFO",
+        "confidence": "LIKELY",
+        "title": "solc-version",
+        "file": "../contracts/contracts/Secure/SecureVault.sol",
+        "description": "Version constraint ^0.8.20 contains known severe issues (https://solidity.readthedocs.io/en/latest/bugs.html)\n\t- VerbatimInvalidDeduplication\n\t- FullInlinerNonExpressionSplitArgumentEvaluationOrder\n\t- MissingSideEffectsOnSelectorAccess.\nIt is used by:\n\t- ^0.8.20 (../contracts/contracts/Secure/SecureVault.sol#2)\n",
+        "recommendation": "See description above."
+      },
+      {
+        "id": "f-002",
+        "severity": "INFO",
+        "confidence": "LIKELY",
+        "title": "low-level-calls",
+        "file": "../contracts/contracts/Secure/SecureVault.sol",
+        "description": "Low level call in SecureVault.withdraw(uint256) (../contracts/contracts/Secure/SecureVault.sol#32-43):\n\t- (success,None) = msg.sender.call{value: amount}() (../contracts/contracts/Secure/SecureVault.sol#39)\n",
+        "recommendation": "See description above."
+      }
+    ],
+    "memory_hits": []
+  },
+  {
+    "id": "e094253a-9e4e-4a81-b672-cc29ca3a28dd",
+    "created_at": "2026-04-28T16:37:45.060859Z",
+    "target": {
+      "kind": "path",
+      "value": "SecureVault.sol"
+    },
+    "mode": "paid",
+    "price_paid": 0.5,
+    "triage": {
+      "risk_score": 4,
+      "verdict": "CAUTION",
+      "reasoning": "Le contrat pr\u00e9sente des risques li\u00e9s \u00e0 l'utilisation d'une version de Solidity avec des probl\u00e8mes connus et \u00e0 l'emploi d'appels bas niveau, ce qui pourrait exposer le contrat \u00e0 des vuln\u00e9rabilit\u00e9s. Bien qu'aucune faille critique n'ait \u00e9t\u00e9 identifi\u00e9e, ces \u00e9l\u00e9ments n\u00e9cessitent une vigilance accrue.",
+      "file_details": [
+        {
+          "file": "SecureVault.sol",
+          "risk_score": 4,
+          "verdict": "CAUTION",
+          "reasoning": "Le contrat utilise une version de Solidity (0.8.20) contenant des probl\u00e8mes connus, ce qui peut introduire des vuln\u00e9rabilit\u00e9s. De plus, l'utilisation d'appels bas niveau (msg.sender.call) peut \u00eatre risqu\u00e9e si elle n'est pas correctement g\u00e9r\u00e9e, exposant le contrat \u00e0 des attaques potentielles. Bien qu'aucune faille critique ne soit d\u00e9tect\u00e9e, ces \u00e9l\u00e9ments justifient une attention particuli\u00e8re."
+        }
+      ]
+    },
+    "slither": {
+      "success": true,
+      "findings_count": 2,
+      "findings": [
+        {
+          "check": "solc-version",
+          "impact": "Informational",
+          "description": "Version constraint ^0.8.20 contains known severe issues (https://solidity.readthedocs.io/en/latest/bugs.html)\n\t- VerbatimInvalidDeduplication\n\t- FullInlinerNonExpressionSplitArgumentEvaluationOrder\n\t- MissingSideEffectsOnSelectorAccess.\nIt is used by:\n\t- ^0.8.20 (../contracts/contracts/Secure/SecureVault.sol#2)\n",
+          "file": "../contracts/contracts/Secure/SecureVault.sol"
+        },
+        {
+          "check": "low-level-calls",
+          "impact": "Informational",
+          "description": "Low level call in SecureVault.withdraw(uint256) (../contracts/contracts/Secure/SecureVault.sol#32-43):\n\t- (success,None) = msg.sender.call{value: amount}() (../contracts/contracts/Secure/SecureVault.sol#39)\n",
+          "file": "../contracts/contracts/Secure/SecureVault.sol"
+        }
+      ]
+    },
+    "inventory": {
+      "files_analyzed": 1,
+      "details": [
+        {
+          "file": "../contracts/contracts/Secure/SecureVault.sol",
+          "flags": [],
+          "stats": {
+            "functions_count": 3,
+            "modifiers_count": 1,
+            "events_count": 2,
+            "flags": []
+          },
+          "pattern_hash": "b4da4a92f3f9b9fe3af967352b7668deb008e176fba5414e2ebd854a128034ea",
+          "duplicates": [],
+          "is_duplicate": false
+        }
+      ],
+      "duplicates_detected": 0,
+      "known_findings": [],
+      "known_findings_count": 0
+    },
+    "investigation": {
+      "findings": [
+        {
+          "severity": "HIGH",
+          "confidence": "CONFIRMED",
+          "title": "Cross-Function Reentrancy via Unprotected Deposit",
+          "file": "SecureVault.sol",
+          "line": "28-30",
+          "reason": "The nonReentrant modifier only protects withdraw(), allowing an attacker to re-enter through deposit() or receive() during the external call in withdraw(), restoring their balance after withdrawal and enabling contract drainage.",
+          "tx_hash": "anchored_only",
+          "pattern_hash": "df757304002fe92176b7b9af4c840bd811694417b3e63d1fcf3e90e723017301"
+        },
+        {
+          "severity": "HIGH",
+          "confidence": "CONFIRMED",
+          "title": "Cross-Function Reentrancy via Unprotected Receive",
+          "file": "SecureVault.sol",
+          "line": "45-47",
+          "reason": "The receive() function lacks reentrancy protection, allowing attackers to re-enter and increment their balance during withdraw()'s external call, bypassing the balance check and draining the contract.",
+          "tx_hash": "anchored_only",
+          "pattern_hash": "d67ca0661483afdf34e1fc48d5adfd90a1fa605b66d8121bbe6e42c8c193151a"
+        },
+        {
+          "severity": "MEDIUM",
+          "confidence": "CONFIRMED",
+          "title": "Incomplete Reentrancy Guard Implementation",
+          "file": "SecureVault.sol",
+          "line": "14-19",
+          "reason": "The nonReentrant modifier only protects individual functions, not the entire contract state, creating a false sense of security while leaving cross-function reentrancy vectors open.",
+          "tx_hash": "anchored_only",
+          "pattern_hash": "51c191cf2fa4c5588e5e97e9c82748d6ca4cd194389c648ff4c1f4b92f282087"
+        }
+      ],
+      "anchored": [],
+      "turns_used": 8,
+      "model": "anthropic/claude-sonnet-4-5"
+    },
+    "report": {
+      "verdict": "FINDINGS_FOUND",
+      "risk_score": 4,
+      "audit_date": "2026-04-28",
+      "report_hash": "0x68643e31ce62c4d303466793dd4c6f4dc94ecb3407451fb3542adaa505a969a1",
+      "target": {
+        "address": "0x0000000000000000000000000000000000000000",
+        "files": [
+          "../contracts/contracts/Secure/SecureVault.sol"
+        ],
+        "upstream": null
+      },
+      "summary": {
+        "total_findings": 5,
+        "high_count": 2,
+        "medium_count": 1,
+        "low_count": 0,
+        "anchored_count": 3
+      },
+      "findings": [
+        {
+          "id": "F-001",
+          "severity": "HIGH",
+          "confidence": "CONFIRMED",
+          "title": "Cross-Function Reentrancy via Unprotected Deposit",
+          "file": "SecureVault.sol",
+          "line": "28-30",
+          "description": "The nonReentrant modifier only protects withdraw(), allowing an attacker to re-enter through deposit() or receive() during the external call in withdraw(), restoring their balance after withdrawal and enabling contract drainage.",
+          "fix_sketch": "```solidity\n// Add nonReentrant modifier to deposit() function (line 28)\nfunction deposit() external payable nonReentrant { ... }\n\n// Add nonReentrant modifier to receive() function (line 30)\nreceive() external payable nonReentrant { ... }\n\n// Alternative: Move balance update BEFORE external call in withdraw()\nbalances[msg.sender] = 0;  // Update state first\n(bool success, ) = msg.sender.call{value: amount}(\"\");  // Then make external call\n```",
+          "prior_audit_ref": "The DAO (2016) \u00b7 Euler Finance (2023) \u2014 Rekt.news / Immunefi",
+          "onchain_proof": "anchored_only",
+          "pattern_hash": "df757304002fe92176b7b9af4c840bd811694417b3e63d1fcf3e90e723017301"
+        },
+        {
+          "id": "F-002",
+          "severity": "HIGH",
+          "confidence": "CONFIRMED",
+          "title": "Cross-Function Reentrancy via Unprotected Receive",
+          "file": "SecureVault.sol",
+          "line": "45-47",
+          "description": "The receive() function lacks reentrancy protection, allowing attackers to re-enter and increment their balance during withdraw()'s external call, bypassing the balance check and draining the contract.",
+          "fix_sketch": "```solidity\n// Add nonReentrant modifier to receive() function at line 45\nreceive() external payable nonReentrant {\n    balances[msg.sender] += msg.value;\n}\n\n// Ensure withdraw() also has nonReentrant and follows checks-effects-interactions:\n// 1. Check: require(balances[msg.sender] >= amount)\n// 2. Effect: balances[msg.sender] -= amount (BEFORE external call)\n// 3. Interaction: (bool success,) = msg.sender.call{value: amount}(\"\")\n```",
+          "prior_audit_ref": "The DAO (2016) \u00b7 Euler Finance (2023) \u2014 Rekt.news / Immunefi",
+          "onchain_proof": "anchored_only",
+          "pattern_hash": "d67ca0661483afdf34e1fc48d5adfd90a1fa605b66d8121bbe6e42c8c193151a"
+        },
+        {
+          "id": "F-003",
+          "severity": "MEDIUM",
+          "confidence": "CONFIRMED",
+          "title": "Incomplete Reentrancy Guard Implementation",
+          "file": "SecureVault.sol",
+          "line": "14-19",
+          "description": "The nonReentrant modifier only protects individual functions, not the entire contract state, creating a false sense of security while leaving cross-function reentrancy vectors open.",
+          "fix_sketch": "```solidity\n// Add a contract-level reentrancy lock that persists across all state-changing functions\nuint256 private _globalLock = 1;\n\n// Modify nonReentrant to use global lock instead of function-level\nmodifier nonReentrant() {\n    require(_globalLock == 1, \"ReentrancyGuard: reentrant call\");\n    _globalLock = 2;\n    _;\n    _globalLock = 1;\n}\n\n// Apply nonReentrant to ALL external/public functions that modify state or make external calls\n// Ensure the lock is checked BEFORE any state reads used in validation logic\n```",
+          "prior_audit_ref": "The DAO (2016) \u00b7 Euler Finance (2023) \u2014 Rekt.news / Immunefi",
+          "onchain_proof": "anchored_only",
+          "pattern_hash": "51c191cf2fa4c5588e5e97e9c82748d6ca4cd194389c648ff4c1f4b92f282087"
+        },
+        {
+          "id": "F-004",
+          "severity": "INFO",
+          "confidence": "SUSPECTED",
+          "title": "solc-version",
+          "file": "../contracts/contracts/Secure/SecureVault.sol",
+          "line": null,
+          "description": "Version constraint ^0.8.20 contains known severe issues (https://solidity.readthedocs.io/en/latest/bugs.html)\n\t- VerbatimInvalidDeduplication\n\t- FullInlinerNonExpressionSplitArgumentEvaluationOrder\n\t- MissingSideEffectsOnSelectorAccess.\nIt is used by:\n\t- ^0.8.20 (../contracts/contracts/Secure/SecureVault.sol#2)\n",
+          "fix_sketch": "// INFO severity \u2014 manual review recommended for 'solc-version'",
+          "prior_audit_ref": null,
+          "onchain_proof": null,
+          "pattern_hash": null
+        },
+        {
+          "id": "F-005",
+          "severity": "INFO",
+          "confidence": "SUSPECTED",
+          "title": "low-level-calls",
+          "file": "../contracts/contracts/Secure/SecureVault.sol",
+          "line": null,
+          "description": "Low level call in SecureVault.withdraw(uint256) (../contracts/contracts/Secure/SecureVault.sol#32-43):\n\t- (success,None) = msg.sender.call{value: amount}() (../contracts/contracts/Secure/SecureVault.sol#39)\n",
+          "fix_sketch": "// INFO severity \u2014 manual review recommended for 'low-level-calls'",
+          "prior_audit_ref": null,
+          "onchain_proof": null,
+          "pattern_hash": null
+        }
+      ],
+      "memory": {
+        "hits": 0,
+        "sources": []
+      },
+      "onchain": {
+        "anchor_registry": "0x4DC06573aa7b214645f649E4b9412Fe5aEd775F8",
+        "network": "Ethereum Sepolia",
+        "etherscan_base": "https://sepolia.etherscan.io/tx/",
+        "tx_proof": "anchored_only"
+      },
+      "ens": {
+        "subname": null,
+        "url": null,
+        "certified": false,
+        "parent": "certified.onchor-ai.eth"
+      },
+      "pipeline": {
+        "slither_findings": 2,
+        "investigation_turns": 8,
+        "model": "anthropic/claude-sonnet-4-5",
+        "anchors_phase4": 0
+      },
+      "generated": "2026-04-28T16:37:45.058287+00:00Z"
+    },
+    "anchored_count": 3,
+    "scope": {
+      "files_found": 1,
+      "is_onchain": false
+    },
+    "verdict": "MEDIUM_RISK",
+    "findings": [
+      {
+        "id": "f-001",
+        "severity": "INFO",
+        "confidence": "LIKELY",
+        "title": "solc-version",
+        "file": "../contracts/contracts/Secure/SecureVault.sol",
+        "description": "Version constraint ^0.8.20 contains known severe issues (https://solidity.readthedocs.io/en/latest/bugs.html)\n\t- VerbatimInvalidDeduplication\n\t- FullInlinerNonExpressionSplitArgumentEvaluationOrder\n\t- MissingSideEffectsOnSelectorAccess.\nIt is used by:\n\t- ^0.8.20 (../contracts/contracts/Secure/SecureVault.sol#2)\n",
+        "recommendation": "See description above."
+      },
+      {
+        "id": "f-002",
+        "severity": "INFO",
+        "confidence": "LIKELY",
+        "title": "low-level-calls",
+        "file": "../contracts/contracts/Secure/SecureVault.sol",
+        "description": "Low level call in SecureVault.withdraw(uint256) (../contracts/contracts/Secure/SecureVault.sol#32-43):\n\t- (success,None) = msg.sender.call{value: amount}() (../contracts/contracts/Secure/SecureVault.sol#39)\n",
+        "recommendation": "See description above."
+      }
+    ],
+    "memory_hits": []
+  },
+  {
+    "id": "2856370c-43f7-499f-886c-318e2a5aae92",
+    "created_at": "2026-04-28T16:33:23.927480Z",
+    "target": {
+      "kind": "path",
+      "value": "SecureVault.sol"
+    },
+    "mode": "paid",
+    "price_paid": 0.5,
+    "triage": {
+      "risk_score": 4,
+      "verdict": "CAUTION",
+      "reasoning": "Le contrat pr\u00e9sente des risques li\u00e9s \u00e0 l'utilisation d'une version de Solidity avec des probl\u00e8mes connus et \u00e0 l'impl\u00e9mentation d'appels bas niveau qui peuvent entra\u00eener des attaques de r\u00e9entrance. Bien qu'aucune faille critique n'ait \u00e9t\u00e9 identifi\u00e9e, ces \u00e9l\u00e9ments n\u00e9cessitent une vigilance accrue.",
+      "file_details": [
+        {
+          "file": "SecureVault.sol",
+          "risk_score": 4,
+          "verdict": "CAUTION",
+          "reasoning": "Le contrat utilise une version de Solidity (^0.8.20) contenant des probl\u00e8mes connus, ce qui peut introduire des vuln\u00e9rabilit\u00e9s. De plus, l'utilisation d'appels bas niveau (msg.sender.call) dans la fonction withdraw peut exposer le contrat \u00e0 des attaques de r\u00e9entrance. Bien qu'il n'y ait pas de failles critiques d\u00e9tect\u00e9es, ces \u00e9l\u00e9ments n\u00e9cessitent une attention particuli\u00e8re."
+        }
+      ]
+    },
+    "slither": {
+      "success": true,
+      "findings_count": 2,
+      "findings": [
+        {
+          "check": "solc-version",
+          "impact": "Informational",
+          "description": "Version constraint ^0.8.20 contains known severe issues (https://solidity.readthedocs.io/en/latest/bugs.html)\n\t- VerbatimInvalidDeduplication\n\t- FullInlinerNonExpressionSplitArgumentEvaluationOrder\n\t- MissingSideEffectsOnSelectorAccess.\nIt is used by:\n\t- ^0.8.20 (../contracts/contracts/Secure/SecureVault.sol#2)\n",
+          "file": "../contracts/contracts/Secure/SecureVault.sol"
+        },
+        {
+          "check": "low-level-calls",
+          "impact": "Informational",
+          "description": "Low level call in SecureVault.withdraw(uint256) (../contracts/contracts/Secure/SecureVault.sol#28-39):\n\t- (success,None) = msg.sender.call{value: amount}() (../contracts/contracts/Secure/SecureVault.sol#35)\n",
+          "file": "../contracts/contracts/Secure/SecureVault.sol"
+        }
+      ]
+    },
+    "inventory": {
+      "files_analyzed": 1,
+      "details": [
+        {
+          "file": "../contracts/contracts/Secure/SecureVault.sol",
+          "flags": [],
+          "stats": {
+            "functions_count": 2,
+            "modifiers_count": 1,
+            "events_count": 2,
+            "flags": []
+          },
+          "pattern_hash": "cb923bd58c2f5e8fc0d87148283ab9dff89470ca3cb763b8d9825d07ceb29f00",
+          "duplicates": [],
+          "is_duplicate": false
+        }
+      ],
+      "duplicates_detected": 0,
+      "known_findings": [],
+      "known_findings_count": 0
+    },
+    "investigation": {
+      "findings": [
+        {
+          "severity": "HIGH",
+          "confidence": "CONFIRMED",
+          "title": "Funds Loss via receive() External Call",
+          "file": "../contracts/contracts/Secure/SecureVault.sol",
+          "line": "40-42",
+          "reason": "receive() calls this.deposit() externally, causing msg.sender to be the contract address, crediting funds to contract's balance instead of sender's balance, resulting in permanent fund loss for users sending ETH directly.",
+          "tx_hash": "anchored_only",
+          "pattern_hash": "3a36a0a331e86cb0032f21bf3c6e55fa723bf9502ba3bf9b7e74c43df4386eec"
+        },
+        {
+          "severity": "MEDIUM",
+          "confidence": "LIKELY",
+          "title": "Missing Reentrancy Guard on deposit() Allows Cross-Function Reentrancy",
+          "file": "../contracts/contracts/Secure/SecureVault.sol",
+          "line": "22",
+          "reason": "deposit() lacks nonReentrant modifier, allowing state manipulation during withdraw's locked period via callback to deposit(), breaking reentrancy protection invariant.",
+          "tx_hash": "anchored_only",
+          "pattern_hash": "8f4be00c2d88fc2d8a50170fa41e3546a44ade59b06c4592d544a79d7689fe0d"
+        },
+        {
+          "severity": "LOW",
+          "confidence": "CONFIRMED",
+          "title": "Inefficient External Call in receive()",
+          "file": "../contracts/contracts/Secure/SecureVault.sol",
+          "line": "41",
+          "reason": "Using this.deposit() creates unnecessary external call overhead instead of internal call or direct balance update.",
+          "tx_hash": "anchored_only",
+          "pattern_hash": "e065c5e8e07c263869f96924a8cf25887ffa8796a3436c46b20976a5e1bd43e2"
+        }
+      ],
+      "anchored": [],
+      "turns_used": 6,
+      "model": "anthropic/claude-sonnet-4-5"
+    },
+    "report": {
+      "verdict": "FINDINGS_FOUND",
+      "risk_score": 4,
+      "audit_date": "2026-04-28",
+      "report_hash": "0x12e4eca4b83f1950babb4f7754620feb2f4b8785034e75ac7b0c5ec9b4c4db4d",
+      "target": {
+        "address": "0x0000000000000000000000000000000000000000",
+        "files": [
+          "../contracts/contracts/Secure/SecureVault.sol"
+        ],
+        "upstream": null
+      },
+      "summary": {
+        "total_findings": 5,
+        "high_count": 1,
+        "medium_count": 1,
+        "low_count": 1,
+        "anchored_count": 3
+      },
+      "findings": [
+        {
+          "id": "F-001",
+          "severity": "HIGH",
+          "confidence": "CONFIRMED",
+          "title": "Funds Loss via receive() External Call",
+          "file": "../contracts/contracts/Secure/SecureVault.sol",
+          "line": "40-42",
+          "description": "receive() calls this.deposit() externally, causing msg.sender to be the contract address, crediting funds to contract's balance instead of sender's balance, resulting in permanent fund loss for users sending ETH directly.",
+          "fix_sketch": "```solidity\n// In receive() function, replace external call with internal logic:\nreceive() external payable {\n    // Remove: this.deposit();\n    // Add direct balance update:\n    balances[tx.origin] += msg.value;  // Credit original sender, not contract\n    emit Deposit(tx.origin, msg.value);\n}\n// Alternative: Make deposit() public and call it directly without 'this.'\n// Or better: Use assembly to preserve msg.sender context in delegatecall pattern\n```",
+          "prior_audit_ref": null,
+          "onchain_proof": "anchored_only",
+          "pattern_hash": "3a36a0a331e86cb0032f21bf3c6e55fa723bf9502ba3bf9b7e74c43df4386eec"
+        },
+        {
+          "id": "F-002",
+          "severity": "MEDIUM",
+          "confidence": "LIKELY",
+          "title": "Missing Reentrancy Guard on deposit() Allows Cross-Function Reentrancy",
+          "file": "../contracts/contracts/Secure/SecureVault.sol",
+          "line": "22",
+          "description": "deposit() lacks nonReentrant modifier, allowing state manipulation during withdraw's locked period via callback to deposit(), breaking reentrancy protection invariant.",
+          "fix_sketch": "```solidity\n// Add nonReentrant modifier to deposit() function\nfunction deposit() external payable nonReentrant {\n    // existing deposit logic\n}\n\n// Ensure withdraw() already has nonReentrant modifier\nfunction withdraw(uint256 amount) external nonReentrant {\n    // existing withdraw logic with checks-effects-interactions pattern\n}\n```",
+          "prior_audit_ref": "The DAO (2016) \u00b7 Euler Finance (2023) \u2014 Rekt.news / Immunefi",
+          "onchain_proof": "anchored_only",
+          "pattern_hash": "8f4be00c2d88fc2d8a50170fa41e3546a44ade59b06c4592d544a79d7689fe0d"
+        },
+        {
+          "id": "F-003",
+          "severity": "LOW",
+          "confidence": "CONFIRMED",
+          "title": "Inefficient External Call in receive()",
+          "file": "../contracts/contracts/Secure/SecureVault.sol",
+          "line": "41",
+          "description": "Using this.deposit() creates unnecessary external call overhead instead of internal call or direct balance update.",
+          "fix_sketch": "// LOW severity \u2014 manual review recommended for 'Inefficient External Call in receive()'",
+          "prior_audit_ref": null,
+          "onchain_proof": "anchored_only",
+          "pattern_hash": "e065c5e8e07c263869f96924a8cf25887ffa8796a3436c46b20976a5e1bd43e2"
+        },
+        {
+          "id": "F-004",
+          "severity": "INFO",
+          "confidence": "SUSPECTED",
+          "title": "solc-version",
+          "file": "../contracts/contracts/Secure/SecureVault.sol",
+          "line": null,
+          "description": "Version constraint ^0.8.20 contains known severe issues (https://solidity.readthedocs.io/en/latest/bugs.html)\n\t- VerbatimInvalidDeduplication\n\t- FullInlinerNonExpressionSplitArgumentEvaluationOrder\n\t- MissingSideEffectsOnSelectorAccess.\nIt is used by:\n\t- ^0.8.20 (../contracts/contracts/Secure/SecureVault.sol#2)\n",
+          "fix_sketch": "// INFO severity \u2014 manual review recommended for 'solc-version'",
+          "prior_audit_ref": null,
+          "onchain_proof": null,
+          "pattern_hash": null
+        },
+        {
+          "id": "F-005",
+          "severity": "INFO",
+          "confidence": "SUSPECTED",
+          "title": "low-level-calls",
+          "file": "../contracts/contracts/Secure/SecureVault.sol",
+          "line": null,
+          "description": "Low level call in SecureVault.withdraw(uint256) (../contracts/contracts/Secure/SecureVault.sol#28-39):\n\t- (success,None) = msg.sender.call{value: amount}() (../contracts/contracts/Secure/SecureVault.sol#35)\n",
+          "fix_sketch": "// INFO severity \u2014 manual review recommended for 'low-level-calls'",
+          "prior_audit_ref": null,
+          "onchain_proof": null,
+          "pattern_hash": null
+        }
+      ],
+      "memory": {
+        "hits": 0,
+        "sources": []
+      },
+      "onchain": {
+        "anchor_registry": "0x4DC06573aa7b214645f649E4b9412Fe5aEd775F8",
+        "network": "Ethereum Sepolia",
+        "etherscan_base": "https://sepolia.etherscan.io/tx/",
+        "tx_proof": "anchored_only"
+      },
+      "ens": {
+        "subname": null,
+        "url": null,
+        "certified": false,
+        "parent": "certified.onchor-ai.eth"
+      },
+      "pipeline": {
+        "slither_findings": 2,
+        "investigation_turns": 6,
+        "model": "anthropic/claude-sonnet-4-5",
+        "anchors_phase4": 0
+      },
+      "generated": "2026-04-28T16:33:23.924406+00:00Z"
+    },
+    "anchored_count": 3,
+    "scope": {
+      "files_found": 1,
+      "is_onchain": false
+    },
+    "verdict": "MEDIUM_RISK",
+    "findings": [
+      {
+        "id": "f-001",
+        "severity": "INFO",
+        "confidence": "LIKELY",
+        "title": "solc-version",
+        "file": "../contracts/contracts/Secure/SecureVault.sol",
+        "description": "Version constraint ^0.8.20 contains known severe issues (https://solidity.readthedocs.io/en/latest/bugs.html)\n\t- VerbatimInvalidDeduplication\n\t- FullInlinerNonExpressionSplitArgumentEvaluationOrder\n\t- MissingSideEffectsOnSelectorAccess.\nIt is used by:\n\t- ^0.8.20 (../contracts/contracts/Secure/SecureVault.sol#2)\n",
+        "recommendation": "See description above."
+      },
+      {
+        "id": "f-002",
+        "severity": "INFO",
+        "confidence": "LIKELY",
+        "title": "low-level-calls",
+        "file": "../contracts/contracts/Secure/SecureVault.sol",
+        "description": "Low level call in SecureVault.withdraw(uint256) (../contracts/contracts/Secure/SecureVault.sol#28-39):\n\t- (success,None) = msg.sender.call{value: amount}() (../contracts/contracts/Secure/SecureVault.sol#35)\n",
+        "recommendation": "See description above."
+      }
+    ],
+    "memory_hits": []
+  },
+  {
+    "id": "52dedab6-39be-4e4e-aff9-005f424b68da",
+    "created_at": "2026-04-28T16:29:12.781547Z",
+    "target": {
+      "kind": "path",
+      "value": "SecureVault.sol"
+    },
+    "mode": "paid",
+    "price_paid": 0.5,
+    "triage": {
+      "risk_score": 0,
+      "verdict": "SAFE",
+      "reasoning": "Aucun fichier \u00e0 analyser.",
+      "file_details": []
+    },
+    "slither": {
+      "success": false,
+      "error": "Le fichier JSON de Slither n'a pas \u00e9t\u00e9 cr\u00e9\u00e9.",
+      "logs": "Traceback (most recent call last):\n  File \"/Library/Frameworks/Python.framework/Versions/3.13/bin/slither\", line 8, in <module>\n    sys.exit(main())\n             ~~~~^^\n  File \"/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/slither/__main__.py\", line 760, in main\n    main_impl(all_detector_classes=detectors, all_printer_classes=printers)\n    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/slither/__main__.py\", line 865, in main_impl\n    ) = process_all(filename, args, detector_classes, printer_classes)\n        ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/slither/__main__.py\", line 95, in process_all\n    compilations = compile_all(target, **vars(args))\n  File \"/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/crytic_compile/crytic_compile.py\", line 749, in compile_all\n    raise ValueError(f\"{str(target)} is not a file or directory.\")\nValueError: contracts/contracts/Secure/SecureVault.sol is not a file or directory.\n"
+    },
+    "inventory": {
+      "files_analyzed": 0,
+      "details": [],
+      "duplicates_detected": 0,
+      "known_findings": [],
+      "known_findings_count": 0
+    },
+    "investigation": {
+      "findings": [],
+      "anchored": [],
+      "turns_used": 8,
+      "model": "anthropic/claude-sonnet-4-5"
+    },
+    "report": {
+      "verdict": "CERTIFIED",
+      "risk_score": 0,
+      "audit_date": "2026-04-28",
+      "report_hash": "0x8ee4fcad3c212e8f347d2ca24709b48bff8cb80f663ab82913f9eb2d2990abf4",
+      "target": {
+        "address": "0x0000000000000000000000000000000000000000",
+        "files": [],
+        "upstream": null
+      },
+      "summary": {
+        "total_findings": 0,
+        "high_count": 0,
+        "medium_count": 0,
+        "low_count": 0,
+        "anchored_count": 0
+      },
+      "findings": [],
+      "memory": {
+        "hits": 0,
+        "sources": []
+      },
+      "onchain": {
+        "anchor_registry": "0x4DC06573aa7b214645f649E4b9412Fe5aEd775F8",
+        "network": "Ethereum Sepolia",
+        "etherscan_base": "https://sepolia.etherscan.io/tx/",
+        "tx_proof": "0x0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "ens": {
+        "subname": null,
+        "url": null,
+        "certified": false,
+        "parent": "certified.onchor-ai.eth"
+      },
+      "pipeline": {
+        "slither_findings": 0,
+        "investigation_turns": 8,
+        "model": "anthropic/claude-sonnet-4-5",
+        "anchors_phase4": 0
+      },
+      "generated": "2026-04-28T16:29:12.768033+00:00Z"
+    },
+    "anchored_count": 0,
+    "scope": {
+      "files_found": 0,
+      "is_onchain": false
+    },
+    "verdict": "SAFE",
+    "findings": [],
+    "memory_hits": []
+  },
+  {
+    "id": "4e921832-5a1b-4cd2-9796-546630877187",
+    "created_at": "2026-04-28T16:23:49.720186Z",
+    "target": {
+      "kind": "path",
+      "value": "SecureVault.sol"
+    },
+    "mode": "paid",
+    "price_paid": 0.5,
+    "triage": {
+      "risk_score": 0,
+      "verdict": "SAFE",
+      "reasoning": "Aucun fichier \u00e0 analyser.",
+      "file_details": []
+    },
+    "slither": {
+      "success": false,
+      "error": "Le fichier JSON de Slither n'a pas \u00e9t\u00e9 cr\u00e9\u00e9.",
+      "logs": "Traceback (most recent call last):\n  File \"/Library/Frameworks/Python.framework/Versions/3.13/bin/slither\", line 8, in <module>\n    sys.exit(main())\n             ~~~~^^\n  File \"/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/slither/__main__.py\", line 760, in main\n    main_impl(all_detector_classes=detectors, all_printer_classes=printers)\n    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/slither/__main__.py\", line 865, in main_impl\n    ) = process_all(filename, args, detector_classes, printer_classes)\n        ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/slither/__main__.py\", line 95, in process_all\n    compilations = compile_all(target, **vars(args))\n  File \"/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/crytic_compile/crytic_compile.py\", line 749, in compile_all\n    raise ValueError(f\"{str(target)} is not a file or directory.\")\nValueError: contracts/contracts/Secure/SecureVault.sol is not a file or directory.\n"
+    },
+    "inventory": {
+      "files_analyzed": 0,
+      "details": [],
+      "duplicates_detected": 0,
+      "known_findings": [],
+      "known_findings_count": 0
+    },
+    "investigation": {
+      "findings": [],
+      "anchored": [],
+      "turns_used": 6,
+      "model": "anthropic/claude-sonnet-4-5"
+    },
+    "report": {
+      "verdict": "CERTIFIED",
+      "risk_score": 0,
+      "audit_date": "2026-04-28",
+      "report_hash": "0x8ee4fcad3c212e8f347d2ca24709b48bff8cb80f663ab82913f9eb2d2990abf4",
+      "target": {
+        "address": "0x0000000000000000000000000000000000000000",
+        "files": [],
+        "upstream": null
+      },
+      "summary": {
+        "total_findings": 0,
+        "high_count": 0,
+        "medium_count": 0,
+        "low_count": 0,
+        "anchored_count": 0
+      },
+      "findings": [],
+      "memory": {
+        "hits": 0,
+        "sources": []
+      },
+      "onchain": {
+        "anchor_registry": "0x4DC06573aa7b214645f649E4b9412Fe5aEd775F8",
+        "network": "Ethereum Sepolia",
+        "etherscan_base": "https://sepolia.etherscan.io/tx/",
+        "tx_proof": "0x0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "ens": {
+        "subname": null,
+        "url": null,
+        "certified": false,
+        "parent": "certified.onchor-ai.eth"
+      },
+      "pipeline": {
+        "slither_findings": 0,
+        "investigation_turns": 6,
+        "model": "anthropic/claude-sonnet-4-5",
+        "anchors_phase4": 0
+      },
+      "generated": "2026-04-28T16:23:49.706589+00:00Z"
+    },
+    "anchored_count": 0,
+    "scope": {
+      "files_found": 0,
+      "is_onchain": false
+    },
+    "verdict": "SAFE",
+    "findings": [],
+    "memory_hits": []
+  },
+  {
     "id": "eb837479-4287-4c7f-b01b-94a1f271d6a2",
     "created_at": "2026-04-28T16:06:02.938692Z",
     "target": {
