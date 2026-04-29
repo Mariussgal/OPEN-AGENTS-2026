@@ -1,0 +1,28 @@
+# Environnement virtuel
+venv/
+env/
+
+# Fichiers caches Python
+__pycache__/
+*.pyc
+
+# Variables d'environnement (JAMAIS sur GitHub)
+.env
+
+# Fichiers temporaires de Slither
+slither_report.json
+
+# Documentation Specs
+keeper-memory-tasks.pdf
+keeper-memory-v10.pdf
+
+# Dépendances Node.js
+node_modules/
+backend/.env.user
+backend/storage/.zero_g_mock/
+
+.venv/
+node_modules/
+__pycache__/
+.env
+.onchor/
