@@ -22,6 +22,8 @@ from typing import Optional
 
 from openai import OpenAI
 
+from keeper.hub_anchor import is_evm_tx_hash
+
 
 def _default_contracts_dir() -> str:
     """
@@ -330,21 +332,24 @@ async def run_report(
             )
 
         prior_ref    = _find_prior_audit_ref(finding, known_findings)
-        onchain_proof = finding.get("tx_hash") or finding.get("anchor_tx")
+        cand_tx      = finding.get("tx_hash") or finding.get("anchor_tx")
+        onchain_proof = cand_tx.strip().lower() if (cand_tx and is_evm_tx_hash(str(cand_tx))) else None
+        kh_exec = finding.get("execution_id")
 
         enriched.append(
             {
-                "id":              f"F-{i + 1:03d}",
-                "severity":        sev,
-                "confidence":      (finding.get("confidence") or "SUSPECTED").upper(),
-                "title":           finding.get("title", "Unknown"),
-                "file":            finding.get("file", "unknown"),
-                "line":            finding.get("line"),
-                "description":     finding.get("description") or finding.get("reason") or "",
-                "fix_sketch":      fix_sketch,
-                "prior_audit_ref": prior_ref,
-                "onchain_proof":   onchain_proof,
-                "pattern_hash":    finding.get("pattern_hash"),
+                "id":                     f"F-{i + 1:03d}",
+                "severity":               sev,
+                "confidence":             (finding.get("confidence") or "SUSPECTED").upper(),
+                "title":                  finding.get("title", "Unknown"),
+                "file":                   finding.get("file", "unknown"),
+                "line":                   finding.get("line"),
+                "description":            finding.get("description") or finding.get("reason") or "",
+                "fix_sketch":             fix_sketch,
+                "prior_audit_ref":        prior_ref,
+                "onchain_proof":          onchain_proof,
+                "keeperhub_execution_id":   str(kh_exec) if kh_exec else None,
+                "pattern_hash":           finding.get("pattern_hash"),
             }
         )
         print(f"  [{i + 1}/{len(all_findings)}] {sev:6s} · {finding.get('title', '')[:50]}")
@@ -353,7 +358,9 @@ async def run_report(
     high_count   = sum(1 for f in enriched if f["severity"] == "HIGH")
     medium_count = sum(1 for f in enriched if f["severity"] == "MEDIUM")
     low_count    = sum(1 for f in enriched if f["severity"] == "LOW")
-    anchored_count = sum(1 for f in enriched if f.get("onchain_proof"))
+    anchored_count = sum(
+        1 for f in enriched if f.get("onchain_proof") or f.get("keeperhub_execution_id")
+    )
 
     final_verdict = "CERTIFIED" if high_count == 0 and medium_count == 0 else "FINDINGS_FOUND"
 
@@ -431,6 +438,11 @@ async def run_report(
             "network":         "Ethereum Sepolia",
             "etherscan_base":  "https://sepolia.etherscan.io/tx/",
             "tx_proof":        tx_proof,
+            "keeperhub_executions": [
+                f["keeperhub_execution_id"]
+                for f in enriched
+                if f.get("keeperhub_execution_id")
+            ],
         },
         "ens": {
             "subname":   ens_subname,

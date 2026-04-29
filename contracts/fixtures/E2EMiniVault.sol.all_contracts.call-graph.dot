@@ -1,0 +1,13 @@
+strict digraph {
+rankdir="LR"
+node [shape=box]
+subgraph cluster_60_E2EMiniVault {
+label = "E2EMiniVault"
+"60_deposit" [label="deposit"]
+"60_withdraw" [label="withdraw"]
+}subgraph cluster_solidity {
+label = "[Solidity]"
+"require(bool,string)" 
+"60_withdraw" -> "require(bool,string)"
+}
+}

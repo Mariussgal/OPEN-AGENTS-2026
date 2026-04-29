@@ -10,6 +10,7 @@ Format des events (1 par ligne, NDJSON / application/x-ndjson) :
     {"phase": "resolve",     "status": "done",   "files": 1, "upstream": null}
     {"phase": "inventory",   "status": "start",  "msg": "Parsing AST..."}
     {"phase": "inventory",   "status": "done",   "files_analyzed": 1, "duplicates": 0}
+    {"phase": "investigate", "status": "pulse",  "msg": "…"}
     ...
     {"phase": "report",      "status": "done",   "result": {<full JSON>}, "verdict": "FINDINGS_FOUND", "risk_score": 8}
     {"phase": "pipeline",    "status": "done"}
@@ -25,6 +26,7 @@ Mode "paid" :
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 from typing import Any, AsyncGenerator, Optional
@@ -45,6 +47,36 @@ from pipeline.phases import PIPELINE_PHASES  # noqa: F401
 def _emit(event: dict[str, Any]) -> bytes:
     """Sérialise un event en NDJSON (1 ligne JSON + \\n, encodé UTF-8)."""
     return (json.dumps(event, default=str) + "\n").encode("utf-8")
+
+
+def _pulse_interval_sec() -> float:
+    """Délai entre events ``pulse`` NDJSON pendant les phases longues (keep-alive TCP / proxies)."""
+    raw = os.getenv("STREAM_HEARTBEAT_SEC", "20")
+    try:
+        v = float(raw)
+        return max(5.0, min(v, 120.0))
+    except ValueError:
+        return 20.0
+
+
+async def _heartbeat_while(task: asyncio.Task, phase_id: str, base_msg: str) -> AsyncGenerator[bytes, None]:
+    """Tant que ``task`` n'est pas terminée, émet périodiquement une ligne NDJSON ``status: pulse``."""
+    interval = _pulse_interval_sec()
+    pulses = 0
+    while not task.done():
+        done_set, _ = await asyncio.wait(
+            {task},
+            timeout=interval,
+            return_when=asyncio.FIRST_COMPLETED,
+        )
+        if task in done_set:
+            return
+        pulses += 1
+        yield _emit({
+            "phase":  phase_id,
+            "status": "pulse",
+            "msg":    f"{base_msg} (#{pulses})…",
+        })
 
 
 async def stream_audit_pipeline(
@@ -95,7 +127,10 @@ async def stream_audit_pipeline(
     # ── Phase 2 — Slither ────────────────────────────────────────────────────
     yield _emit({"phase": "slither", "status": "start",
                  "msg": "Running 89 detectors..."})
-    slither_data = await run_slither(target)
+    slither_task = asyncio.create_task(run_slither(target))
+    async for hb in _heartbeat_while(slither_task, "slither", "Slither still running"):
+        yield hb
+    slither_data = await slither_task
     yield _emit({
         "phase":    "slither",
         "status":   "done",
@@ -117,7 +152,12 @@ async def stream_audit_pipeline(
     # ── Phase 4 — Investigate (adversarial agent) ────────────────────────────
     yield _emit({"phase": "investigate", "status": "start",
                  "msg": "Spawning adversarial agent (7 tools)..."})
-    investigation_data = await run_investigation(scope, slither_data, inventory_data, triage_data)
+    inv_task = asyncio.create_task(
+        run_investigation(scope, slither_data, inventory_data, triage_data)
+    )
+    async for hb in _heartbeat_while(inv_task, "investigate", "Adversarial agent still running"):
+        yield hb
+    investigation_data = await inv_task
     yield _emit({
         "phase":          "investigate",
         "status":         "done",
@@ -129,9 +169,19 @@ async def stream_audit_pipeline(
     # ── Phase 5 — Anchor (KeeperHub) ─────────────────────────────────────────
     yield _emit({"phase": "anchor", "status": "start",
                  "msg": "Anchoring confirmed findings on Sepolia..."})
-    anchored_findings = await run_phase5_anchor(investigation_data.get("findings", []))
+    anchor_task = asyncio.create_task(
+        run_phase5_anchor(investigation_data.get("findings", []))
+    )
+    async for hb in _heartbeat_while(anchor_task, "anchor", "Onchain anchoring in progress"):
+        yield hb
+    anchored_findings = await anchor_task
     investigation_data["findings"] = anchored_findings
-    anchored_count = sum(1 for f in anchored_findings if f.get("onchain_proof"))
+    # Phase 5 remplit tx_hash ou execution_id (onchain_proof vient après Phase 6).
+    anchored_count = sum(
+        1
+        for f in anchored_findings
+        if f.get("onchain_proof") or f.get("tx_hash") or f.get("execution_id")
+    )
     yield _emit({
         "phase":         "anchor",
         "status":        "done",
@@ -142,14 +192,19 @@ async def stream_audit_pipeline(
     # ── Phase 6 — Report ─────────────────────────────────────────────────────
     yield _emit({"phase": "report", "status": "start",
                  "msg": "Building enriched report + ENS certificate check..."})
-    report = await run_report(
-        scope=scope,
-        slither_data=slither_data,
-        inventory_data=inventory_data,
-        triage_data=triage_data,
-        investigation_data=investigation_data,
-        target_address=target_address or (path if path.startswith("0x") else None),
+    report_task = asyncio.create_task(
+        run_report(
+            scope=scope,
+            slither_data=slither_data,
+            inventory_data=inventory_data,
+            triage_data=triage_data,
+            investigation_data=investigation_data,
+            target_address=target_address or (path if path.startswith("0x") else None),
+        )
     )
+    async for hb in _heartbeat_while(report_task, "report", "Building report"):
+        yield hb
+    report = await report_task
 
     # ── Payload final — strict equivalent des routes non-stream ──────────────
     full_result: dict[str, Any] = {

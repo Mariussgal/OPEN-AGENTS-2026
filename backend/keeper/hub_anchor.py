@@ -7,9 +7,18 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from typing import Any
 
 import httpx
+
+# Hash de transaction canonique pour EVM (32 octets hex, préfixe 0x).
+_EVM_TX_HASH = re.compile(r"^0x[0-9a-fA-F]{64}$")
+
+
+def is_evm_tx_hash(val: object) -> bool:
+    """True si ``val`` ressemble à un hash de transaction EVM exploitable pour Etherscan."""
+    return isinstance(val, str) and bool(_EVM_TX_HASH.match(val.strip()))
 
 KEEPERHUB_EXECUTE = "https://app.keeperhub.com/api/execute/contract-call"
 

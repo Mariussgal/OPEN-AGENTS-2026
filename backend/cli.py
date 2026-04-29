@@ -320,8 +320,9 @@ def _enriched_findings_table(findings: list[dict]) -> Table:
         location  = f.get("file", "—")
         if f.get("line"):
             location += f":{f['line']}"
-        anchored  = "✔" if f.get("onchain_proof") else "—"
-        anchor_style = "ok" if f.get("onchain_proof") else "muted"
+        anchored_ok = bool(f.get("onchain_proof") or f.get("keeperhub_execution_id"))
+        anchored  = "✔" if anchored_ok else "—"
+        anchor_style = "ok" if anchored_ok else "muted"
 
         table.add_row(
             f.get("id", "—"),
@@ -365,11 +366,17 @@ def _render_finding_details(findings: list[dict]) -> None:
             lines.append("")
             lines.append(f"[label]Ref. historique :[/label] [muted]{f['prior_audit_ref']}[/muted]")
 
-        # Onchain proof
+        # Preuve KeeperHub / EVM
         if f.get("onchain_proof"):
             etherscan = f"https://sepolia.etherscan.io/tx/{f['onchain_proof']}"
             lines.append("")
-            lines.append(f"[label]Preuve onchain :[/label] [info]{etherscan}[/info]")
+            lines.append(f"[label]Tx onchain :[/label] [info]{etherscan}[/info]")
+        elif f.get("keeperhub_execution_id"):
+            lines.append("")
+            lines.append(
+                f"[label]Ancrage KeeperHub (réf. exécution, tx en cours ou hors format EVM) :[/label] "
+                f"[muted]{f['keeperhub_execution_id']}[/muted]"
+            )
 
         body = Text.from_markup("\n".join(lines))
         console.print(
@@ -394,13 +401,22 @@ def _render_onchain_section(onchain: dict, findings: list[dict]) -> None:
         "Network":         onchain.get("network", "—"),
     }
 
-    if tx_proof and tx_proof != "0x" + "0" * 64:
+    if tx_proof and tx_proof != "0x" + "0" * 64 and tx_proof.startswith("0x") and len(tx_proof) >= 66:
         items["TX Proof"] = f"{etherscan_base}{tx_proof}"
 
-    # Lister tous les tx_hash des findings anchored
-    anchored = [f for f in findings if f.get("onchain_proof")]
+    # Lister preuves EVM ; sinon ref KeeperHub dans le bloc détail findings
+    anchored = [
+        f
+        for f in findings
+        if f.get("onchain_proof") or f.get("keeperhub_execution_id")
+    ]
     for i, f in enumerate(anchored[:5], 1):
-        items[f"Anchor #{i} ({f.get('id', '')})"] = f"{etherscan_base}{f['onchain_proof']}"
+        if f.get("onchain_proof"):
+            items[f"Anchor #{i} ({f.get('id', '')})"] = f"{etherscan_base}{f['onchain_proof']}"
+        else:
+            items[f"Anchor #{i} ({f.get('id', '')})"] = (
+                "KeeperHub execution " + f["keeperhub_execution_id"]
+            )
     if len(anchored) > 5:
         items["…"] = f"et {len(anchored) - 5} autre(s) — voir JSON complet"
 

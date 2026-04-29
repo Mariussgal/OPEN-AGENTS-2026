@@ -2,7 +2,7 @@ import os
 import hashlib
 import logging
 from typing import List, Dict
-from keeper.hub_anchor import keeperhub_anchor_registry
+from keeper.hub_anchor import is_evm_tx_hash, keeperhub_anchor_registry
 from storage.zero_g_client import store_pattern, pattern_storage_payload
 
 logging.basicConfig(level=logging.INFO)
@@ -21,7 +21,7 @@ async def run_phase5_anchor(findings: List[Dict]) -> List[Dict]:
         if finding.get("confidence") not in ["CONFIRMED", "LIKELY"]:
             continue
 
-        if finding.get("tx_hash"):
+        if finding.get("tx_hash") or finding.get("execution_id"):
             logger.info(f"Already anchored : {finding['title']}")
             anchored_results.append(finding)
             continue
@@ -65,12 +65,20 @@ async def run_phase5_anchor(findings: List[Dict]) -> List[Dict]:
             elif kh.get("success"):
                 tx = kh.get("tx_hash")
                 exe = kh.get("execution_id")
-                label = tx or exe
-                if label:
-                    finding["tx_hash"] = label if isinstance(label, str) else str(label)
-                if exe and finding.get("tx_hash") != exe:
-                    finding["execution_id"] = exe
-                logger.info(f"  → KeeperHub OK — tx/execution: {finding.get('tx_hash')}")
+                tid = tx if isinstance(tx, str) else (str(tx) if tx not in (None, "") else None)
+                if tid and str(tid).lower() in ("pending", "none"):
+                    tid = None
+                if tid and is_evm_tx_hash(tid):
+                    finding["tx_hash"] = tid.strip().lower()
+                elif tid:
+                    logger.warning(
+                        "  KeeperHub a renvoyé un transactionHash non-EVM (%r) — id d'exécution uniquement.",
+                        tid,
+                    )
+                if exe:
+                    finding["execution_id"] = str(exe)
+                ah = finding.get("tx_hash") or finding.get("execution_id")
+                logger.info(f"  → KeeperHub OK — preuve chaîne/id: {ah}")
 
         except Exception as e:
             logger.error(f"   KeeperHub error : {e}")

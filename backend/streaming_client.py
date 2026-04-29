@@ -208,6 +208,11 @@ async def consume_audit_stream(
                     if msg:
                         console.print(f"  [muted]> {msg}[/muted]")
 
+                elif status == "pulse":
+                    msg = event.get("msg")
+                    if msg:
+                        console.print(f"  [muted]> {msg}[/muted]")
+
                 elif status == "done":
                     progress.update(task_id, completed=idx + 1)
                     summary = _summary_for_done(event)
