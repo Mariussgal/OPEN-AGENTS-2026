@@ -1,14 +1,14 @@
 # pipeline/phase1_inventory.py
-import asyncio
 import hashlib
 import os
 import re
 from typing import List, Any, Dict
 
-import cognee
-
 from .phase_resolve import ResolvedContract
+
+# Initialise COGNEE_* sur disque avant le premier ``import cognee`` (évite OperationalError SQLite).
 from memory.cognee_setup import setup_cognee
+import cognee
 
 
 def analyze_solidity_file(file_path: str) -> Dict[str, Any]:

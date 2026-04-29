@@ -5,9 +5,10 @@ import os
 # Ajouter le dossier parent (backend/) au path pour les imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import cognee
 from dotenv import load_dotenv
 from memory.cognee_setup import setup_cognee, add_finding_to_memory
+
+import cognee
 
 load_dotenv()
 

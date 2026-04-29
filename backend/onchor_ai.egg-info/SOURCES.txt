@@ -5,6 +5,7 @@ streaming_client.py
 ui.py
 keeper/__init__.py
 keeper/direct_api.py
+keeper/hub_anchor.py
 keeper/mcp_tools.py
 keeper/test_keeperhub.py
 keeper/workflow.py
@@ -35,3 +36,4 @@ pipeline/phases.py
 pipeline/streaming.py
 storage/__init__.py
 storage/og_client.py
+storage/zero_g_client.py

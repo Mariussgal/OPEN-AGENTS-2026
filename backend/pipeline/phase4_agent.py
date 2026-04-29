@@ -260,33 +260,18 @@ def tool_simulate_call(signature: str, args: list = None) -> str:
 
 
 async def tool_anchor_finding(pattern_hash: str, root_hash: str) -> str:
-    """Ancre un finding LIKELY/CONFIRMED via KeeperHub Direct Execution API."""
-    keeperhub_api_key = os.getenv("KEEPERHUB_API_KEY")
-    anchor_registry = os.getenv("ANCHOR_REGISTRY_ADDRESS")
+    """Ancre un finding LIKELY/CONFIRMED via KeeperHub (voir keeper/hub_anchor)."""
+    from keeper.hub_anchor import keeperhub_anchor_registry
 
-    if not keeperhub_api_key or not anchor_registry:
-        return f"[anchor skipped — KEEPERHUB_API_KEY or ANCHOR_REGISTRY_ADDRESS not set] pattern_hash={pattern_hash}"
-
-    try:
-        import httpx
-        async with httpx.AsyncClient(timeout=30.0) as http:
-            resp = await http.post(
-                "https://app.keeperhub.com/api/execute/contract-call",
-                headers={"X-API-Key": keeperhub_api_key},
-                json={
-                    "contractAddress": anchor_registry,
-                    "network": "84532",  # Base Sepolia
-                    "functionName": "anchor",
-                    "functionArgs": json.dumps([pattern_hash, root_hash])
-                }
-            )
-            data = resp.json()
-            execution_id = data.get("executionId", "unknown")
-            tx_hash = data.get("transactionHash", "pending")
-            print(f"  ✓ Anchored onchain — executionId: {execution_id} tx: {tx_hash}")
-            return f"Anchored — executionId: {execution_id} | tx: {tx_hash}"
-    except Exception as e:
-        return f"Anchor error: {e}"
+    kh = await keeperhub_anchor_registry(pattern_hash, root_hash)
+    if kh.get("skipped"):
+        return "[anchor skipped — KEEPERHUB_API_KEY or ANCHOR_REGISTRY_ADDRESS not set]"
+    if kh.get("error"):
+        return f"Anchor error: {kh['error']}"
+    tx = kh.get("tx_hash")
+    exe = kh.get("execution_id")
+    print(f"  ✓ Anchored — executionId: {exe} tx: {tx}")
+    return f"Anchored — executionId: {exe} | tx: {tx or 'pending'}"
 
 
 # ─── Tool dispatcher ──────────────────────────────────────────────────────────

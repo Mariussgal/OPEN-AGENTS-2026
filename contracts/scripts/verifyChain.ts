@@ -10,9 +10,19 @@ const REGISTRY_ABI = [
 ];
 
 async function verifyChain(patternHash: string) {
-    const provider = new ethers.JsonRpcProvider(
-        `https://eth-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`
-    );
+    const rpc =
+        process.env.ANCHOR_RPC_URL ||
+        (process.env.ALCHEMY_API_KEY
+            ? `https://eth-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`
+            : null);
+    if (!rpc) {
+        console.error(
+            "Set ANCHOR_RPC_URL (recommended) ou ALCHEMY_API_KEY dans contracts/.env"
+        );
+        process.exit(1);
+    }
+
+    const provider = new ethers.JsonRpcProvider(rpc);
 
     const registry = new ethers.Contract(ANCHOR_REGISTRY, REGISTRY_ABI, provider);
 

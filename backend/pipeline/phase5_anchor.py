@@ -2,7 +2,7 @@ import os
 import hashlib
 import logging
 from typing import List, Dict
-from keeper.direct_api import anchor_contribution, poll_execution
+from keeper.hub_anchor import is_evm_tx_hash, keeperhub_anchor_registry
 from storage.zero_g_client import store_pattern, pattern_storage_payload
 
 logging.basicConfig(level=logging.INFO)
@@ -11,7 +11,7 @@ logger = logging.getLogger("Phase5-Anchor")
 
 async def run_phase5_anchor(findings: List[Dict]) -> List[Dict]:
     """
-    Ancrage on-chain pour findings CONFIRMED / LIKELY ; rootHash 0G depuis store_pattern.
+    Ancrage : upload JSON sur 0G (rootHash réel), puis KeeperHub → AnchorRegistry si configuré.
     """
     logger.info(f"🛡️ [Phase 5] Checking anchoring for {len(findings)} findings...")
 
@@ -21,7 +21,7 @@ async def run_phase5_anchor(findings: List[Dict]) -> List[Dict]:
         if finding.get("confidence") not in ["CONFIRMED", "LIKELY"]:
             continue
 
-        if finding.get("tx_hash"):
+        if finding.get("tx_hash") or finding.get("execution_id"):
             logger.info(f"Already anchored : {finding['title']}")
             anchored_results.append(finding)
             continue
@@ -47,28 +47,42 @@ async def run_phase5_anchor(findings: List[Dict]) -> List[Dict]:
             finding["pattern_hash"] = pattern_hash
             logger.info(f"  → 0G rootHash: {root_hash_0g}")
         except Exception as e:
-            logger.error(f"  0G store_pattern failed — skip anchor: {e}")
+            logger.error(f"  0G store_pattern failed — skip: {e}")
             anchored_results.append(finding)
             continue
 
         try:
-            placeholder_addr = os.getenv("RECEIVER_ADDRESS", "0x" + "0" * 40)
-            exec_id = await anchor_contribution(pattern_hash, root_hash_0g, placeholder_addr, amount_usdc=0.0)
+            kh = await keeperhub_anchor_registry(pattern_hash, root_hash_0g)
 
-            if exec_id:
-                logger.info(f"  → Execution ID: {exec_id}. Waiting...")
-                tx_hash = await poll_execution(exec_id)
-
-                if tx_hash:
-                    finding["tx_hash"] = tx_hash
-                    logger.info(f"  Success — tx: {tx_hash}")
-                else:
-                    logger.warning(f"  Timeout polling {exec_id}")
-            else:
-                logger.error(f"  Anchor call failed for {finding['title']}")
+            if kh.get("skipped"):
+                logger.warning(
+                    "  KeeperHub non configuré — JSON sur 0G uniquement "
+                    "(fixe KEEPERHUB_API_KEY + ANCHOR_REGISTRY_ADDRESS)."
+                )
+            elif kh.get("error"):
+                logger.error("  KeeperHub: %s", kh["error"])
+                finding["keeperhub_error"] = kh["error"]
+            elif kh.get("success"):
+                tx = kh.get("tx_hash")
+                exe = kh.get("execution_id")
+                tid = tx if isinstance(tx, str) else (str(tx) if tx not in (None, "") else None)
+                if tid and str(tid).lower() in ("pending", "none"):
+                    tid = None
+                if tid and is_evm_tx_hash(tid):
+                    finding["tx_hash"] = tid.strip().lower()
+                elif tid:
+                    logger.warning(
+                        "  KeeperHub a renvoyé un transactionHash non-EVM (%r) — id d'exécution uniquement.",
+                        tid,
+                    )
+                if exe:
+                    finding["execution_id"] = str(exe)
+                ah = finding.get("tx_hash") or finding.get("execution_id")
+                logger.info(f"  → KeeperHub OK — preuve chaîne/id: {ah}")
 
         except Exception as e:
-            logger.error(f"   Anchor error : {e}")
+            logger.error(f"   KeeperHub error : {e}")
+            finding["keeperhub_error"] = str(e)
 
         anchored_results.append(finding)
 

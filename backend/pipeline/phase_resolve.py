@@ -1,6 +1,7 @@
 import os
 import json
 import httpx
+from pathlib import Path
 from typing import List, Optional, Dict
 from dataclasses import dataclass
 
@@ -119,6 +120,18 @@ async def resolve_scope(path_or_address: str) -> ResolvedContract:
                 for f in filenames:
                     if f.endswith(".sol"):
                         files.append(os.path.join(root, f))
+
+        # Cas 3 : le serveur uvicorn a souvent cwd = backend/ — relatif à la racine du dépôt
+        if not files and not os.path.isabs(path_or_address):
+            repo_root = Path(__file__).resolve().parents[2]
+            cand = (repo_root / path_or_address).resolve()
+            if cand.is_file() and cand.suffix == ".sol":
+                files.append(str(cand))
+            elif cand.is_dir():
+                for root, _, filenames in os.walk(str(cand)):
+                    for f in filenames:
+                        if f.endswith(".sol"):
+                            files.append(os.path.join(root, f))
         
         # Détection de l'upstream sur le premier fichier trouvé
         if files and not upstream:

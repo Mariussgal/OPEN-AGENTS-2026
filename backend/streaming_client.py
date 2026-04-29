@@ -208,6 +208,11 @@ async def consume_audit_stream(
                     if msg:
                         console.print(f"  [muted]> {msg}[/muted]")
 
+                elif status == "pulse":
+                    msg = event.get("msg")
+                    if msg:
+                        console.print(f"  [muted]> {msg}[/muted]")
+
                 elif status == "done":
                     progress.update(task_id, completed=idx + 1)
                     summary = _summary_for_done(event)
@@ -226,7 +231,9 @@ async def consume_audit_stream(
 async def run_streaming_audit_local(api_url: str, path: str) -> dict[str, Any]:
     """Lance un audit --local en streaming et retourne le payload final."""
     info("Pipeline démarré — voir progression ci-dessous.")
-    async with httpx.AsyncClient(timeout=600.0) as client:
+    # Lecture longue (Phase 4 agent) sans couper la connexion : read élevé, connect raisonnable
+    tout = httpx.Timeout(connect=60.0, read=7200.0, write=60.0, pool=7200.0)
+    async with httpx.AsyncClient(timeout=tout) as client:
         return await consume_audit_stream(
             client,
             "POST",
@@ -245,7 +252,8 @@ async def run_streaming_paid_audit(
     Le header X-PAYMENT a déjà été construit côté caller (cf. x402_client.py).
     """
     info("Pipeline démarré — voir progression ci-dessous.")
-    async with httpx.AsyncClient(timeout=600.0) as client:
+    tout = httpx.Timeout(connect=60.0, read=7200.0, write=60.0, pool=7200.0)
+    async with httpx.AsyncClient(timeout=tout) as client:
         return await consume_audit_stream(
             client,
             "POST",

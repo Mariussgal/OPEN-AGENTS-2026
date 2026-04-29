@@ -1,6 +1,6 @@
 # backend/keeper/mcp_tools.py
 import logging
-from keeper.direct_api import anchor_contribution
+from keeper.hub_anchor import keeperhub_anchor_registry
 from storage.zero_g_client import (
     normalize_pattern_hash,
     pattern_storage_payload,
@@ -20,7 +20,7 @@ async def anchor_finding_mcp(
     confidence: str = "",
     file: str = "",
     line: str | int | None = None,
-    contributor_address: str | None = None,
+    contributor_address: str | None = None,  # réservé futures récompenses
 ) -> str:
     ph = normalize_pattern_hash(pattern_hash)
 
@@ -45,13 +45,14 @@ async def anchor_finding_mcp(
 
     logger.info(f"[anchor_finding_mcp] pattern={ph[:16]}... root={rh[:16]}...")
 
-    tx_hash = await anchor_contribution(ph, rh, contributor_address or "0x" + "0" * 40, amount_usdc=0.0)
+    kh = await keeperhub_anchor_registry(ph, rh)
 
-    if tx_hash == "payment_failed":
-        logger.error("payment_failed")
-    elif tx_hash == "already_anchored":
-        logger.info("already_anchored")
-    else:
-        logger.info(f"result: {tx_hash}")
+    if kh.get("skipped"):
+        return "0G OK — KeeperHub skipped (set KEEPERHUB_API_KEY + ANCHOR_REGISTRY_ADDRESS for chain)"
 
-    return tx_hash
+    if kh.get("error"):
+        return f"KeeperHub error: {kh['error']}"
+
+    tx = kh.get("tx_hash")
+    exe = kh.get("execution_id")
+    return f"Anchored — tx: {tx or 'pending'} | executionId: {exe}"
