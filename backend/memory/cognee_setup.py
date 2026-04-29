@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # 2. Chemins absolus résolus (évite chemins ambigus + SQLite « unable to open database file »)
-_GLOBAL_MEMORY = Path(os.path.expanduser("~/.keeper-memory/memory")).resolve()
+_GLOBAL_MEMORY = Path(os.path.expanduser("~/.onchor-ai/memory")).resolve()
 COGNEE_SYSTEM_DIR = str(_GLOBAL_MEMORY / ".cognee_system")
 COGNEE_DATA_DIR = str(_GLOBAL_MEMORY / ".cognee_data")
 COGNEE_CACHE_DIR = str(_GLOBAL_MEMORY / ".cognee_cache")
