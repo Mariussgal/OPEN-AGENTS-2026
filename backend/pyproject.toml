@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "onchor-ai"
-version = "0.1.8"
+version = "0.1.9"
 description = "Onchor.ai - Solidity Security Copilot with Persistent Collective Memory"
 readme = "README.md"
 license = "MIT"
