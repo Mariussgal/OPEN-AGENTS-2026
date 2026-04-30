@@ -1024,6 +1024,20 @@ def needs_first_run_onboarding() -> bool:
       so the user gets a wallet and the paid-tier keys.
     - Any other case with an existing config → skip.
     """
+    if PROJECT_USER_ENV_PATH.is_file():
+        try:
+            env_vals: dict[str, str] = {}
+            for raw in PROJECT_USER_ENV_PATH.read_text(encoding="utf-8").splitlines():
+                line = raw.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                k, v = line.split("=", 1)
+                env_vals[k.strip()] = v.strip()
+            if env_vals.get("OG_PRIVATE_KEY") and env_vals.get("RECEIVER_ADDRESS"):
+                return False
+        except Exception:
+            pass
+
     if not CONFIG_JSON_PATH.is_file():
         return True
 

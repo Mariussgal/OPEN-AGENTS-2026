@@ -76,6 +76,8 @@ def _should_run_onboarding() -> bool:
     av = sys.argv[1:]
     if len(av) >= 1 and av[0] == "doctor":
         return False
+    if len(av) >= 1 and av[0] == "status":
+        return False
     if "--help" in av or "-h" in av:
         return False
     try:
