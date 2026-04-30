@@ -4,6 +4,7 @@ dotenv.config();
 
 const ENS_REGISTRY = "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e";
 const PUBLIC_RESOLVER = "0x8FADE66B79cC9f707aB26799354482EB93a5B7dD";
+const NAME_WRAPPER = "0x0635513f179D50A207757E05759CbD106d7dFbe8";
 
 const ENS_REGISTRY_ABI = [
     "function setSubnodeRecord(bytes32 node, bytes32 label, address owner, address resolver, uint64 ttl) external",
@@ -29,6 +30,14 @@ async function main() {
     console.log("Setting up ENS subnames from:", wallet.address);
 
     const registry = new ethers.Contract(ENS_REGISTRY, ENS_REGISTRY_ABI, wallet);
+    const nameWrapper = new ethers.Contract(
+        NAME_WRAPPER,
+        ["function isWrapped(bytes32 node) external view returns (bool)"],
+        provider
+    );
+
+    const wrapped = await nameWrapper.isWrapped(namehash("onchor-ai.eth"));
+    console.log("onchor-ai.eth wrappé :", wrapped);
 
     const parentNode = namehash("Onchor-ai.eth");
 

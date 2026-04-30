@@ -1,8 +1,13 @@
+import asyncio
 import os
 import hashlib
 import logging
 from typing import List, Dict
-from keeper.hub_anchor import is_evm_tx_hash, keeperhub_anchor_registry
+from keeper.hub_anchor import (
+    is_evm_tx_hash,
+    get_anchor_tx_from_chain,
+    keeperhub_anchor_registry,
+)
 from storage.zero_g_client import store_pattern, pattern_storage_payload
 
 logging.basicConfig(level=logging.INFO)
@@ -63,22 +68,28 @@ async def run_phase5_anchor(findings: List[Dict]) -> List[Dict]:
                 logger.error("  KeeperHub: %s", kh["error"])
                 finding["keeperhub_error"] = kh["error"]
             elif kh.get("success"):
-                tx = kh.get("tx_hash")
                 exe = kh.get("execution_id")
-                tid = tx if isinstance(tx, str) else (str(tx) if tx not in (None, "") else None)
-                if tid and str(tid).lower() in ("pending", "none"):
-                    tid = None
-                if tid and is_evm_tx_hash(tid):
-                    finding["tx_hash"] = tid.strip().lower()
-                elif tid:
-                    logger.warning(
-                        "  KeeperHub a renvoyé un transactionHash non-EVM (%r) — id d'exécution uniquement.",
-                        tid,
-                    )
                 if exe:
                     finding["execution_id"] = str(exe)
-                ah = finding.get("tx_hash") or finding.get("execution_id")
-                logger.info(f"  → KeeperHub OK — preuve chaîne/id: {ah}")
+
+                import asyncio
+                logger.info(f"  ⏳ Attente confirmation Sepolia (~20s)...")
+                await asyncio.sleep(20)
+                tx = await get_anchor_tx_from_chain(pattern_hash)
+                if tx:
+                    finding["tx_hash"] = tx
+                    logger.info(f"  ✓ tx onchain : {tx}")
+                else:
+                    await asyncio.sleep(20)
+                    tx = await get_anchor_tx_from_chain(pattern_hash)
+                    if tx:
+                        finding["tx_hash"] = tx
+                        logger.info(f"  ✓ tx onchain (retry) : {tx}")
+                    else:
+                        logger.warning(f"  ⚠ tx non encore minée — executionId conservé")
+
+                proof = finding.get("tx_hash") or finding.get("execution_id")
+                logger.info(f"  → KeeperHub OK — preuve: {proof}")
 
         except Exception as e:
             logger.error(f"   KeeperHub error : {e}")

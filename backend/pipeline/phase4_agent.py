@@ -300,14 +300,32 @@ async def dispatch_tool(tool_name: str, tool_args: dict, scope_files: list[str])
             tool_args.get("args", [])
         )
     elif tool_name == "anchor_finding":
+        confidence = (tool_args.get("confidence") or "").upper().strip()
+        severity   = (tool_args.get("severity") or "").upper().strip()
+
+        # Bloquer SUSPECTED, vide, ou inconnu
+        if confidence not in ("LIKELY", "CONFIRMED"):
+            return (
+                f"[anchor_finding BLOCKED] confidence='{confidence}' — "
+                f"only LIKELY and CONFIRMED are anchored. "
+                f"Re-evaluate this finding before anchoring."
+            )
+
+        # Bloquer aussi si severity trop basse
+        if severity == "LOW":
+            return (
+                f"[anchor_finding BLOCKED] severity=LOW — "
+                f"only MEDIUM+ findings are anchored."
+            )
+
         from keeper.mcp_tools import anchor_finding_mcp
         return await anchor_finding_mcp(
             tool_args["pattern_hash"],
             tool_args.get("root_hash"),
             title=tool_args.get("title", ""),
             reason=tool_args.get("reason", ""),
-            severity=tool_args.get("severity", ""),
-            confidence=tool_args.get("confidence", ""),
+            severity=severity,
+            confidence=confidence,
             file=tool_args.get("file", ""),
             line=tool_args.get("line"),
             contributor_address=os.getenv("RECEIVER_ADDRESS"),

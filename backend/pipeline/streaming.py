@@ -99,6 +99,14 @@ async def stream_audit_pipeline(
     yield _emit({"phase": "resolve", "status": "start",
                  "msg": "Resolving target — file detection / fork analysis..."})
     scope = await resolve_scope(path)
+    if not scope.files:
+        yield _emit({
+            "phase":  "resolve",
+            "status": "error",
+            "msg":    f"Aucun fichier Solidity trouvé pour : {path}",
+        })
+        yield _emit({"phase": "pipeline", "status": "done"})
+        return
     yield _emit({
         "phase":    "resolve",
         "status":   "done",

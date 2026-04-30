@@ -16,9 +16,11 @@ from dotenv import load_dotenv
 
 _REPO_ROOT = Path(__file__).resolve().parent
 _KEEPER_HOME_ENV = Path.home() / ".onchor-ai" / ".env"
+_USER_ENV = _REPO_ROOT / ".env.user"
 
 load_dotenv(_REPO_ROOT / ".env")
 load_dotenv(_KEEPER_HOME_ENV, override=True)
+load_dotenv(_USER_ENV, override=True)
 load_dotenv()
 
 # rich-click : panels, couleurs — aligné sur la palette ui.py (brand / accent / rule).
@@ -160,6 +162,7 @@ def cli(ctx: click.Context, no_banner: bool, icon_size: str, minimal: bool) -> N
         run_onboarding_wizard()
         load_dotenv(_REPO_ROOT / ".env")
         load_dotenv(_KEEPER_HOME_ENV, override=True)
+        load_dotenv(_USER_ENV, override=True)
         load_dotenv(override=True)
 
     if not no_banner:
@@ -274,10 +277,12 @@ def audit(path: str, local: bool, dev: bool, no_stream: bool) -> None:
             info(f"Solde disponible (cache) : [accent]{real_balance:.2f} USDC[/accent]")
 
     try:
-        data = asyncio.run(_run_audit_async(path, local=local, dev=dev, stream=not no_stream))
+        data, payment_tx = asyncio.run(
+            _run_audit_async(path, local=local, dev=dev, stream=not no_stream)
+        )
 
         success("Audit terminé.")
-        _render_audit_result(data)
+        _render_audit_result(data, payment_tx)
 
         # Opt-in contribution
         investigation = data.get("investigation", {}) or {}
@@ -301,7 +306,7 @@ async def _run_audit_async(
     local: bool,
     dev: bool,
     stream: bool,
-) -> dict[str, Any]:
+) -> tuple[dict[str, Any], str | None]:
     """Dispatch des 4 combinaisons : local/paid × stream/legacy."""
     if local or dev:
         if stream:
@@ -312,7 +317,7 @@ async def _run_audit_async(
             async with httpx.AsyncClient(timeout=600.0) as client:
                 resp = await client.post(f"{API_URL}/audit/local", params={"path": path})
                 resp.raise_for_status()
-                return resp.json()
+                return resp.json(), None
 
     # Mode paid.
     if stream:
@@ -323,17 +328,22 @@ async def _run_audit_async(
 
     # Legacy paid — POST unique vers /audit.
     from payments.x402_client import run_paid_audit
-    return await run_paid_audit(API_URL, path)
+    return await run_paid_audit(API_URL, path), None
 
 
 # ─── Rendu du résultat ─────────────────────────────────────────────────────────
 
-def _render_audit_result(data: dict[str, Any]) -> None:
+def _render_audit_result(data: dict[str, Any], payment_tx: str | None = None) -> None:
     """Affiche le rendu complet : verdict → findings → rapport Phase 6 → JSON brut."""
 
     report        = data.get("report") or {}
     investigation = data.get("investigation") or {}
     triage        = data.get("triage") or {}
+    findings      = report.get("findings") or []
+    onchain       = report.get("onchain") or {}
+
+    if payment_tx:
+        report["payment_tx"] = payment_tx
 
     # ── Verdict ───────────────────────────────────────────────────────────────
     verdict    = (
@@ -370,13 +380,12 @@ def _render_audit_result(data: dict[str, Any]) -> None:
         )
 
     # ── Findings enrichis (Phase 6) ───────────────────────────────────────────
-    enriched_findings = report.get("findings") or []
-    if enriched_findings:
-        section(f"Findings ({len(enriched_findings)})")
-        console.print(_enriched_findings_table(enriched_findings))
+    if findings:
+        section(f"Findings ({len(findings)})")
+        console.print(_enriched_findings_table(findings))
 
         # Détail par finding (fix_sketch + prior_audit_ref + onchain_proof)
-        _render_finding_details(enriched_findings)
+        _render_finding_details(findings)
     else:
         # Fallback sur les findings Slither bruts
         raw_findings = investigation.get("findings") or data.get("slither", {}).get("findings") or []
@@ -387,12 +396,16 @@ def _render_audit_result(data: dict[str, Any]) -> None:
             info("Aucun finding détecté.")
 
     # ── Preuves onchain ───────────────────────────────────────────────────────
-    if report.get("onchain"):
-        _render_onchain_section(report["onchain"], enriched_findings)
+    if onchain:
+        _render_onchain_section(onchain, findings, report)
 
     # ── Badge ENS ─────────────────────────────────────────────────────────────
     if report.get("ens"):
-        _render_ens_badge(report["ens"])
+        _render_ens_badge(
+            report.get("ens") or {},
+            report.get("report_hash"),
+            report_verdict=report.get("verdict"),
+        )
 
     # ── JSON brut ─────────────────────────────────────────────────────────────
     section("Rapport brut (JSON)")
@@ -490,79 +503,139 @@ def _render_finding_details(findings: list[dict]) -> None:
         )
 
 
-def _render_onchain_section(onchain: dict, findings: list[dict]) -> None:
-    """Affiche le résumé onchain : registry + tx proof + liens Etherscan."""
-    section("Preuves onchain (Ethereum Sepolia)")
+def is_valid_proof(tx: str) -> bool:
+    """True si tx est un hash EVM non-nul exploitable pour Etherscan."""
+    if not tx or not tx.startswith("0x"):
+        return False
+    if tx == "0x" + "0" * 64:
+        return False
+    return len(tx) == 66
 
-    etherscan_base = onchain.get("etherscan_base", "https://sepolia.etherscan.io/tx/")
-    tx_proof       = onchain.get("tx_proof", "")
+
+def _render_onchain_section(onchain: dict, findings: list[dict], report: dict) -> None:
+    section("Preuves onchain")
+
+    etherscan_tx      = "https://sepolia.etherscan.io/tx/"
+    etherscan_address = "https://sepolia.etherscan.io/address/"
+    basescan_tx       = "https://sepolia.basescan.org/tx/"
 
     items: dict[str, str] = {
-        "Anchor Registry": onchain.get("anchor_registry", "—"),
-        "Network":         onchain.get("network", "—"),
+        "Anchor Registry":   f"{etherscan_address}{onchain.get('anchor_registry', '')}",
+        "Network (anchor)":  "Ethereum Sepolia",
+        "Network (payment)": "Base Sepolia",
     }
 
-    if tx_proof and tx_proof != "0x" + "0" * 64 and tx_proof.startswith("0x") and len(tx_proof) >= 66:
-        items["TX Proof"] = f"{etherscan_base}{tx_proof}"
-
-    # Lister preuves EVM ; sinon ref KeeperHub dans le bloc détail findings
     anchored = [
-        f
-        for f in findings
+        f for f in findings
         if f.get("onchain_proof") or f.get("keeperhub_execution_id")
     ]
     for i, f in enumerate(anchored[:5], 1):
-        if f.get("onchain_proof"):
-            items[f"Anchor #{i} ({f.get('id', '')})"] = f"{etherscan_base}{f['onchain_proof']}"
-        else:
-            items[f"Anchor #{i} ({f.get('id', '')})"] = (
-                "KeeperHub execution " + f["keeperhub_execution_id"]
+        fid  = f.get("id", "")
+        ph   = f.get("pattern_hash", "")
+        root = f.get("root_hash", "")
+
+        # Anchor tx — vrai lien Etherscan si disponible
+        if f.get("onchain_proof") and is_valid_proof(f["onchain_proof"]):
+            items[f"Anchor #{i} ({fid})"] = (
+                f"{etherscan_tx}{f['onchain_proof']}"
             )
-    if len(anchored) > 5:
-        items["…"] = f"et {len(anchored) - 5} autre(s) — voir JSON complet"
+        else:
+            # Pas encore miné — lien contrat + pattern_hash pour vérif manuelle
+            items[f"Anchor #{i} ({fid})"] = (
+                f"{etherscan_address}{onchain.get('anchor_registry', '')}#readContract"
+            )
+            if ph:
+                items[f"  pattern_hash ({fid})"] = ph
+
+        # 0G rootHash
+        if root and is_valid_proof(root):
+            items[f"0G root #{i} ({fid})"] = root
+            items[f"  → verify"] = f"node 0g/0g_download.js {root}"
+
+    # ENS mint tx
+    ens = report.get("ens") or {}
+    if ens.get("mint_tx") and is_valid_proof(ens["mint_tx"]):
+        items["ENS mint tx"] = f"{etherscan_tx}{ens['mint_tx']}"
+
+    # Payment USDC
+    payment_tx = report.get("payment_tx")
+    if payment_tx and is_valid_proof(payment_tx):
+        items["Payment USDC"] = f"{basescan_tx}{payment_tx}"
 
     if items:
         console.print(kv_panel("Preuves onchain", items))
 
 
-def _render_ens_badge(ens: dict) -> None:
-    """Affiche le badge ENS — CERTIFIED en vert ou NOT CERTIFIED en rouge."""
+def _render_ens_badge(
+    ens: dict,
+    report_hash: str | None = None,
+    report_verdict: str | None = None,
+) -> None:
     section("Certificat ENS")
 
-    if ens.get("certified") and ens.get("subname"):
-        badge_style = "ok"
-        badge_icon  = "🏅"
-        badge_text  = f"CERTIFIED — {ens['subname']}"
-    elif ens.get("subname"):
-        badge_style = "warn"
-        badge_icon  = "⚠"
-        badge_text  = f"Findings trouvés — {ens['subname']}"
-    else:
-        badge_style = "danger"
-        badge_icon  = "✘"
-        badge_text  = "Non certifié — findings HIGH détectés"
+    ENS_SEPOLIA_BASE = "https://sepolia.app.ens.domains/"
 
-    body = Text.from_markup(f"[{badge_style}]{badge_icon}  {badge_text}[/{badge_style}]")
+    mint_ok = ens.get("certified") and ens.get("subname")
+    verdict_ok = (report_verdict or "").upper() == "CERTIFIED"
 
-    items: dict[str, str] = {}
-    if ens.get("url"):
-        items["ENS URL"] = ens["url"]
-    if ens.get("parent"):
-        items["Domaine parent"] = ens["parent"]
-    if items:
-        items_text = "\n".join(f"[label]{k} :[/label] [info]{v}[/info]" for k, v in items.items())
-        full_body  = Text.from_markup(f"[{badge_style}]{badge_icon}  {badge_text}[/{badge_style}]\n\n{items_text}")
-    else:
-        full_body = body
+    if mint_ok:
+        subname = ens["subname"]
+        verdict_display = report_verdict or "CERTIFIED"
+        items = {
+            "ENS Sepolia": f"{ENS_SEPOLIA_BASE}{subname}",
+            "Domaine parent": ens.get("parent", "certified.onchor-ai.eth"),
+        }
+        if report_hash:
+            items["Report hash"] = report_hash
 
-    console.print(
-        Panel(
-            full_body,
-            title="[brand]ENS Certificate[/brand]",
-            border_style=badge_style,
-            padding=(1, 2),
+        body = Text.from_markup(
+            f"[ok]🏅  {verdict_display} — {subname}[/ok]\n\n"
+            + "\n".join(
+                f"[label]{k} :[/label] [info]{v}[/info]"
+                for k, v in items.items()
+            )
         )
-    )
+        console.print(Panel(
+            body,
+            title="[brand]ENS Certificate[/brand]",
+            border_style="ok",
+            padding=(1, 2),
+        ))
+
+    elif verdict_ok and not mint_ok:
+        body = Text.from_markup(
+            "[warn]⚠  CERTIFIED — certificat ENS non émis[/warn]\n\n"
+            "[muted]Le pipeline n'a détecté aucun finding HIGH.\n"
+            "Le mint ENS a échoué (réseau Sepolia ou configuration).\n"
+            "Relancez avec --dev pour re-tenter le mint.[/muted]"
+        )
+        if report_hash:
+            body = Text.from_markup(
+                "[warn]⚠  CERTIFIED — certificat ENS non émis[/warn]\n\n"
+                f"[label]Report hash :[/label] [info]{report_hash}[/info]\n\n"
+                "[muted]Mint ENS échoué — vérifiez ALCHEMY_API_KEY et PRIVATE_KEY "
+                "dans contracts/.env[/muted]"
+            )
+        console.print(Panel(
+            body,
+            title="[brand]ENS Certificate[/brand]",
+            border_style="warn",
+            padding=(1, 2),
+        ))
+
+    else:
+        body = Text.from_markup(
+            "[danger]✘  Non certifié — findings HIGH détectés[/danger]\n\n"
+            "[muted]Le certificat ENS est émis uniquement lorsqu'aucun finding "
+            "HIGH n'est détecté.\nCorrigez les findings et relancez l'audit.[/muted]"
+        )
+        console.print(Panel(
+            body,
+            title="[brand]ENS Certificate[/brand]",
+            border_style="danger",
+            padding=(1, 2),
+        ))
+        # Pas de lien — rien n'a été minté, un lien serait trompeur
 
 
 # ─── Contribution opt-in ───────────────────────────────────────────────────────

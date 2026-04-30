@@ -37,6 +37,32 @@ def _default_contracts_dir() -> str:
     return "./contracts"
 
 
+def _derive_ens_label(
+    target_address: str | None,
+    scope,
+    report_hash: str | None = None,
+) -> str:
+    """Label ENS unique selon la source du contrat audité."""
+    suffix = ""
+    if report_hash and len(report_hash) >= 10:
+        suffix = f"-{report_hash[2:6]}"
+
+    if (
+        target_address
+        and target_address != "0x0000000000000000000000000000000000000000"
+    ):
+        return f"contract-{target_address[2:8].lower()}{suffix}"
+
+    if scope and getattr(scope, "files", None):
+        file_id = hashlib.sha256(
+            scope.files[0].encode()
+        ).hexdigest()[:6]
+        return f"contract-{file_id}{suffix}"
+
+    ts = datetime.now(timezone.utc).strftime("%d%H%M%S")[:6]
+    return f"contract-{ts}"
+
+
 # ─── LLM client ───────────────────────────────────────────────────────────────
 
 def _get_llm_client() -> Optional[OpenAI]:
@@ -166,53 +192,66 @@ def _mint_ens_cert(
     report_hash: str,
     audit_date: str,
     contracts_dir: str,
-) -> Optional[str]:
+    ens_label: str,
+) -> tuple[Optional[str], Optional[str]]:
     """
     Appelle ensManager.ts via subprocess pour minter le certificat ENS.
-    Retourne le subname (ex: contract-abcd12.certified.onchor-ai.eth) ou None.
+    Retourne (subname, mint_tx).
     """
     try:
+        print(f"  [Phase 6] ENS label: {ens_label}")
+        print(f"  [Phase 6] report_hash à passer: {report_hash}")
+        print(f"  [Phase 6] longueur: {len(report_hash)}")
+
+        cmd = [
+            "npx", "ts-node", "scripts/ensManager.ts",
+            "mintCert",
+            ens_label,
+            verdict,
+            str(high_count),
+            str(medium_count),
+            tx_proof,
+            report_hash,
+            audit_date,
+        ]
+        print(f"  [Phase 6] cmd args: {cmd}")
+
         result = subprocess.run(
-            [
-                "npx", "ts-node", "scripts/ensManager.ts",
-                "mintCert",
-                contract_address,
-                verdict,
-                str(high_count),
-                str(medium_count),
-                tx_proof,
-                report_hash,
-                audit_date,
-            ],
+            cmd,
             cwd=contracts_dir,
             capture_output=True,
             text=True,
-            timeout=90,
+            timeout=180,
+            env={**os.environ},
         )
 
+        if result.stdout:
+            print(f"  [Phase 6] ENS stdout:\n{result.stdout[:600]}")
+        if result.stderr:
+            print(f"  [Phase 6] ENS stderr:\n{result.stderr[:400]}")
         if result.returncode != 0:
-            print(f" [Phase 6] ENS mintCert stderr: {result.stderr[:300]}")
+            print(f"  [Phase 6] ENS exit code: {result.returncode}")
 
-        # Cherche la ligne ENS_SUBNAME=... dans stdout
+        subname = None
+        mint_tx = None
+
         for line in result.stdout.splitlines():
             if line.startswith("ENS_SUBNAME="):
-                return line.split("=", 1)[1].strip()
+                subname = line.split("=", 1)[1].strip()
+            if line.startswith("ENS_MINT_TX="):
+                mint_tx = line.split("=", 1)[1].strip()
 
-        # Pas de subname trouvé — log la sortie complète pour debug
-        if result.stdout:
-            print(f"  [Phase 6] ENS stdout (no subname): {result.stdout[:400]}")
-
-        return None
+        return subname, mint_tx
 
     except subprocess.TimeoutExpired:
         print("  [Phase 6] ENS mint timed out (90s)")
-        return None
+        return None, None
     except FileNotFoundError:
-        print(f"  [Phase 6] npx/ts-node not found in {contracts_dir} — skipping ENS")
-        return None
+        print(f"  [Phase 6] npx/ts-node not found in {contracts_dir}")
+        return None, None
     except Exception as exc:
         print(f"  [Phase 6] ENS mint error: {exc}")
-        return None
+        return None, None
 
 
 # ─── Merge & deduplicate findings ─────────────────────────────────────────────
@@ -221,8 +260,15 @@ def _mint_ens_cert(
 # if a Slither check and an agent finding share a keyword AND the same file,
 # they describe the same vulnerability found by both tools → skip the Slither one.
 _DEDUP_KEYWORDS = [
-    "reentrancy", "access-control", "oracle", "overflow",
-    "uninitialized", "delegatecall", "signature", "front-run",
+    "reentrancy", "reentrance", "reentrancy-eth", "reentrant",
+    "access-control", "authorization", "onlyowner", "ownership",
+    "oracle", "price-manipulation", "flashloan",
+    "overflow", "underflow", "arithmetic",
+    "uninitialized", "proxy", "initialize",
+    "front-running", "frontrun", "mev",
+    "signature", "replay", "ecrecover",
+    "governance", "flash", "voting",
+    "delegatecall", "storage-collision",
 ]
 
 def _merge_findings(
@@ -239,7 +285,7 @@ def _merge_findings(
 
     for sf in slither_findings:
         check   = (sf.get("check") or "").lower()
-        sf_file = (sf.get("file") or "").lower()
+        sf_file = os.path.basename((sf.get("file") or "")).lower()
 
         # 1. Skip if the check name is already covered (substring match)
         if any(check in c or c in check for c in covered):
@@ -251,8 +297,9 @@ def _merge_findings(
             if kw in check:
                 for inv_f in investigation_findings:
                     inv_title = (inv_f.get("title") or "").lower()
-                    inv_file  = (inv_f.get("file") or "").lower()
-                    if kw in inv_title and inv_file == sf_file:
+                    inv_file  = os.path.basename((inv_f.get("file") or "")).lower()
+                    # Même keyword ET même fichier (basename) → doublon
+                    if kw in inv_title and (inv_file == sf_file or not sf_file):
                         already_covered = True
                         break
             if already_covered:
@@ -332,9 +379,17 @@ async def run_report(
             )
 
         prior_ref    = _find_prior_audit_ref(finding, known_findings)
-        cand_tx      = finding.get("tx_hash") or finding.get("anchor_tx")
-        onchain_proof = cand_tx.strip().lower() if (cand_tx and is_evm_tx_hash(str(cand_tx))) else None
-        kh_exec = finding.get("execution_id")
+        cand_tx = (
+            finding.get("tx_hash")
+            or finding.get("onchain_proof")
+            or finding.get("anchor_tx")
+        )
+        onchain_proof = (
+            cand_tx.strip().lower()
+            if (cand_tx and is_evm_tx_hash(str(cand_tx)))
+            else None
+        )
+        kh_exec = finding.get("execution_id") or finding.get("keeperhub_execution_id")
 
         enriched.append(
             {
@@ -350,6 +405,7 @@ async def run_report(
                 "onchain_proof":          onchain_proof,
                 "keeperhub_execution_id":   str(kh_exec) if kh_exec else None,
                 "pattern_hash":           finding.get("pattern_hash"),
+                "root_hash":              finding.get("root_hash"),
             }
         )
         print(f"  [{i + 1}/{len(all_findings)}] {sev:6s} · {finding.get('title', '')[:50]}")
@@ -387,12 +443,14 @@ async def run_report(
         or (scope.address if scope else None)
         or "0x0000000000000000000000000000000000000000"
     )
+    ens_label = _derive_ens_label(target_address, scope, report_hash)
     ens_subname = None
+    ens_mint_tx = None
     ens_url     = None
 
     if high_count == 0:
-        print(f"  ✓ Aucun finding HIGH — déclenchement du mint ENS...")
-        ens_subname = _mint_ens_cert(
+        print(f"  ✓ Aucun finding HIGH — label ENS: {ens_label}")
+        ens_subname, ens_mint_tx = _mint_ens_cert(
             contract_address=contract_addr,
             verdict=final_verdict,
             high_count=high_count,
@@ -401,13 +459,12 @@ async def run_report(
             report_hash=report_hash,
             audit_date=audit_date,
             contracts_dir=_contracts_dir,
+            ens_label=ens_label,
         )
         if ens_subname:
-            ens_url = f"https://app.ens.domains/{ens_subname}"
-            print(f"  ENS minté : {ens_subname}")
-        else:
-            print("  ENS mint échoué — rapport complet sans certificat")
+            ens_url = f"https://sepolia.app.ens.domains/{ens_subname}"
     else:
+        ens_subname, ens_mint_tx = None, None
         print(f"   {high_count} finding(s) HIGH — certificat ENS non émis")
 
     # ── 6. Rapport final ──────────────────────────────────────────────────────
@@ -448,6 +505,7 @@ async def run_report(
             "subname":   ens_subname,
             "url":       ens_url,
             "certified": high_count == 0 and ens_subname is not None,
+            "mint_tx":   ens_mint_tx,
             "parent":    os.getenv("ENS_PARENT_CERT", "certified.onchor-ai.eth"),
         },
         "pipeline": {

@@ -333,6 +333,12 @@ async def run_audit_local(path: str):
 @app.post("/audit/local/stream")
 async def run_audit_local_stream(path: str):
     """Variante streaming de /audit/local — NDJSON, 1 event par phase."""
+    scope = await resolve_scope(path)
+    if not scope.files:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Aucun fichier Solidity trouvé : {path}"
+        )
     return StreamingResponse(
         stream_audit_pipeline(path),
         media_type="application/x-ndjson",
@@ -362,6 +368,11 @@ async def run_audit_stream(
 
     # ── Pré-validation x402 (synchrone — peut 4xx avant streaming) ───────────
     scope     = await resolve_scope(path)
+    if not scope.files:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Aucun fichier Solidity trouvé : {path}"
+        )
     nb_files  = len(scope.files)
     price_usd = calculate_price(nb_files)
     reqs      = _build_requirements(nb_files, price_usd)

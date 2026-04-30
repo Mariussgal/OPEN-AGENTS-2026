@@ -107,7 +107,7 @@ async def consume_audit_stream(
     params: Optional[dict[str, Any]] = None,
     headers: Optional[dict[str, str]] = None,
     show_payment: bool = False,
-) -> dict[str, Any]:
+) -> tuple[dict[str, Any], str | None]:
     """Ouvre un stream NDJSON sur `url` et affiche la progress bar.
 
     Args:
@@ -120,10 +120,14 @@ async def consume_audit_stream(
             de la progress bar (uniquement le mode paid après le settle x402).
 
     Returns:
-        Le `result` final extrait de l'event `{"phase": "report", "status": "done"}`.
-        Lève RuntimeError si le stream se termine sans payload.
+        Couple ``(result, payment_tx)`` : ``result`` est le payload final extrait de
+        l'event ``{"phase": "report", "status": "done"}`` ; ``payment_tx`` est le
+        hash de règlement x402 depuis ``{"phase": "payment", "status": "done"}`` si présent.
+
+    Lève RuntimeError si le stream se termine sans payload.
     """
     full_result: dict[str, Any] | None = None
+    payment_tx: str | None = None
     total_phases = len(PIPELINE_PHASES)
 
     progress = Progress(
@@ -170,6 +174,10 @@ async def consume_audit_stream(
 
                 # ── Event "payment" (mode paid uniquement) ───────────────────
                 if phase == "payment":
+                    if status == "done":
+                        tx_cap = event.get("tx_hash")
+                        if tx_cap:
+                            payment_tx = str(tx_cap).strip()
                     if not show_payment:
                         continue
                     if status == "start":
@@ -223,13 +231,13 @@ async def consume_audit_stream(
 
     if full_result is None:
         raise RuntimeError("Stream terminé sans payload de rapport final.")
-    return full_result
+    return full_result, payment_tx
 
 
 # ─── Helpers de plus haut niveau (utilisés depuis cli.py) ────────────────────
 
-async def run_streaming_audit_local(api_url: str, path: str) -> dict[str, Any]:
-    """Lance un audit --local en streaming et retourne le payload final."""
+async def run_streaming_audit_local(api_url: str, path: str) -> tuple[dict[str, Any], str | None]:
+    """Lance un audit --local en streaming et retourne le payload final et le tx paiement si présent."""
     info("Pipeline démarré — voir progression ci-dessous.")
     # Lecture longue (Phase 4 agent) sans couper la connexion : read élevé, connect raisonnable
     tout = httpx.Timeout(connect=60.0, read=7200.0, write=60.0, pool=7200.0)
@@ -246,8 +254,8 @@ async def run_streaming_paid_audit(
     api_url: str,
     path: str,
     x_payment_header: str,
-) -> dict[str, Any]:
-    """Lance un audit paid en streaming et retourne le payload final.
+) -> tuple[dict[str, Any], str | None]:
+    """Lance un audit paid en streaming et retourne le payload final et le tx paiement si présent.
 
     Le header X-PAYMENT a déjà été construit côté caller (cf. x402_client.py).
     """

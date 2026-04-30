@@ -6,11 +6,14 @@ Le réseau doit être celui où le contrat est déployé (souvent Ethereum Sepol
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 from typing import Any
 
 import httpx
+
+logger = logging.getLogger(__name__)
 
 # Hash de transaction canonique pour EVM (32 octets hex, préfixe 0x).
 _EVM_TX_HASH = re.compile(r"^0x[0-9a-fA-F]{64}$")
@@ -21,6 +24,7 @@ def is_evm_tx_hash(val: object) -> bool:
     return isinstance(val, str) and bool(_EVM_TX_HASH.match(val.strip()))
 
 KEEPERHUB_EXECUTE = "https://app.keeperhub.com/api/execute/contract-call"
+KEEPERHUB_STATUS = "https://app.keeperhub.com/api/execute/{execution_id}"
 
 # GET uniquement (onboarding / doctor) — évite POST /execute/contract-call comme simple « ping » clé sur chaque install.
 KEEPERHUB_VALIDATE_READ_FALLBACK_URLS = [
@@ -106,6 +110,7 @@ async def keeperhub_anchor_registry(ph: str, rh: str, *, timeout: float = 120.0)
                     "network": net,
                     "functionName": "anchor",
                     "functionArgs": json.dumps([pattern_b32, root_b32]),
+                    "wait": True,
                 },
             )
         text = resp.text
@@ -145,3 +150,54 @@ async def keeperhub_anchor_registry(ph: str, rh: str, *, timeout: float = 120.0)
             "execution_id": None,
             "error": str(e),
         }
+
+
+async def get_anchor_tx_from_chain(pattern_hash: str) -> str | None:
+    """Récupère le tx hash anchor() depuis Etherscan V2 API."""
+    import os
+    import httpx
+
+    registry_address = os.getenv("ANCHOR_REGISTRY_ADDRESS")
+    etherscan_key = os.getenv("ETHERSCAN_API_KEY")
+
+    if not registry_address or not etherscan_key:
+        return None
+
+    ph = pattern_hash.strip().lstrip("0x").zfill(64).lower()
+
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as http:
+            resp = await http.get(
+                "https://api.etherscan.io/v2/api",
+                params={
+                    "chainid": "11155111",
+                    "module": "account",
+                    "action": "txlist",
+                    "address": registry_address,
+                    "startblock": 0,
+                    "endblock": 99999999,
+                    "sort": "desc",
+                    "apikey": etherscan_key,
+                },
+            )
+        data = resp.json()
+
+        if data.get("status") != "1":
+            logger.debug(f"Etherscan V2: {data.get('message')}")
+            return None
+
+        for tx in data.get("result", []):
+            if not isinstance(tx, dict):
+                continue
+            input_data = tx.get("input", "").lower()
+            if not input_data.startswith("0xa21f3c6a"):
+                continue
+            if ph in input_data:
+                tx_hash = tx["hash"]
+                logger.info(f"  ✓ tx anchor trouvée : {tx_hash}")
+                return tx_hash
+
+    except Exception as e:
+        logger.debug(f"get_anchor_tx_from_chain: {e}")
+
+    return None

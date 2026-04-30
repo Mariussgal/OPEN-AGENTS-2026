@@ -27,6 +27,7 @@ from ui import console, credentials_summary_table, error, info, section, success
 ONCHOR_AI_DIR = Path.home() / ".onchor-ai"
 CONFIG_JSON_PATH = ONCHOR_AI_DIR / "config.json"
 ENV_JSON_PATH = ONCHOR_AI_DIR / ".env"
+BACKEND_USER_ENV_PATH = Path(__file__).resolve().parent / ".env.user"
 
 
 def hub_headers(api_key: str) -> dict[str, str]:
@@ -594,6 +595,12 @@ def _write_dotenv(kv: dict[str, str]) -> None:
     _merge_dotenv_file(cli_env, kv)
 
 
+def _write_user_env(kv: dict[str, str]) -> None:
+    """Write minimal user wallet settings to backend/.env.user."""
+    lines = [f"{k}={kv[k].replace(chr(10), '')}" for k in sorted(kv.keys())]
+    BACKEND_USER_ENV_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 # ─── Run mode detection ───────────────────────────────────────────────────────
 
 def _detect_run_mode() -> str:
@@ -759,6 +766,85 @@ async def _run_local_onboarding(mode: str) -> None:
 
 # ─── Onboarding wizard ────────────────────────────────────────────────────────
 
+def _wallet_step_user_only() -> tuple[str, str]:
+    """Generate a user wallet and verify only USDC on Base Sepolia."""
+    acct = Account.create()
+    key = acct.key.hex()
+    addr = Web3.to_checksum_address(acct.address)
+
+    _step_header(
+        1,
+        "User Wallet",
+        "Generate your wallet and fund USDC on Base Sepolia for x402 payments.",
+    )
+
+    console.print(
+        Panel(
+            Text.from_markup(
+                "[label]Your wallet address[/label]  "
+                "[muted](triple-click to copy)[/muted]\n\n"
+                f"[accent]{addr}[/accent]\n\n"
+                "[muted]Use this address on the Circle faucet.[/muted]"
+            ),
+            border_style="accent",
+            title="[accent]Copy this address[/accent]",
+            padding=(1, 2),
+        )
+    )
+
+    console.print(
+        Panel(
+            Text.from_markup(
+                "[label]USDC Base Sepolia[/label] — min ~1 USDC — x402 payments\n"
+                "[info]https://faucet.circle.com[/info]"
+            ),
+            border_style="brand.dim",
+            title="Fund wallet — 1 faucet",
+            padding=(1, 2),
+        )
+    )
+    click.prompt(
+        "\nOnce funded, press Enter to verify USDC",
+        default="",
+        show_default=False,
+    )
+
+    while True:
+        with console.status(
+            f"[brand]Checking USDC on Base Sepolia (timeout {int(BALANCE_RPC_TIMEOUT)}s)…[/brand]",
+            spinner="dots",
+        ):
+            ok_call, usdc_amt, err = asyncio.run(_balance_call(base_usdc_balance, addr))
+
+        if not ok_call:
+            warn(f"USDC Base Sepolia — could not check ({err})")
+            if click.confirm("Continue without verifying now?", default=False):
+                warn("Continuing without full check — run [accent]onchor-ai doctor[/accent] later.")
+                return key, addr
+            click.prompt("Press Enter to retry…", default="", show_default=False)
+            continue
+
+        assert usdc_amt is not None
+        usdc_ok = float(usdc_amt) >= BASE_USDC_MIN
+        icon = "[ok]✔[/ok]" if usdc_ok else "[danger]✘[/danger]"
+        console.print(
+            Text.from_markup(
+                f"{icon}  USDC Base Sepolia — {float(usdc_amt):.4f} USDC  (min ~{BASE_USDC_MIN:g} USDC)"
+            )
+        )
+        if usdc_ok:
+            success("USDC balance confirmed ✓")
+            return key, addr
+
+        warn(
+            f"Still needed: [info]https://faucet.circle.com[/info] "
+            f"(need ~{BASE_USDC_MIN:g}, have {float(usdc_amt):.4f})"
+        )
+        if not click.confirm("Re-check after topping up?", default=True):
+            return key, addr
+        click.prompt("(Press Enter when ready)", default="", show_default=False)
+
+
 def run_onboarding_wizard() -> None:
     """
     Entry point for the onboarding flow — runs once on first launch.
@@ -779,131 +865,46 @@ def run_onboarding_wizard() -> None:
         asyncio.run(_run_local_onboarding(mode))
         return
 
-    # Full wizard — banner + steps overview displayed once at the very beginning
+    # Simplified user onboarding — wallet + USDC only.
     console.print()
     console.print(Text.from_markup(
         "[muted]First launch detected — initial setup required.[/muted]\n"
         "[muted]This wizard runs only once.[/muted]"
     ))
     console.print()
-    _show_steps_overview()
-    console.print()
     info("Skip at any time: [accent]ONCHOR_SKIP_ONBOARDING=1[/accent]")
     console.print()
 
-    # Step 1 — Wallet
-    pv, wallet_addr = _wallet_step()
+    global TOTAL_STEPS
+    TOTAL_STEPS = 1
+    pv, wallet_addr = _wallet_step_user_only()
 
-    # Step 2 — Vercel AI Gateway
-    _step_header(
-        2,
-        "Vercel AI Gateway",
-        "Powers claude-haiku (triage phase) and claude-sonnet (investigation phase).",
-    )
-    llm_raw = _prompt_api_key(
-        "Vercel AI Gateway API key",
-        hint="vai_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-        doc_url=f"{VERCEL_AI_DOCS_URL}  →  Tokens tab",
-        env_fallback=os.getenv("LLM_API_KEY") or "",
-    )
-    if not llm_raw:
-        error("A Vercel AI Gateway key is required.")
-        raise click.Abort()
-
-    # Step 3 — KeeperHub
-    _step_header(
-        3,
-        "KeeperHub",
-        "Anchors each finding onchain via an auto-provisioned MPC wallet (no gas management needed).",
-    )
-    keeper_raw = _prompt_api_key(
-        "KeeperHub API key",
-        hint="kh_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-        doc_url=f"{KEEPERHUB_SETTINGS_KEYS}  →  API Keys",
-        env_fallback=os.getenv("KEEPERHUB_API_KEY") or "",
-        format_check=_is_keeperhub_key,
-        format_warning="expected prefix kh_ or kh- (will be added automatically if missing)",
-    )
-    if not keeper_raw:
-        error("A KeeperHub key is required.")
-        raise click.Abort()
-
-    # Step 4 — Etherscan (optional)
-    _step_header(
-        4,
-        "Etherscan",
-        "Only needed when auditing deployed contracts by their 0x address.",
-    )
-    etherscan_skip = click.confirm(
-        "Skip Etherscan (local file audits only)?",
-        default=False,
-    )
-    etherscan_key = ""
-    if not etherscan_skip:
-        etherscan_key = _prompt_api_key(
-            "Etherscan API key",
-            hint="XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX  (34 alphanumeric chars)",
-            doc_url="https://etherscan.io/apis  →  Get API key",
-            env_fallback=os.getenv("ETHERSCAN_API_KEY") or "",
-            format_check=_is_etherscan_key,
-            format_warning="expected 20–40 alphanumeric characters",
-        )
-
-    # Step 5 — 0G Storage private key
-    _step_header(
-        5,
-        "0G Storage",
-        "Signs pattern uploads to the decentralized collective memory (Galileo testnet).",
-    )
-    reuse_og = click.confirm(
-        "Reuse the wallet key from step 1 (recommended)?",
-        default=True,
-    )
-    if reuse_og:
-        og_hex = pv
-    else:
-        while True:
-            raw_og = _prompt_api_key(
-                "0G private key",
-                hint="0x + 64 hex characters  (or 64 hex without prefix)",
-                doc_url="https://faucet.0g.ai  →  connect wallet to get testnet ETH",
-                format_check=_is_hex_private_key,
-                format_warning="expected 64 hex characters (32 bytes), with or without 0x prefix",
-            )
-            og_hex = raw_og.removeprefix("0x").strip()
-
-            if not og_hex:
-                error("A 0G private key is required.")
-                continue
-
-            # Hard validation: attempt to derive an address.
-            # A bad key here would silently fail deep in the pipeline.
-            try:
-                derived = Account.from_key("0x" + og_hex).address
-                console.print(Text.from_markup(
-                    f"  [ok]✔[/ok]  Derived address: [muted]{derived}[/muted]"
-                ))
-                break
-            except Exception as exc:
-                error(f"Invalid private key — could not derive an address: {exc}")
-                if not click.confirm("Try a different key?", default=True):
-                    raise click.Abort()
-
-    # Build the final key-value map to write
-    kv: dict[str, str] = {
-        "OG_PRIVATE_KEY": og_hex,
+    kv_user: dict[str, str] = {
+        "OG_PRIVATE_KEY": pv,
         "RECEIVER_ADDRESS": wallet_addr,
-        "LLM_API_KEY": llm_raw.strip(),
-        "EMBEDDING_API_KEY": llm_raw.strip(),
-        "EMBEDDING_ENDPOINT": VERCEL_AI_GATEWAY,
-        "KEEPERHUB_API_KEY": keeper_raw.strip(),
+        "BASE_SEPOLIA_RPC_URL": BASE_SEP_RPC,
     }
+    _write_user_env(kv_user)
 
-    etherscan_eff_skip = etherscan_skip or not etherscan_key
-    if not etherscan_eff_skip and etherscan_key:
-        kv["ETHERSCAN_API_KEY"] = etherscan_key.strip()
+    cfg = {
+        "version": "0.1.0",
+        "mode": "user",
+        "credit_usdc": 0.0,
+        "onboarding_completed": True,
+        "wallet_address": wallet_addr,
+    }
+    ONCHOR_AI_DIR.mkdir(parents=True, exist_ok=True)
+    CONFIG_JSON_PATH.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
 
-    asyncio.run(_finalize_summary_and_write(kv, etherscan_eff_skip, reuse_og))
+    os.environ.update(kv_user)
+    load_dotenv(BACKEND_USER_ENV_PATH, override=True)
+
+    console.print()
+    success("Setup user complete — files written:")
+    console.print(Text.from_markup(
+        "  [muted]backend/.env.user[/muted]           user wallet + payment vars\n"
+        "  [muted]~/.onchor-ai/config.json[/muted]    onchor-ai profile"
+    ))
 
 
 # ─── Step 6 — Live validation & file writing ─────────────────────────────────
@@ -1048,6 +1049,7 @@ def run_doctor_validation() -> bool:
     """
     backend = Path(__file__).resolve().parent
     load_dotenv(backend / ".env")
+    load_dotenv(backend / ".env.user", override=True)
     load_dotenv(ENV_JSON_PATH, override=True)
     load_dotenv(override=True)
 

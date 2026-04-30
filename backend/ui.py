@@ -175,11 +175,16 @@ def section(title: str) -> None:
 def kv_panel(title: str, items: dict[str, str]) -> Panel:
     """Petit panel clé/valeur pour résumer config, solde, verdict, etc."""
     table = Table.grid(padding=(0, 2))
-    table.add_column(style="label", justify="right")
-    table.add_column(style="white")
+    table.add_column(style="label", justify="right", no_wrap=True)
+    table.add_column(style="white", overflow="fold", no_wrap=False)
     for k, v in items.items():
         table.add_row(k, v)
-    return Panel(table, title=f"[brand]{title}[/brand]", border_style="brand.dim")
+    return Panel(
+        table,
+        title=f"[brand]{title}[/brand]",
+        border_style="brand.dim",
+        expand=True,
+    )
 
 
 def credentials_summary_table(rows: list[dict[str, str]]) -> Table:
