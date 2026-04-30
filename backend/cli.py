@@ -16,11 +16,13 @@ from dotenv import load_dotenv
 
 _REPO_ROOT = Path(__file__).resolve().parent
 _KEEPER_HOME_ENV = Path.home() / ".onchor-ai" / ".env"
-_USER_ENV = _REPO_ROOT / ".env.user"
+_PROJECT_USER_ENV = Path.cwd() / ".env.user"
+_BACKEND_USER_ENV = _REPO_ROOT / ".env.user"
 
 load_dotenv(_REPO_ROOT / ".env")
 load_dotenv(_KEEPER_HOME_ENV, override=True)
-load_dotenv(_USER_ENV, override=True)
+load_dotenv(_BACKEND_USER_ENV, override=True)
+load_dotenv(_PROJECT_USER_ENV, override=True)
 load_dotenv()
 
 # rich-click : panels, couleurs — aligné sur la palette ui.py (brand / accent / rule).
@@ -162,7 +164,8 @@ def cli(ctx: click.Context, no_banner: bool, icon_size: str, minimal: bool) -> N
         run_onboarding_wizard()
         load_dotenv(_REPO_ROOT / ".env")
         load_dotenv(_KEEPER_HOME_ENV, override=True)
-        load_dotenv(_USER_ENV, override=True)
+        load_dotenv(_BACKEND_USER_ENV, override=True)
+        load_dotenv(_PROJECT_USER_ENV, override=True)
         load_dotenv(override=True)
 
     if not no_banner:

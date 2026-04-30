@@ -27,6 +27,7 @@ from ui import console, credentials_summary_table, error, info, section, success
 ONCHOR_AI_DIR = Path.home() / ".onchor-ai"
 CONFIG_JSON_PATH = ONCHOR_AI_DIR / "config.json"
 ENV_JSON_PATH = ONCHOR_AI_DIR / ".env"
+PROJECT_USER_ENV_PATH = Path.cwd() / ".env.user"
 BACKEND_USER_ENV_PATH = Path(__file__).resolve().parent / ".env.user"
 
 
@@ -596,9 +597,9 @@ def _write_dotenv(kv: dict[str, str]) -> None:
 
 
 def _write_user_env(kv: dict[str, str]) -> None:
-    """Write minimal user wallet settings to backend/.env.user."""
+    """Write minimal user wallet settings to local project .env.user."""
     lines = [f"{k}={kv[k].replace(chr(10), '')}" for k in sorted(kv.keys())]
-    BACKEND_USER_ENV_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    PROJECT_USER_ENV_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 # ─── Run mode detection ───────────────────────────────────────────────────────
@@ -897,12 +898,12 @@ def run_onboarding_wizard() -> None:
     CONFIG_JSON_PATH.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
 
     os.environ.update(kv_user)
-    load_dotenv(BACKEND_USER_ENV_PATH, override=True)
+    load_dotenv(PROJECT_USER_ENV_PATH, override=True)
 
     console.print()
     success("Setup user complete — files written:")
     console.print(Text.from_markup(
-        "  [muted]backend/.env.user[/muted]           user wallet + payment vars\n"
+        "  [muted]./.env.user[/muted]                 user wallet + payment vars\n"
         "  [muted]~/.onchor-ai/config.json[/muted]    onchor-ai profile"
     ))
 
@@ -1049,6 +1050,7 @@ def run_doctor_validation() -> bool:
     """
     backend = Path(__file__).resolve().parent
     load_dotenv(backend / ".env")
+    load_dotenv(PROJECT_USER_ENV_PATH, override=True)
     load_dotenv(backend / ".env.user", override=True)
     load_dotenv(ENV_JSON_PATH, override=True)
     load_dotenv(override=True)
