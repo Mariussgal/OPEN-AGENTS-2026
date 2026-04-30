@@ -1,13 +1,38 @@
 import subprocess
 import json
 import os
+import re
 from typing import Dict, Any
+
+def _setup_solc_version(path: str) -> None:
+    """Cherche la version de Solidity requise et l'installe via solc-select."""
+    try:
+        # Lire le fichier pour trouver le pragma
+        version = None
+        if os.path.isfile(path) and path.endswith('.sol'):
+            with open(path, 'r', encoding='utf-8') as f:
+                content = f.read()
+                # Cherche `pragma solidity =0.6.6;` ou `pragma solidity ^0.8.0;`
+                match = re.search(r'pragma\s+solidity\s+[^0-9]*([0-9]+\.[0-9]+\.[0-9]+)', content)
+                if match:
+                    version = match.group(1)
+        
+        if version:
+            print(f"  [Phase 2] Pragma solidity version detected: {version}. Running solc-select...")
+            # Installer la version si nécessaire
+            subprocess.run(["solc-select", "install", version], capture_output=True)
+            # Utiliser la version
+            subprocess.run(["solc-select", "use", version], capture_output=True)
+            print(f"  [Phase 2] Switched to solc version {version}.")
+    except Exception as e:
+        print(f"  [Phase 2] Impossible de configurer solc-select: {e}")
 
 async def run_slither(path: str) -> Dict[str, Any]:
     """
     Lance Slither sur le dossier/fichier et retourne les findings parsés.
     """
     print(f"[Phase 2] Lancement de Slither sur {path}...")
+    _setup_solc_version(path)
     
     # On utilise un fichier temporaire pour stocker le rapport JSON de Slither
     json_report_path = "slither_report.json"

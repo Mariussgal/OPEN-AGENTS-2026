@@ -226,7 +226,7 @@ def _mint_ens_cert(
         )
 
         if result.stdout:
-            print(f"  [Phase 6] ENS stdout:\n{result.stdout[:600]}")
+            print(f"  [Phase 6] ENS stdout:\n{result.stdout}")
         if result.stderr:
             print(f"  [Phase 6] ENS stderr:\n{result.stderr[:400]}")
         if result.returncode != 0:

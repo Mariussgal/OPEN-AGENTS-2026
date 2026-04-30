@@ -46,6 +46,7 @@ RULES:
 3. Only anchor LIKELY and CONFIRMED (never SUSPECTED)
 4. Never stop at the first finding
 5. anchor_finding: pass pattern_hash, title, reason, severity, confidence, file, line. Omit root_hash (server uploads JSON to 0G).
+6. CRITICAL: If you have searched and found no real vulnerabilities, STOP your investigation and output your conclusion. Do NOT loop indefinitely trying random regex searches.
 
 FINDING FORMAT (use this exact format):
 FINDING: <HIGH|MEDIUM|LOW> | <SUSPECTED|LIKELY|CONFIRMED> | <title> | <file>:<line>
