@@ -7,10 +7,23 @@ from typing import Dict, Any
 def _setup_solc_version(path: str) -> None:
     """Cherche la version de Solidity requise et l'installe via solc-select."""
     try:
-        # Lire le fichier pour trouver le pragma
         version = None
+        
+        # Trouver un fichier .sol
+        sol_file = None
         if os.path.isfile(path) and path.endswith('.sol'):
-            with open(path, 'r', encoding='utf-8') as f:
+            sol_file = path
+        elif os.path.isdir(path):
+            for root, _, files in os.walk(path):
+                for file in files:
+                    if file.endswith('.sol'):
+                        sol_file = os.path.join(root, file)
+                        break
+                if sol_file:
+                    break
+                    
+        if sol_file:
+            with open(sol_file, 'r', encoding='utf-8') as f:
                 content = f.read()
                 # Cherche `pragma solidity =0.6.6;` ou `pragma solidity ^0.8.0;`
                 match = re.search(r'pragma\s+solidity\s+[^0-9]*([0-9]+\.[0-9]+\.[0-9]+)', content)
@@ -19,9 +32,7 @@ def _setup_solc_version(path: str) -> None:
         
         if version:
             print(f"  [Phase 2] Pragma solidity version detected: {version}. Running solc-select...")
-            # Installer la version si nécessaire
             subprocess.run(["solc-select", "install", version], capture_output=True)
-            # Utiliser la version
             subprocess.run(["solc-select", "use", version], capture_output=True)
             print(f"  [Phase 2] Switched to solc version {version}.")
     except Exception as e:

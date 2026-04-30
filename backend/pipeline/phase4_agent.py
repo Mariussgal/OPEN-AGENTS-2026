@@ -44,9 +44,8 @@ RULES:
 1. Read the full function before concluding
 2. Always call query_memory before escalating to CONFIRMED
 3. Only anchor LIKELY and CONFIRMED (never SUSPECTED)
-4. Never stop at the first finding
+4. If you have thoroughly searched and found no real vulnerabilities, STOP your investigation immediately and output your conclusion. Do NOT loop indefinitely trying random regex searches.
 5. anchor_finding: pass pattern_hash, title, reason, severity, confidence, file, line. Omit root_hash (server uploads JSON to 0G).
-6. CRITICAL: If you have searched and found no real vulnerabilities, STOP your investigation and output your conclusion. Do NOT loop indefinitely trying random regex searches.
 
 FINDING FORMAT (use this exact format):
 FINDING: <HIGH|MEDIUM|LOW> | <SUSPECTED|LIKELY|CONFIRMED> | <title> | <file>:<line>
@@ -461,12 +460,19 @@ query memory, and confirm or dismiss each finding. Anchor LIKELY and CONFIRMED o
     pending_anchors: dict[str, dict[str, str]] = {}
     turns = 0
 
+    # ─── Variables d'état pour les garde-fous ───────────────────────────────
+    seen_regexes = set()
+    total_regex_calls = 0
+    consecutive_regex_calls = 0
+    structural_calls = 0
+    turns_since_finding = 0
+
     while turns < MAX_TURNS:
         turns += 1
+        turns_since_finding += 1
         print(f"  [Turn {turns}/{MAX_TURNS}]", end=" ", flush=True)
 
         # AJOUT : Pause pour éviter le Rate Limit de la Vercel AI Gateway
-        # 4 secondes x 10 turns = 40 secondes (en dessous du quota de 60s)
         await asyncio.sleep(4.0) 
 
         response = await asyncio.to_thread(
@@ -482,7 +488,6 @@ query memory, and confirm or dismiss each finding. Anchor LIKELY and CONFIRMED o
         choice = response.choices[0]
         msg = choice.message
 
-        # Ajouter la réponse à l'historique
         messages.append({
             "role": "assistant",
             "content": msg.content or "",
@@ -496,12 +501,11 @@ query memory, and confirm or dismiss each finding. Anchor LIKELY and CONFIRMED o
             ] or None
         })
 
-        # Parser les findings du texte libre
         if msg.content:
             print(f"thinking...")
             new_findings = parse_findings_from_text(msg.content)
             if new_findings:
-                # Appliquer les anchors en attente sur les nouveaux findings
+                turns_since_finding = 0  # Reset
                 for f in new_findings:
                     if f["title"] in pending_anchors:
                         anchor_data = pending_anchors.pop(f["title"])
@@ -510,7 +514,6 @@ query memory, and confirm or dismiss each finding. Anchor LIKELY and CONFIRMED o
                 all_findings.extend(new_findings)
                 print(f"  → {len(new_findings)} finding(s) detected")
 
-        # Exécuter les tool calls
         if msg.tool_calls:
             tool_results = []
             for tc in msg.tool_calls:
@@ -518,21 +521,38 @@ query memory, and confirm or dismiss each finding. Anchor LIKELY and CONFIRMED o
                 tool_args = json.loads(tc.function.arguments)
                 print(f"  → tool: {tool_name}({list(tool_args.keys())})")
 
-                result = await dispatch_tool(tool_name, tool_args, scope.files)
+                # ─── Appliquer les garde-fous ───────────────────────────────
+                if tool_name == "search_pattern":
+                    regex = tool_args.get("regex", "")
+                    if regex in seen_regexes:
+                        result = "ERROR: You already searched for this exact regex. Use a different strategy."
+                    elif total_regex_calls >= 12:
+                        result = "ERROR: Regex budget exceeded (max 12). You MUST use structural tools like read_contract or get_call_graph."
+                    elif consecutive_regex_calls >= 4:
+                        result = "ERROR: Too many consecutive regex searches (max 4). You MUST use a structural tool now."
+                    else:
+                        seen_regexes.add(regex)
+                        total_regex_calls += 1
+                        consecutive_regex_calls += 1
+                        result = await dispatch_tool(tool_name, tool_args, scope.files)
+                else:
+                    consecutive_regex_calls = 0  # Reset du streak
+                    if tool_name in ("read_contract", "get_call_graph", "get_storage_layout"):
+                        structural_calls += 1
+                    
+                    result = await dispatch_tool(tool_name, tool_args, scope.files)
 
+                if tool_name == "anchor_finding" and not isinstance(result, str):
+                    result = str(result)
+                
                 if tool_name == "anchor_finding":
                     anchored_txs.append(result)
                     import re
-                    
                     exe_match = re.search(r'executionId:\s*(\S+)', str(result))
-                    # anchor_finding_mcp retourne aussi le root_hash dans les logs
-                    # on récupère pattern_hash depuis les args de l'agent
-                    
                     if exe_match:
                         exe_id = exe_match.group(1).rstrip("|").strip()
                         title_arg = tool_args.get("title", "")
                         ph = tool_args.get("pattern_hash", "")
-                        
                         pending_anchors[title_arg] = {
                             "execution_id": exe_id,
                             "pattern_hash": ph,
@@ -541,7 +561,14 @@ query memory, and confirm or dismiss each finding. Anchor LIKELY and CONFIRMED o
                 tool_results.append({
                     "role": "tool",
                     "tool_call_id": tc.id,
-                    "content": str(result)[:2000]  # limite pour éviter overflow
+                    "content": str(result)[:2000]
+                })
+
+            # Si stagnation grave, on force un rappel
+            if turns_since_finding >= 8 and len(all_findings) == 0:
+                tool_results.append({
+                    "role": "user",
+                    "content": "SYSTEM NOTICE: You have been searching for several turns without any findings. If you believe the contract is secure, you MUST STOP your investigation immediately and output your conclusion. Do not force findings."
                 })
 
             messages.extend(tool_results)
