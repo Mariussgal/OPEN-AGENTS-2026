@@ -19,6 +19,7 @@ const REGISTRY_ABI = [
 const RESOLVER_ABI = [
     `function setText(bytes32 node, string key, string value) external`,
     `function text(bytes32 node, string key) external view returns (string)`,
+    `function multicall(bytes[] calldata data) external returns (bytes[] memory results)`
 ];
 
 async function getContracts() {
@@ -92,9 +93,15 @@ async function mintCert(
         ["report_hash",  reportHash],
     ];
 
+    const calldatas = records.map(([key, value]) => {
+        return resolver.interface.encodeFunctionData("setText", [subnameNode, key, value]);
+    });
+
+    console.log(`Sending multicall for ${records.length} records...`);
+    const tx2 = await resolver.multicall(calldatas);
+    await tx2.wait();
+    
     for (const [key, value] of records) {
-        const tx = await resolver.setText(subnameNode, key, value);
-        await tx.wait();
         console.log(`✓ ${key} = ${value}`);
     }
 
