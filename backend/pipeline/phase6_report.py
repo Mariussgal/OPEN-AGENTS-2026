@@ -469,7 +469,7 @@ async def run_report(
 
     # ── 6. Rapport final ──────────────────────────────────────────────────────
     og_hits = sum(
-        1 for f in investigation_data.get("findings", [])
+        1 for f in enriched
         if f.get("prior_audit_ref")
     )
     report = {
