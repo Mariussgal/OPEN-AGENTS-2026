@@ -663,13 +663,16 @@ def _handle_optional_contribution(findings: list[dict], user_config: dict[str, A
     info(f"Envoi de la récompense ({reward:.2f} USDC) sur Base Sepolia…")
     try:
         contributor_address = os.getenv("RECEIVER_ADDRESS")
-        with httpx.Client(timeout=30.0) as client:
+        with httpx.Client(timeout=180.0) as client:
             reward_resp = client.post(
                 f"{API_URL}/audit/reward",
                 params={"contributor_address": contributor_address, "amount": reward},
+                json=findings[:MAX_REWARDABLE],  # envoie les patterns dans le body
             )
             reward_resp.raise_for_status()
-            tx_hash = reward_resp.json().get("tx")
+            reward_data = reward_resp.json()
+            tx_hash = reward_data.get("tx")
+            contributed = reward_data.get("contributed") or []
 
         user_config["credit_usdc"] += reward
         save_config(user_config)
@@ -694,6 +697,16 @@ def _handle_optional_contribution(findings: list[dict], user_config: dict[str, A
                 },
             )
         )
+        if contributed:
+            console.print()
+            section("Preuves contribution 0G")
+            for i, c in enumerate(contributed[:MAX_REWARDABLE], 1):
+                tx0g = (c.get("tx_hash") or "").strip()
+                root = (c.get("root_hash") or "").strip()
+                if tx0g:
+                    info(f"[{i}] 0G tx: [accent]https://chainscan-galileo.0g.ai/tx/{tx0g}[/accent]")
+                if root:
+                    info(f"[{i}] root: [muted]{root}[/muted]")
     except Exception as e:
         error(f"Erreur lors du paiement : {e}")
 

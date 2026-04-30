@@ -4,11 +4,11 @@ import base64
 import httpx
 import json
 import hashlib
-from fastapi import FastAPI, Request, HTTPException, Header
+from fastapi import FastAPI, Request, HTTPException, Header, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from dotenv import load_dotenv
-from typing import Any, AsyncGenerator, Optional
+from typing import Any, AsyncGenerator, Optional, List
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -486,20 +486,35 @@ async def run_audit_stream(
 
 
 @app.post("/audit/reward")
-async def send_reward(contributor_address: str, amount: float):
+async def send_reward(
+    contributor_address: str,
+    amount: float,
+    findings: List[dict] = Body(default=[]),
+):
     print(f"💰 Requête de récompense reçue : {amount} USDC pour {contributor_address}")
     clean_amount = round(float(amount), 2)
-    dummy_hash   = "0x" + hashlib.sha256(contributor_address.encode()).hexdigest()
-    tx_hash      = await anchor_contribution(dummy_hash, dummy_hash, contributor_address, amount_usdc=clean_amount)
+    contributed = []
 
-    
+    # 1. Upload réel sur 0G + mise à jour manifest
+    if findings:
+        try:
+            from memory.collective_0g import contribute_patterns
+            contributed = await contribute_patterns(findings)
+            print(f"[0G] {len(contributed)} pattern(s) ajouté(s) à la mémoire collective")
+        except Exception as e:
+            print(f"[0G] Contribution failed (paiement quand même): {e}")
+
+    # 2. Paiement USDC
+    dummy_hash = "0x" + hashlib.sha256(contributor_address.encode()).hexdigest()
+    tx_hash = await anchor_contribution(dummy_hash, dummy_hash, contributor_address, amount_usdc=clean_amount)
+
     if tx_hash in ["payment_failed", "error", "no_gas"]:
         detail = "Échec du transfert USDC."
         if tx_hash == "no_gas":
             detail = "Wallet serveur sans ETH — rechargez-le via faucet Base Sepolia"
         raise HTTPException(status_code=500, detail=detail)
-        
-    return {"status": "success", "tx": tx_hash}
+
+    return {"status": "success", "tx": tx_hash, "contributed": contributed}
 
 
 

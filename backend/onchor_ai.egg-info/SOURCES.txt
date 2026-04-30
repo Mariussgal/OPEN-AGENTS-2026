@@ -13,6 +13,7 @@ keeper/workflow.py
 memory/__init__.py
 memory/cognee_client.py
 memory/cognee_setup.py
+memory/collective_0g.py
 memory/normalizer.py
 memory/privacy_guard.py
 onchor_ai.egg-info/PKG-INFO
@@ -35,6 +36,7 @@ pipeline/phase6_report.py
 pipeline/phase_resolve.py
 pipeline/phases.py
 pipeline/streaming.py
+pipeline/utils.py
 storage/__init__.py
 storage/og_client.py
 storage/zero_g_client.py

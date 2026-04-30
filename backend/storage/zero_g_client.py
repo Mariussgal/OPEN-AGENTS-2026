@@ -142,6 +142,33 @@ def store_pattern(payload: dict[str, Any]) -> str:
     return str(rh)
 
 
+def store_pattern_with_proof(payload: dict[str, Any]) -> dict[str, str]:
+    """
+    Stocke un payload et retourne le rootHash + txHash (si disponible).
+    """
+    mode = _storage_mode()
+    if mode == "merkle":
+        rh = merkle_root_json(payload)
+        return {"root_hash": str(rh), "tx_hash": ""}
+    if mode == "mock":
+        rh = merkle_root_json(payload)
+        _MOCK_ROOT.mkdir(parents=True, exist_ok=True)
+        _mock_file(rh).write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        return {"root_hash": str(rh), "tx_hash": ""}
+
+    raw = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+    out = _run_node(_UPLOAD_JS, [], stdin=raw, timeout=600)
+    if not out.get("ok"):
+        raise RuntimeError(out.get("error", "upload failed"))
+    rh = out.get("rootHash")
+    if not rh:
+        raise RuntimeError("no rootHash")
+    tx = out.get("txHash") or ""
+    return {"root_hash": str(rh), "tx_hash": str(tx)}
+
+
 def retrieve_pattern(root_hash: str) -> dict[str, Any]:
     rh = _normalize_root_hash(root_hash)
     mode = _storage_mode()
