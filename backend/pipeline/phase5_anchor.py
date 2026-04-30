@@ -3,6 +3,7 @@ import os
 import hashlib
 import logging
 from typing import List, Dict
+from pipeline.utils import compute_pattern_hash
 from keeper.hub_anchor import (
     is_evm_tx_hash,
     get_anchor_tx_from_chain,
@@ -28,12 +29,19 @@ async def run_phase5_anchor(findings: List[Dict]) -> List[Dict]:
 
         if finding.get("tx_hash") or finding.get("execution_id"):
             logger.info(f"Already anchored : {finding['title']}")
+            # Tenter de résoudre la tx via Etherscan si pas encore résolue
+            if not finding.get("tx_hash") and finding.get("pattern_hash"):
+                tx = await get_anchor_tx_from_chain(finding["pattern_hash"])
+                if tx:
+                    finding["tx_hash"] = tx
+                    logger.info(f"  ✓ tx résolue depuis Etherscan : {tx}")
             anchored_results.append(finding)
             continue
 
-        content_to_hash = f"{finding['title']}-{finding['reason']}"
-        digest = hashlib.sha256(content_to_hash.encode()).hexdigest()
-        pattern_hash = "0x" + digest
+        pattern_hash = (
+            finding.get("pattern_hash")
+            or compute_pattern_hash(finding["title"], finding.get("reason", ""))
+        )
 
         logger.info(f"Anchoring : {finding['title']}...")
 

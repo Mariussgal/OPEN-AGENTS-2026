@@ -555,7 +555,7 @@ def _render_onchain_section(onchain: dict, findings: list[dict], report: dict) -
         # 0G rootHash
         if root and is_valid_proof(root):
             items[f"0G root #{i} ({fid})"] = root
-            items[f"  → verify"] = f"node 0g/0g_download.js {root}"
+            items[f"  → verify ({fid})"] = f"node 0g/0g_download.js {root}"
 
     # ENS mint tx
     ens = report.get("ens") or {}

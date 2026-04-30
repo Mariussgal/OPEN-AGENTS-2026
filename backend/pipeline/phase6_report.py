@@ -468,6 +468,10 @@ async def run_report(
         print(f"   {high_count} finding(s) HIGH — certificat ENS non émis")
 
     # ── 6. Rapport final ──────────────────────────────────────────────────────
+    og_hits = sum(
+        1 for f in investigation_data.get("findings", [])
+        if f.get("prior_audit_ref")
+    )
     report = {
         "verdict":    final_verdict,
         "risk_score": triage_data.get("risk_score", 0),
@@ -487,8 +491,8 @@ async def run_report(
         },
         "findings": enriched,
         "memory": {
-            "hits":    len(known_findings),
-            "sources": list({kf.get("type", "unknown") for kf in known_findings}),
+            "hits": len(known_findings) + og_hits,
+            "sources": list({kf.get("type", "Cognee") for kf in known_findings}) + (["0G Collective"] if og_hits > 0 else []),
         },
         "onchain": {
             "anchor_registry": os.getenv("ANCHOR_REGISTRY_ADDRESS"),

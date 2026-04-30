@@ -120,8 +120,7 @@ TOOLS = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "query": {"type": "string", "description": "Natural language query"},
-                    "collective": {"type": "boolean", "description": "Include collective memory (paid tier)", "default": True}
+                    "query": {"type": "string", "description": "Natural language query"}
                 },
                 "required": ["query"]
             }
@@ -229,29 +228,53 @@ def tool_get_storage_layout(contract: str) -> str:
         return f"ERROR: {e}"
 
 
-async def tool_query_memory(query: str, collective: bool = True) -> str:
-    """Interroge Cognee — local + collectif si paid tier."""
+async def tool_query_memory(query: str) -> str:
+    output_lines = []
+
+    # ── 1. Mémoire locale Cognee ─────────────────────────────────────────────
     try:
         import cognee
-        results = await cognee.recall(query)
-        if not results:
-            return "No memory hits found."
-        hits = []
-        for res in results[:3]:  # max 3 hits
-            content = ""
-            if hasattr(res, "search_result"):
-                val = getattr(res, "search_result")
-                content = "\n".join(val) if isinstance(val, list) else str(val)
-            elif isinstance(res, dict) and "search_result" in res:
-                val = res["search_result"]
-                content = "\n".join(val) if isinstance(val, list) else str(val)
-            else:
-                content = str(res)
-            content = content.replace("['", "").replace("']", "").replace("', '", "\n")
-            hits.append(content.strip()[:500])
-        return "\n---\n".join(hits)
+        local_results = await cognee.recall(query)
+        if local_results:
+            for res in local_results[:3]:
+                content = _extract_cognee_content(res)
+                if content:
+                    output_lines.append(f"[Local Memory] {content[:400]}")
     except Exception as e:
-        return f"Memory query error: {e}"
+        output_lines.append(f"[Local Memory] error: {e}")
+
+    # ── 2. Mémoire collective 0G ─────────────────────────────────────────────
+    try:
+        from memory.collective_0g import (
+            query_collective_memory,
+            format_collective_results,
+        )
+        collective_results = await query_collective_memory(query)
+        print(f"[DEBUG 0G] query='{query}' → {len(collective_results)} résultats")
+        if collective_results:
+            formatted = format_collective_results(collective_results)
+            output_lines.append(formatted)
+    except Exception as e:
+        import traceback
+        print(f"[0G ERROR DÉTAILLÉ] {e}")
+        traceback.print_exc()
+        output_lines.append(f"[0G Collective] error: {e}")
+
+    if not output_lines:
+        return "No memory hits found."
+
+    return "\n---\n".join(output_lines)
+
+
+def _extract_cognee_content(res) -> str:
+    """Helper pour extraire le contenu d'un résultat Cognee."""
+    if hasattr(res, "search_result"):
+        val = getattr(res, "search_result")
+        return "\n".join(val) if isinstance(val, list) else str(val)
+    if isinstance(res, dict) and "search_result" in res:
+        val = res["search_result"]
+        return "\n".join(val) if isinstance(val, list) else str(val)
+    return str(res)
 
 
 def tool_simulate_call(signature: str, args: list = None) -> str:
@@ -290,10 +313,7 @@ async def dispatch_tool(tool_name: str, tool_args: dict, scope_files: list[str])
     elif tool_name == "get_storage_layout":
         return tool_get_storage_layout(tool_args["contract"])
     elif tool_name == "query_memory":
-        return await tool_query_memory(
-            tool_args["query"],
-            tool_args.get("collective", True)
-        )
+        return await tool_query_memory(tool_args["query"])
     elif tool_name == "simulate_call":
         return tool_simulate_call(
             tool_args["signature"],
@@ -437,6 +457,7 @@ query memory, and confirm or dismiss each finding. Anchor LIKELY and CONFIRMED o
     messages = [{"role": "user", "content": initial_message}]
     all_findings = []
     anchored_txs = []
+    pending_anchors: dict[str, dict[str, str]] = {}
     turns = 0
 
     while turns < MAX_TURNS:
@@ -479,6 +500,12 @@ query memory, and confirm or dismiss each finding. Anchor LIKELY and CONFIRMED o
             print(f"thinking...")
             new_findings = parse_findings_from_text(msg.content)
             if new_findings:
+                # Appliquer les anchors en attente sur les nouveaux findings
+                for f in new_findings:
+                    if f["title"] in pending_anchors:
+                        anchor_data = pending_anchors.pop(f["title"])
+                        f["execution_id"] = anchor_data["execution_id"]
+                        f["pattern_hash"] = anchor_data["pattern_hash"]
                 all_findings.extend(new_findings)
                 print(f"  → {len(new_findings)} finding(s) detected")
 
@@ -492,9 +519,23 @@ query memory, and confirm or dismiss each finding. Anchor LIKELY and CONFIRMED o
 
                 result = await dispatch_tool(tool_name, tool_args, scope.files)
 
-                # Tracker les anchors
-                if tool_name == "anchor_finding" and "tx:" in str(result):
+                if tool_name == "anchor_finding":
                     anchored_txs.append(result)
+                    import re
+                    
+                    exe_match = re.search(r'executionId:\s*(\S+)', str(result))
+                    # anchor_finding_mcp retourne aussi le root_hash dans les logs
+                    # on récupère pattern_hash depuis les args de l'agent
+                    
+                    if exe_match:
+                        exe_id = exe_match.group(1).rstrip("|").strip()
+                        title_arg = tool_args.get("title", "")
+                        ph = tool_args.get("pattern_hash", "")
+                        
+                        pending_anchors[title_arg] = {
+                            "execution_id": exe_id,
+                            "pattern_hash": ph,
+                        }
 
                 tool_results.append({
                     "role": "tool",

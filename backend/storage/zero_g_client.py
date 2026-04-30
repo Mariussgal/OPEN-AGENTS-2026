@@ -163,3 +163,18 @@ def retrieve_pattern(root_hash: str) -> dict[str, Any]:
     if not isinstance(data, dict):
         raise RuntimeError("payload téléchargé invalide")
     return data
+
+
+MANIFEST_KEY_PREFIX = "onchor-manifest"
+
+
+def store_manifest(manifest_data: dict) -> str:
+    """
+    Stocke le manifest avec une clé nommée stable.
+    Retourne le rootHash 0G.
+    """
+    payload = {
+        **manifest_data,
+        "key": MANIFEST_KEY_PREFIX + "-v1",
+    }
+    return store_pattern(payload)

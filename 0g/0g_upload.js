@@ -82,7 +82,9 @@ try {
 }
 
 const indexer = new Indexer(indRpc);
-const [result, err] = await indexer.upload(mem, evmRpc, signer);
+const [result, err] = await indexer.upload(mem, evmRpc, signer, {
+  finalityRequired: false,
+});
 
 if (err != null) die(err.message || String(err));
 
