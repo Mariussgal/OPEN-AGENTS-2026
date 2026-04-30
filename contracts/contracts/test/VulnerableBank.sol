@@ -16,6 +16,7 @@ contract VulnerableBank {
     // Vulnerable: external call before state update (reentrancy)
     function withdraw(uint256 amount) external {
         require(balances[msg.sender] >= amount, "insufficient");
+        (bool ok, ) = msg.sender.call{value: amount}("");
         require(ok, "transfer failed");
         balances[msg.sender] -= amount;
     }
