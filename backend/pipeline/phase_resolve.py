@@ -32,60 +32,90 @@ async def detect_upstream_from_code(content: str) -> Optional[UpstreamRef]:
         return UpstreamRef("OpenZeppelin Standard", "https://github.com/OpenZeppelin/openzeppelin-contracts", "latest")
     return None
 
+
+_CHAIN_ID_BY_NAME = {
+    "mainnet": "1",
+    "ethereum": "1",
+    "sepolia": "11155111",
+}
+
+
+def _resolve_chain_candidates() -> list[str]:
+    """
+    Ordre de recherche Etherscan pour les adresses 0x.
+    Par défaut: Sepolia puis Mainnet (retro-compatible + support mainnet).
+    """
+    raw = (os.getenv("ONCHOR_ETHERSCAN_CHAIN_PRIORITY") or "11155111,1").strip()
+    candidates = [c.strip() for c in raw.split(",") if c.strip()]
+    return candidates or ["11155111", "1"]
+
+
 async def fetch_etherscan_source(address: str) -> List[str]:
     api_key = os.getenv("ETHERSCAN_API_KEY")
-    
-    # URL API V2 d'Etherscan (Nouvelle norme)
-    # On précise la chainid pour Sepolia
-    url = f"https://api.etherscan.io/v2/api?chainid=11155111&module=contract&action=getsourcecode&address={address}&apikey={api_key}"
-    
     print(f"[Phase 0] Appel Etherscan V2 pour {address}...")
-    
+
+    if not api_key:
+        print("❌ ETHERSCAN_API_KEY manquante.")
+        return []
+
     async with httpx.AsyncClient() as client:
-        response = await client.get(url)
-        data = response.json()
-        
-        # Sur l'API V2, le succès se vérifie toujours sur "status" == "1"
-        if data.get("status") != "1":
-            print(f"❌ Erreur Etherscan V2: {data.get('result')}")
-            return []
-
-        result = data["result"][0]
-        source_code_raw = result.get("SourceCode", "")
-        
-        if not source_code_raw:
-            print("❌ SourceCode vide renvoyé par Etherscan.")
-            return []
-
-        temp_dir = f"temp_contracts/{address}"
-        os.makedirs(temp_dir, exist_ok=True)
-        file_list = []
-
-        # Logique de parsing multi-fichiers {{...}}
-        if source_code_raw.startswith("{{"):
+        for chainid in _resolve_chain_candidates():
             try:
-                # Etherscan V2 peut nécessiter d'enlever les doubles accolades
-                json_raw = source_code_raw[1:-1] if source_code_raw.startswith("{{") else source_code_raw
-                json_content = json.loads(json_raw)
-                sources = json_content.get("sources", json_content)
-                
-                for rel_path, content_obj in sources.items():
-                    full_path = os.path.join(temp_dir, rel_path)
-                    os.makedirs(os.path.dirname(full_path), exist_ok=True)
-                    with open(full_path, "w") as f:
-                        f.write(content_obj.get("content", ""))
-                    file_list.append(full_path)
+                url = (
+                    "https://api.etherscan.io/v2/api"
+                    f"?chainid={chainid}"
+                    f"&module=contract&action=getsourcecode&address={address}&apikey={api_key}"
+                )
+                response = await client.get(url)
+                data = response.json()
             except Exception as e:
-                print(f"❌ Erreur parsing JSON: {e}")
-        else:
-            # Cas fichier unique
-            path = os.path.join(temp_dir, "Contract.sol")
-            with open(path, "w") as f:
-                f.write(source_code_raw)
-            file_list.append(path)
-            
-        print(f"✅ Phase 0 terminée : {len(file_list)} fichiers récupérés.")
-        return file_list
+                print(f"❌ Erreur réseau Etherscan (chain {chainid}): {e}")
+                continue
+
+            # Sur l'API V2, le succès se vérifie toujours sur "status" == "1"
+            if data.get("status") != "1":
+                print(f"ℹ️ Aucun code vérifié pour {address} sur chainid={chainid} ({data.get('result')})")
+                continue
+
+            result = data["result"][0]
+            source_code_raw = result.get("SourceCode", "")
+
+            if not source_code_raw:
+                print(f"ℹ️ SourceCode vide sur chainid={chainid}, tentative suivante...")
+                continue
+
+            temp_dir = f"temp_contracts/{address}"
+            os.makedirs(temp_dir, exist_ok=True)
+            file_list = []
+
+            # Logique de parsing multi-fichiers {{...}}
+            if source_code_raw.startswith("{{"):
+                try:
+                    # Etherscan V2 peut nécessiter d'enlever les doubles accolades
+                    json_raw = source_code_raw[1:-1] if source_code_raw.startswith("{{") else source_code_raw
+                    json_content = json.loads(json_raw)
+                    sources = json_content.get("sources", json_content)
+
+                    for rel_path, content_obj in sources.items():
+                        full_path = os.path.join(temp_dir, rel_path)
+                        os.makedirs(os.path.dirname(full_path), exist_ok=True)
+                        with open(full_path, "w") as f:
+                            f.write(content_obj.get("content", ""))
+                        file_list.append(full_path)
+                except Exception as e:
+                    print(f"❌ Erreur parsing JSON (chain {chainid}): {e}")
+                    continue
+            else:
+                # Cas fichier unique
+                path = os.path.join(temp_dir, "Contract.sol")
+                with open(path, "w") as f:
+                    f.write(source_code_raw)
+                file_list.append(path)
+
+            print(f"✅ Phase 0 terminée ({chainid}) : {len(file_list)} fichiers récupérés.")
+            return file_list
+
+    return []
         
 def filter_diff_only(files: List[str], upstream: Optional[UpstreamRef]) -> List[str]:
     """Réduction du scope : élimine les dépendances standards si un upstream est connu."""
