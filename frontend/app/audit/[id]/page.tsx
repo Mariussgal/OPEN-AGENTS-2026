@@ -31,6 +31,7 @@ const SEVERITY_CONFIG: Record<Severity, { color: string; bg: string; border: str
 };
 
 const VERDICT_CONFIG: Record<Verdict, { label: string; color: string; icon: React.ElementType }> = {
+    FINDINGS_FOUND: { label: "FINDINGS FOUND", color: "text-red-400", icon: AlertTriangle },
     HIGH_RISK: { label: "HIGH RISK", color: "text-red-400", icon: AlertTriangle },
     MEDIUM_RISK: { label: "MEDIUM RISK", color: "text-yellow-400", icon: AlertCircle },
     LOW_RISK: { label: "LOW RISK", color: "text-blue-400", icon: Info },

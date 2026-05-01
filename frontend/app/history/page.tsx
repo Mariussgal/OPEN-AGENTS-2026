@@ -67,6 +67,7 @@ function WalletBanner({ wallet }: { wallet: WalletInfo }) {
 // ─── Verdict config ───────────────────────────────────────────────────────────
 
 const VERDICT_CONFIG: Record<Verdict, { label: string; color: string; bg: string; icon: React.ElementType }> = {
+    FINDINGS_FOUND: { label: "FINDINGS FOUND", color: "text-red-400", bg: "bg-red-400/10 border-red-400/20", icon: AlertTriangle },
     HIGH_RISK: { label: "HIGH RISK", color: "text-red-400", bg: "bg-red-400/10 border-red-400/20", icon: AlertTriangle },
     MEDIUM_RISK: { label: "MEDIUM RISK", color: "text-yellow-400", bg: "bg-yellow-400/10 border-yellow-400/20", icon: AlertCircle },
     LOW_RISK: { label: "LOW RISK", color: "text-blue-400", bg: "bg-blue-400/10 border-blue-400/20", icon: Info },

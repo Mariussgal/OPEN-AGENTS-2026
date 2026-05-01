@@ -71,7 +71,7 @@ export interface Finding {
 
 // ─── Audit Report ─────────────────────────────────────────────────────────────
 
-export type Verdict = "HIGH_RISK" | "MEDIUM_RISK" | "LOW_RISK" | "SAFE" | "CERTIFIED";
+export type Verdict = "HIGH_RISK" | "MEDIUM_RISK" | "LOW_RISK" | "SAFE" | "CERTIFIED" | "FINDINGS_FOUND";
 
 export interface MemoryHit {
     query: string;
