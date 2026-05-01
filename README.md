@@ -112,5 +112,3 @@ flowchart LR
    - **On-chain address** — `onchor-ai audit 0x…` for a contract **verified on Etherscan** (including **Ethereum mainnet**): the API pulls verified source via **Etherscan** (set **`ETHERSCAN_CHAIN_ID`** on the server, e.g. `1` for mainnet, `11155111` for Sepolia).
 
 ---
-
-*Built for ETHGlobal Open Agents 2026.*
