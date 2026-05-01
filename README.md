@@ -4,7 +4,7 @@
 
 # ONCHOR.AI
 
-**Onchor.ai** is a Solidity security copilot with **persistent collective memory**: **Slither** provides a fixed static-analysis baseline, **0G** holds the decentralized pattern store that **self-grows** with each audit, **Cognee** acts as a **librarian** that **curates and structures** normalized findings as **JSON-style** records for **LLM** reasoning (not as the primary data store), plus **KeeperHub** anchoring and **ENS** certification.
+**Onchor.ai** is a Solidity security copilot with **persistent collective memory**: **Slither** for a fixed static baseline, **0G** for decentralized pattern storage that grows with audits, **Cognee** for local graph ingest + semantic **recall** fed into the **LLM** (alongside 0G collective queries), plus **KeeperHub** anchoring and **ENS** certification.
 
 ---
 
@@ -37,7 +37,7 @@ Onchor combines a **fixed static baseline** with a **decentralized memory** that
 
 - **Slither (fixed layer):** **Slither** brings a **stable, built-in rule set** of vulnerability detectors. It always runs the same static-analysis corpus on your code and yields a structured list of candidates before triage and LLM investigation — think of it as the **fixed reference** layer.
 - **0G (collective layer):** **0G storage** is our **shared / collective memory**: verified pattern payloads (hashed content) live on the network and accumulate as audits run — especially when findings are **anchored** (and when users opt in to contribute patterns). The store **replenishes itself** from the pipeline instead of staying a closed file.
-- **Cognee (“librarian”):** **Cognee** helps **tag, relate, and surface** vulnerability artifacts as structured **JSON-style** records so the LLM can fetch the right context at the right time. The **long-lived store** of collective patterns remains **0G**; Cognee keeps the workspace orderly for reasoning.
+- **Cognee (local graph + recall):** Vulnerable snippets are **sanitized** (`memory/privacy_guard.py`), flattened to **structured text** (type / severity / description), then **`cognee.add` + `cognee.cognify()`** build Cognee’s graph under **`~/.onchor-ai/memory`**. **Phase 1** runs **`cognee.recall`** and turns hits into **`known_findings` dicts** for dedup / triage. **Phase 4** **`tool_query_memory`** combines **Cognee recall** (local) and **`query_collective_memory`** (**0G** manifest) so the LLM sees both. So: Cognee is **not** “only JSON filing” — it’s a **real local store + graph pipeline**; **cross-user, content-addressed blobs** stay centered on **0G** (`memory/collective_0g.py`) plus anchoring/contributions.
 - **Paid path:** In the default **pip-install** flow, audits are **paid via x402**, which runs the full pipeline against that memory stack.
 - **Opt-in contribution:** At the **end** of a paid audit, the CLI asks if you want to contribute **anonymized** patterns to the shared memory. If you accept, you get **0.05 USDC per finding** on **Base Sepolia**, for **up to three findings** per opt-in.
 
@@ -60,7 +60,7 @@ flowchart LR
     subgraph Backend["Python backend"]
         API["FastAPI server"]
         Pipe["Audit pipeline\nSlither + LLM"]
-        Cognee["Cognee\n(librarian / graph)"]
+        Cognee["Cognee\nlocal graph + recall"]
     end
 
     subgraph Chain["Ethereum Sepolia"]
