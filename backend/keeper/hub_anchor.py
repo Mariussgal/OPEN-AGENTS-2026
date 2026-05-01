@@ -20,7 +20,7 @@ _EVM_TX_HASH = re.compile(r"^0x[0-9a-fA-F]{64}$")
 
 
 def is_evm_tx_hash(val: object) -> bool:
-    """True si ``val`` ressemble à un hash de transaction EVM exploitable pour Etherscan."""
+    """True if `val` looks like a valid EVM tx hash for Etherscan."""
     return isinstance(val, str) and bool(_EVM_TX_HASH.match(val.strip()))
 
 KEEPERHUB_EXECUTE = "https://app.keeperhub.com/api/execute/contract-call"
@@ -63,7 +63,7 @@ def _bytes32(hex_str: str) -> str:
     if s.startswith("0x"):
         s = s[2:]
     if len(s) != 64 or any(c not in "0123456789abcdef" for c in s):
-        raise ValueError(f"bytes32 invalide : {hex_str!r}")
+        raise ValueError(f"Invalid bytes32: {hex_str!r}")
     return "0x" + s
 
 
@@ -72,7 +72,7 @@ async def keeperhub_anchor_registry(ph: str, rh: str, *, timeout: float = 120.0)
     Appelle KeeperHub pour exécuter ``anchor(pattern_hash, root_hash)``.
 
     Retour inclut au minimum :
-        skipped: True si KEEPERHUB_API_KEY ou ANCHOR_REGISTRY_ADDRESS absent
+        skipped: True if KEEPERHUB_API_KEY or ANCHOR_REGISTRY_ADDRESS is missing
         success / tx_hash / execution_id / error
     """
     api_key = os.getenv("KEEPERHUB_API_KEY")
@@ -153,7 +153,7 @@ async def keeperhub_anchor_registry(ph: str, rh: str, *, timeout: float = 120.0)
 
 
 async def get_anchor_tx_from_chain(pattern_hash: str) -> str | None:
-    """Récupère le tx hash anchor() depuis Etherscan V2 API."""
+    """Fetch anchor() tx hash from Etherscan V2 API."""
     import os
     import httpx
 
@@ -194,7 +194,7 @@ async def get_anchor_tx_from_chain(pattern_hash: str) -> str | None:
                 continue
             if ph in input_data:
                 tx_hash = tx["hash"]
-                logger.info(f"  ✓ tx anchor trouvée : {tx_hash}")
+                logger.info(f"  ✓ anchor tx found: {tx_hash}")
                 return tx_hash
 
     except Exception as e:

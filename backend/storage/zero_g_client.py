@@ -30,7 +30,7 @@ def _storage_mode() -> StorageMode:
     raw = (os.getenv("OG_STORAGE_MODE") or "live").strip().lower()
     if raw in ("live", "merkle", "mock"):
         return raw  # type: ignore[return-value]
-    raise ValueError(f"OG_STORAGE_MODE invalide: {raw!r}")
+    raise ValueError(f"Invalid OG_STORAGE_MODE: {raw!r}")
 
 
 def normalize_pattern_hash(pattern_hash: str) -> str:
@@ -177,7 +177,7 @@ def retrieve_pattern(root_hash: str) -> dict[str, Any]:
     if mode == "mock":
         p = _mock_file(rh)
         if not p.is_file():
-            raise FileNotFoundError(f"mock: pas de fichier pour {rh}")
+            raise FileNotFoundError(f"mock: no file for {rh}")
         data = json.loads(p.read_text(encoding="utf-8"))
         if not isinstance(data, dict):
             raise RuntimeError("mock: JSON racine doit être un objet")
@@ -188,7 +188,7 @@ def retrieve_pattern(root_hash: str) -> dict[str, Any]:
         raise RuntimeError(out.get("error", "download failed"))
     data = out.get("data")
     if not isinstance(data, dict):
-        raise RuntimeError("payload téléchargé invalide")
+        raise RuntimeError("invalid downloaded payload")
     return data
 
 

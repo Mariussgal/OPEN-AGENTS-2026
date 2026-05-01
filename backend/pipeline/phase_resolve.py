@@ -25,7 +25,7 @@ KNOWN_UPSTREAMS_DB = {
 }
 
 async def detect_upstream_from_code(content: str) -> Optional[UpstreamRef]:
-    """Détecte l'upstream en scannant les imports dans le code local."""
+    """Detect upstream by scanning imports in local code."""
     if "IUniswapV2Router" in content or "UniswapV2" in content:
         return UpstreamRef("Uniswap V2 Fork", "https://github.com/Uniswap/v2-core", "unknown")
     if "@openzeppelin/contracts" in content:
@@ -55,7 +55,7 @@ async def fetch_etherscan_source(address: str) -> List[str]:
     print(f"[Phase 0] Appel Etherscan V2 pour {address}...")
 
     if not api_key:
-        print("❌ ETHERSCAN_API_KEY manquante.")
+        print("❌ Missing ETHERSCAN_API_KEY.")
         return []
 
     async with httpx.AsyncClient() as client:
@@ -69,19 +69,19 @@ async def fetch_etherscan_source(address: str) -> List[str]:
                 response = await client.get(url)
                 data = response.json()
             except Exception as e:
-                print(f"❌ Erreur réseau Etherscan (chain {chainid}): {e}")
+                print(f"❌ Etherscan network error (chain {chainid}): {e}")
                 continue
 
             # Sur l'API V2, le succès se vérifie toujours sur "status" == "1"
             if data.get("status") != "1":
-                print(f"ℹ️ Aucun code vérifié pour {address} sur chainid={chainid} ({data.get('result')})")
+                print(f"ℹ️ No verified code for {address} on chainid={chainid} ({data.get('result')})")
                 continue
 
             result = data["result"][0]
             source_code_raw = result.get("SourceCode", "")
 
             if not source_code_raw:
-                print(f"ℹ️ SourceCode vide sur chainid={chainid}, tentative suivante...")
+                print(f"ℹ️ Empty SourceCode on chainid={chainid}, trying next...")
                 continue
 
             temp_dir = f"temp_contracts/{address}"
@@ -103,7 +103,7 @@ async def fetch_etherscan_source(address: str) -> List[str]:
                             f.write(content_obj.get("content", ""))
                         file_list.append(full_path)
                 except Exception as e:
-                    print(f"❌ Erreur parsing JSON (chain {chainid}): {e}")
+                    print(f"❌ JSON parsing error (chain {chainid}): {e}")
                     continue
             else:
                 # Cas fichier unique
@@ -112,20 +112,20 @@ async def fetch_etherscan_source(address: str) -> List[str]:
                     f.write(source_code_raw)
                 file_list.append(path)
 
-            print(f"✅ Phase 0 terminée ({chainid}) : {len(file_list)} fichiers récupérés.")
+            print(f"✅ Phase 0 completed ({chainid}): {len(file_list)} file(s) fetched.")
             return file_list
 
     return []
         
 def filter_diff_only(files: List[str], upstream: Optional[UpstreamRef]) -> List[str]:
-    """Réduction du scope : élimine les dépendances standards si un upstream est connu."""
+    """Scope reduction: remove standard dependencies when upstream is known."""
     if not upstream:
         return files
     
     # Logique de filtrage : on ignore ce qui ressemble à du standard (lib, node_modules, etc.)
     # Dans une version avancée, on comparerait les hashes via l'URL du repo
     filtered = [f for f in files if "node_modules" not in f and "lib/" not in f and "@openzeppelin" not in f]
-    print(f"[Phase 0] Scope réduit : {len(files)} -> {len(filtered)} fichiers (Focus sur le Delta)")
+    print(f"[Phase 0] Scope reduced: {len(files)} -> {len(filtered)} files (Delta focus)")
     return filtered
 
 async def resolve_scope(path_or_address: str) -> ResolvedContract:

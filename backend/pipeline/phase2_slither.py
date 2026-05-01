@@ -5,11 +5,11 @@ import re
 from typing import Dict, Any
 
 def _setup_solc_version(path: str) -> None:
-    """Cherche la version de Solidity requise et l'installe via solc-select."""
+    """Find required Solidity version and install it via solc-select."""
     try:
         version = None
         
-        # Trouver un fichier .sol
+        # Find one .sol file
         sol_file = None
         if os.path.isfile(path) and path.endswith('.sol'):
             sol_file = path
@@ -25,7 +25,7 @@ def _setup_solc_version(path: str) -> None:
         if sol_file:
             with open(sol_file, 'r', encoding='utf-8') as f:
                 content = f.read()
-                # Cherche `pragma solidity =0.6.6;` ou `pragma solidity ^0.8.0;`
+                # Match `pragma solidity =0.6.6;` or `pragma solidity ^0.8.0;`
                 match = re.search(r'pragma\s+solidity\s+[^0-9]*([0-9]+\.[0-9]+\.[0-9]+)', content)
                 if match:
                     version = match.group(1)
@@ -36,44 +36,44 @@ def _setup_solc_version(path: str) -> None:
             subprocess.run(["solc-select", "use", version], capture_output=True)
             print(f"  [Phase 2] Switched to solc version {version}.")
     except Exception as e:
-        print(f"  [Phase 2] Impossible de configurer solc-select: {e}")
+        print(f"  [Phase 2] Unable to configure solc-select: {e}")
 
 async def run_slither(path: str) -> Dict[str, Any]:
     """
-    Lance Slither sur le dossier/fichier et retourne les findings parsés.
+    Run Slither on folder/file and return parsed findings.
     """
-    print(f"[Phase 2] Lancement de Slither sur {path}...")
+    print(f"[Phase 2] Running Slither on {path}...")
     _setup_solc_version(path)
     
-    # On utilise un fichier temporaire pour stocker le rapport JSON de Slither
+    # Use a temporary file for Slither JSON report
     json_report_path = "slither_report.json"
     
     try:
-        # Commande : slither <chemin> --json <fichier_sortie>
-        # On utilise capture_output pour ne pas polluer le terminal du serveur
+        # Command: slither <path> --json <output_file>
+        # Use capture_output to keep server terminal clean
         process = subprocess.run(
             ["slither", path, "--json", json_report_path],
             capture_output=True,
             text=True
         )
         
-        # Slither renvoie souvent un code d'erreur s'il trouve des failles,
-        # donc on ne vérifie pas process.returncode directement, on lit juste le JSON.
+        # Slither often returns non-zero when it finds issues,
+        # so we parse JSON output instead of relying on returncode.
         
         if os.path.exists(json_report_path):
             with open(json_report_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
             
-            # Nettoyage du fichier temporaire
+            # Cleanup temp file
             os.remove(json_report_path)
             
-            # Extraction des findings (détecteurs de failles)
+            # Extract findings (detectors)
             findings = data.get("results", {}).get("detectors", [])
             
-            # Formatage des résultats pour notre pipeline
+            # Format results for pipeline
             formatted_findings = []
             for f in findings:
-                # Sécurisation de l'extraction du fichier
+                # Safe file extraction
                 elements = f.get("elements", [])
                 if elements:
                     source_mapping = elements[0].get("source_mapping", {})
@@ -88,15 +88,15 @@ async def run_slither(path: str) -> Dict[str, Any]:
                     "file": filename
                 })
                 
-            print(f"[Phase 2] Slither a terminé. {len(formatted_findings)} failles trouvées.")
+            print(f"[Phase 2] Slither completed. {len(formatted_findings)} findings detected.")
             return {
                 "success": True,
                 "findings_count": len(formatted_findings),
                 "findings": formatted_findings
             }
         else:
-            return {"success": False, "error": "Le fichier JSON de Slither n'a pas été créé.", "logs": process.stderr}
+            return {"success": False, "error": "Slither JSON report file was not created.", "logs": process.stderr}
             
     except Exception as e:
-        print(f"[Phase 2] Erreur d'exécution de Slither: {e}")
+        print(f"[Phase 2] Slither execution error: {e}")
         return {"success": False, "error": str(e)}

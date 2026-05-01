@@ -25,7 +25,7 @@ load_dotenv(_BACKEND_USER_ENV, override=True)
 load_dotenv(_PROJECT_USER_ENV, override=True)
 load_dotenv()
 
-# rich-click : panels, couleurs — aligné sur la palette ui.py (brand / accent / rule).
+# rich-click: panels, colors — aligned with ui.py palette (brand / accent / rule).
 from rich_click import rich_click as _rch
 
 _rch.COLOR_SYSTEM = "auto"
@@ -102,9 +102,9 @@ def _pick_config_write_path() -> str:
 
 def _normalize_audit_path(path: str) -> str:
     """
-    Chemins relatifs envoyés au serveur seraient résolus depuis le CWD du serveur (souvent
-    backend/) — ce qui fausse ``contracts/foo.sol``. Pour les fichiers/répertoires locaux,
-    on passe un chemin absolu.
+    Relative paths sent to the server would be resolved from the server CWD (often
+    backend/), which breaks ``contracts/foo.sol``. For local files/directories,
+    always pass an absolute path.
     """
     p = path.strip()
     if p.startswith("0x"):
@@ -135,30 +135,30 @@ def save_config(config: dict[str, Any]) -> None:
     invoke_without_command=True,
     context_settings={"help_option_names": ["-h", "--help"]},
     epilog=(
-        "\nExemples rapides :\n\n"
-        "  onchor-ai doctor       valider les clés et les APIs réseau (sans tout l’assistant)\n\n"
-        "  onchor-ai audit .      audit d’un dossier ou fichier Solidity local\n\n"
-        "  onchor-ai audit 0x…    audit d’un contrat vérifié (Etherscan)\n\n"
-        "  onchor-ai status       solde USDC, wallet et mode serveur local\n\n"
-        "Au premier lancement sans ~/.onchor-ai/config.json : l’assistant s’affiche.\n\n"
-        "Contourner ponctuellement : ONCHOR_SKIP_ONBOARDING=1\n\n"
-        "Options détaillées : onchor-ai audit -h ou onchor-ai doctor -h\n"
+        "\nQuick examples:\n\n"
+        "  onchor-ai doctor       validate keys and network APIs (without full onboarding)\n\n"
+        "  onchor-ai audit .      audit a local Solidity folder or file\n\n"
+        "  onchor-ai audit 0x…    audit a verified contract (Etherscan)\n\n"
+        "  onchor-ai status       USDC balance, wallet, and local server mode\n\n"
+        "On first run without ~/.onchor-ai/config.json, onboarding is shown.\n\n"
+        "Temporary bypass: ONCHOR_SKIP_ONBOARDING=1\n\n"
+        "Detailed options: onchor-ai audit -h or onchor-ai doctor -h\n"
     ),
 )
-@click.option("--no-banner", is_flag=True, help="Masque la bannière de démarrage.")
+@click.option("--no-banner", is_flag=True, help="Hide startup banner.")
 @click.option(
     "--icon-size",
     type=click.Choice(["none", "small", "medium", "large"], case_sensitive=False),
     default="medium",
     show_default=True,
 )
-@click.option("--minimal", is_flag=True, help="Alias de --icon-size none.")
+@click.option("--minimal", is_flag=True, help="Alias for --icon-size none.")
 @click.pass_context
 def cli(ctx: click.Context, no_banner: bool, icon_size: str, minimal: bool) -> None:
-    """Onchor.ai — Solidity Security Copilot avec mémoire collective.
+    """Onchor.ai — Solidity Security Copilot with collective memory.
 
-    Audit contracts, paiements USDC testnet (x402), ancrages KeeperHub, patterns 0G.
-    Détail et options propres à chaque commande : utilise -h après le nom de la commande.
+    Audit contracts, testnet USDC payments (x402), KeeperHub anchoring, and 0G patterns.
+    Use -h after each command to see detailed options.
     """
     if _should_run_onboarding():
         from onboarding import run_onboarding_wizard
@@ -176,15 +176,15 @@ def cli(ctx: click.Context, no_banner: bool, icon_size: str, minimal: bool) -> N
 
     if ctx.invoked_subcommand is None:
         console.print()
-        info("Tape [accent]onchor-ai --help[/accent] pour voir les commandes disponibles.")
+        info("Run [accent]onchor-ai --help[/accent] to view available commands.")
         console.print(
             kv_panel(
-                "Commandes disponibles",
+                "Available commands",
                 {
-                    "onchor-ai init":         "Initialise le projet",
-                    "onchor-ai audit <path>": "Audit d'un fichier, dossier ou adresse 0x",
-                    "onchor-ai status":       "Configuration et solde",
-                    "onchor-ai doctor":      "Valide uniquement les clés / RPC (sans assistant)",
+                    "onchor-ai init":         "Initialize local project config",
+                    "onchor-ai audit <path>": "Audit a file, folder, or 0x address",
+                    "onchor-ai status":       "Configuration and balance",
+                    "onchor-ai doctor":       "Validate keys / RPC only (no onboarding)",
                 },
             )
         )
@@ -192,34 +192,34 @@ def cli(ctx: click.Context, no_banner: bool, icon_size: str, minimal: bool) -> N
 
 @cli.command(
     "doctor",
-    short_help="Vérifier clés & connexions réseau (~/.onchor-ai ou .env).",
+    short_help="Validate keys and network connectivity (~/.onchor-ai or .env).",
 )
 def doctor_cmd() -> None:
-    """Re-valide connexions et clés (équivalent étape 7) sans assistant ni nouveau portefeuille."""
+    """Re-validate keys and connectivity (equivalent to step 7) without onboarding."""
     from onboarding import run_doctor_validation
 
     if not run_doctor_validation():
         raise click.Exit(code=1)
 
 
-@cli.command(short_help="Initialiser le dossier projet .onchor/ (config locale).")
+@cli.command(short_help="Initialize .onchor/ project folder (local config).")
 def init() -> None:
-    """Initialise le dossier de configuration Onchor.ai."""
-    section("Initialisation")
+    """Initialize Onchor.ai project configuration."""
+    section("Initialization")
     if not os.path.exists(CONFIG_DIR):
         save_config({"version": "0.1.0", "mode": "local", "credit_usdc": 0.0})
-        success(f"Projet initialisé — dossier [accent]{CONFIG_DIR}/[/accent] créé.")
+        success(f"Project initialized — [accent]{CONFIG_DIR}/[/accent] created.")
     else:
-        warn(f"Le dossier [accent]{CONFIG_DIR}/[/accent] existe déjà — rien à faire.")
+        warn(f"[accent]{CONFIG_DIR}/[/accent] already exists — nothing to do.")
 
 
-@cli.command(short_help="Afficher mode, version, solde USDC côté serveur local.")
+@cli.command(short_help="Show mode, version, and USDC balance from local server.")
 def status() -> None:
-    """Affiche la configuration et le solde courant (réel)."""
+    """Display configuration and current (real) balance."""
     section("Status")
     cfg = load_config()
     
-    # Récupération du solde réel via le serveur
+    # Fetch real balance from server
     address = os.getenv("RECEIVER_ADDRESS")
     real_balance = 0.0
     if address:
@@ -232,12 +232,12 @@ def status() -> None:
 
     console.print(
         kv_panel(
-            "Profil Onchor.ai",
+            "Onchor.ai Profile",
             {
                 "Version": cfg.get("version", "?"),
                 "Mode": cfg.get("mode", "?"),
-                "Solde USDC (Réel)": f"{real_balance:.2f} USDC",
-                "Adresse Wallet": address or "Non configurée",
+                "USDC Balance (Real)": f"{real_balance:.2f} USDC",
+                "Wallet Address": address or "Not configured",
                 "API URL": API_URL,
             },
         )
@@ -245,19 +245,19 @@ def status() -> None:
 
 
 @cli.command(
-    short_help="Auditer fichier, dossier ou adresse 0x (contrat vérifié).",
+    short_help="Audit file, folder, or 0x address (verified contract).",
     help=(
-        "Lance un audit sur un fichier, un répertoire ou une adresse 0x. "
-        "Modes : payant (USDC x402 sur Base Sepolia), --local (sans paiement) ou --dev."
+        "Run an audit on a file, folder, or 0x address. "
+        "Modes: paid (USDC x402 on Base Sepolia), --local (no payment), or --dev."
     ),
 )
 @click.argument("path")
-@click.option("--local", is_flag=True, help="Mode local — gratuit, pas de paiement.")
-@click.option("--dev",   is_flag=True, help="Mode dev — bypass total.")
+@click.option("--local", is_flag=True, help="Local mode — free, no payment.")
+@click.option("--dev",   is_flag=True, help="Dev mode — full bypass.")
 @click.option(
     "--no-stream",
     is_flag=True,
-    help="Désactive le streaming des phases (legacy, single POST + spinner).",
+    help="Disable phase streaming (legacy single POST + spinner).",
 )
 def audit(path: str, local: bool, dev: bool, no_stream: bool) -> None:
     path = _normalize_audit_path(path)
@@ -265,9 +265,9 @@ def audit(path: str, local: bool, dev: bool, no_stream: bool) -> None:
     user_config = load_config()
 
     mode_label = "DEV" if dev else ("LOCAL" if local else "PAID")
-    info(f"Mode : [accent]{mode_label}[/accent]")
+    info(f"Mode: [accent]{mode_label}[/accent]")
     
-    # Récupération du solde réel pour l'affichage
+    # Fetch real balance for display
     address = os.getenv("RECEIVER_ADDRESS")
     real_balance = 0.0
     if not (local or dev) and address:
@@ -275,18 +275,18 @@ def audit(path: str, local: bool, dev: bool, no_stream: bool) -> None:
             with httpx.Client(timeout=10.0) as client:
                 resp = client.get(f"{API_URL}/user/balance", params={"address": address})
                 real_balance = resp.json().get("balance", 0.0)
-                info(f"Solde disponible : [accent]{real_balance:.2f} USDC[/accent]")
+                info(f"Available balance: [accent]{real_balance:.2f} USDC[/accent]")
         except Exception:
-            # Fallback si le serveur est éteint
+            # Fallback when server is unavailable
             real_balance = user_config.get("credit_usdc", 0.0)
-            info(f"Solde disponible (cache) : [accent]{real_balance:.2f} USDC[/accent]")
+            info(f"Available balance (cached): [accent]{real_balance:.2f} USDC[/accent]")
 
     try:
         data, payment_tx = asyncio.run(
             _run_audit_async(path, local=local, dev=dev, stream=not no_stream)
         )
 
-        success("Audit terminé.")
+        success("Audit completed.")
         _render_audit_result(data, payment_tx)
 
         # Opt-in contribution
@@ -300,9 +300,9 @@ def audit(path: str, local: bool, dev: bool, no_stream: bool) -> None:
             _handle_optional_contribution(findings, user_config)
 
     except click.Abort:
-        warn("Audit annulé.")
+        warn("Audit cancelled.")
     except Exception as e:
-        error(f"Erreur : {e}")
+        error(f"Error: {e}")
 
 
 async def _run_audit_async(
@@ -336,10 +336,10 @@ async def _run_audit_async(
     return await run_paid_audit(API_URL, path), None
 
 
-# ─── Rendu du résultat ─────────────────────────────────────────────────────────
+# ─── Render Results ────────────────────────────────────────────────────────────
 
 def _render_audit_result(data: dict[str, Any], payment_tx: str | None = None) -> None:
-    """Affiche le rendu complet : verdict → findings → rapport Phase 6 → JSON brut."""
+    """Render full output: verdict -> findings -> Phase 6 report -> raw JSON."""
 
     report        = data.get("report") or {}
     investigation = data.get("investigation") or {}
@@ -372,7 +372,7 @@ def _render_audit_result(data: dict[str, Any], payment_tx: str | None = None) ->
         s = report["summary"]
         console.print(
             kv_panel(
-                "Résumé",
+                "Summary",
                 {
                     "Total findings":  str(s.get("total_findings", 0)),
                     "HIGH":            f"[danger]{s.get('high_count', 0)}[/danger]",
@@ -389,7 +389,7 @@ def _render_audit_result(data: dict[str, Any], payment_tx: str | None = None) ->
         section(f"Findings ({len(findings)})")
         console.print(_enriched_findings_table(findings))
 
-        # Détail par finding (fix_sketch + prior_audit_ref + onchain_proof)
+        # Per-finding details (fix_sketch + prior_audit_ref + onchain_proof)
         _render_finding_details(findings)
     else:
         # Fallback sur les findings Slither bruts
@@ -398,9 +398,9 @@ def _render_audit_result(data: dict[str, Any], payment_tx: str | None = None) ->
             section(f"Findings ({len(raw_findings)})")
             console.print(findings_table(raw_findings))
         else:
-            info("Aucun finding détecté.")
+            info("No findings detected.")
 
-    # ── Preuves onchain ───────────────────────────────────────────────────────
+    # ── Onchain proofs ────────────────────────────────────────────────────────
     if onchain:
         _render_onchain_section(onchain, findings, report)
 
@@ -413,12 +413,12 @@ def _render_audit_result(data: dict[str, Any], payment_tx: str | None = None) ->
         )
 
     # ── JSON brut ─────────────────────────────────────────────────────────────
-    section("Rapport brut (JSON)")
+    section("Raw Report (JSON)")
     console.print_json(data=data)
 
 
 def _enriched_findings_table(findings: list[dict]) -> Table:
-    """Tableau enrichi : sev / conf / titre / fichier:ligne / prior_ref."""
+    """Enriched table: sev / conf / title / file:line / prior_ref."""
     table = Table(
         show_header=True,
         header_style="label",
@@ -455,12 +455,12 @@ def _enriched_findings_table(findings: list[dict]) -> Table:
 
 
 def _render_finding_details(findings: list[dict]) -> None:
-    """Affiche le détail de chaque HIGH/MEDIUM : fix_sketch + prior_audit_ref + onchain_proof."""
+    """Render details for HIGH/MEDIUM findings: fix_sketch + prior_audit_ref + onchain_proof."""
     notable = [f for f in findings if f.get("severity") in ("HIGH", "MEDIUM")]
     if not notable:
         return
 
-    section("Détails des findings critiques")
+    section("Critical Finding Details")
     for f in notable:
         sev       = f.get("severity", "INFO").upper()
         sev_style = SEVERITY_STYLES.get(sev, "muted")
@@ -471,29 +471,29 @@ def _render_finding_details(findings: list[dict]) -> None:
 
         # Description
         if f.get("description"):
-            lines.append(f"[label]Description :[/label] {f['description'][:200]}")
+            lines.append(f"[label]Description:[/label] {f['description'][:200]}")
 
         # Fix sketch
         if f.get("fix_sketch"):
             lines.append("")
-            lines.append("[label]Fix sketch :[/label]")
+            lines.append("[label]Fix sketch:[/label]")
             for code_line in f["fix_sketch"].splitlines():
                 lines.append(f"  [accent]{code_line}[/accent]")
 
         # Prior audit reference
         if f.get("prior_audit_ref"):
             lines.append("")
-            lines.append(f"[label]Ref. historique :[/label] [muted]{f['prior_audit_ref']}[/muted]")
+            lines.append(f"[label]Historical reference:[/label] [muted]{f['prior_audit_ref']}[/muted]")
 
         # Preuve KeeperHub / EVM
         if f.get("onchain_proof"):
             etherscan = f"https://sepolia.etherscan.io/tx/{f['onchain_proof']}"
             lines.append("")
-            lines.append(f"[label]Tx onchain :[/label] [info]{etherscan}[/info]")
+            lines.append(f"[label]Onchain tx:[/label] [info]{etherscan}[/info]")
         elif f.get("keeperhub_execution_id"):
             lines.append("")
             lines.append(
-                f"[label]Ancrage KeeperHub (réf. exécution, tx en cours ou hors format EVM) :[/label] "
+                f"[label]KeeperHub anchor (execution reference, pending tx, or non-EVM format):[/label] "
                 f"[muted]{f['keeperhub_execution_id']}[/muted]"
             )
 
@@ -509,7 +509,7 @@ def _render_finding_details(findings: list[dict]) -> None:
 
 
 def is_valid_proof(tx: str) -> bool:
-    """True si tx est un hash EVM non-nul exploitable pour Etherscan."""
+    """True if tx is a non-zero EVM hash usable on Etherscan."""
     if not tx or not tx.startswith("0x"):
         return False
     if tx == "0x" + "0" * 64:
@@ -518,7 +518,7 @@ def is_valid_proof(tx: str) -> bool:
 
 
 def _render_onchain_section(onchain: dict, findings: list[dict], report: dict) -> None:
-    section("Preuves onchain")
+    section("Onchain Proofs")
 
     etherscan_tx      = "https://sepolia.etherscan.io/tx/"
     etherscan_address = "https://sepolia.etherscan.io/address/"
@@ -545,7 +545,7 @@ def _render_onchain_section(onchain: dict, findings: list[dict], report: dict) -
                 f"{etherscan_tx}{f['onchain_proof']}"
             )
         else:
-            # Pas encore miné — lien contrat + pattern_hash pour vérif manuelle
+            # Not mined yet — contract link + pattern_hash for manual check
             items[f"Anchor #{i} ({fid})"] = (
                 f"{etherscan_address}{onchain.get('anchor_registry', '')}#readContract"
             )
@@ -568,7 +568,7 @@ def _render_onchain_section(onchain: dict, findings: list[dict], report: dict) -
         items["Payment USDC"] = f"{basescan_tx}{payment_tx}"
 
     if items:
-        console.print(kv_panel("Preuves onchain", items))
+        console.print(kv_panel("Onchain Proofs", items))
 
 
 def _render_ens_badge(
@@ -576,7 +576,7 @@ def _render_ens_badge(
     report_hash: str | None = None,
     report_verdict: str | None = None,
 ) -> None:
-    section("Certificat ENS")
+    section("ENS Certificate")
 
     ENS_SEPOLIA_BASE = "https://sepolia.app.ens.domains/"
 
@@ -588,7 +588,7 @@ def _render_ens_badge(
         verdict_display = report_verdict or "CERTIFIED"
         items = {
             "ENS Sepolia": f"{ENS_SEPOLIA_BASE}{subname}",
-            "Domaine parent": ens.get("parent", "certified.onchor-ai.eth"),
+            "Parent domain": ens.get("parent", "certified.onchor-ai.eth"),
         }
         if report_hash:
             items["Report hash"] = report_hash
@@ -609,17 +609,17 @@ def _render_ens_badge(
 
     elif verdict_ok and not mint_ok:
         body = Text.from_markup(
-            "[warn]⚠  CERTIFIED — certificat ENS non émis[/warn]\n\n"
-            "[muted]Le pipeline n'a détecté aucun finding HIGH.\n"
-            "Le mint ENS a échoué (réseau Sepolia ou configuration).\n"
-            "Relancez avec --dev pour re-tenter le mint.[/muted]"
+            "[warn]⚠  CERTIFIED — ENS certificate was not minted[/warn]\n\n"
+            "[muted]The pipeline found no HIGH findings.\n"
+            "ENS mint failed (Sepolia network or configuration).\n"
+            "Run again with --dev to retry minting.[/muted]"
         )
         if report_hash:
             body = Text.from_markup(
-                "[warn]⚠  CERTIFIED — certificat ENS non émis[/warn]\n\n"
+                "[warn]⚠  CERTIFIED — ENS certificate was not minted[/warn]\n\n"
                 f"[label]Report hash :[/label] [info]{report_hash}[/info]\n\n"
-                "[muted]Mint ENS échoué — vérifiez ALCHEMY_API_KEY et PRIVATE_KEY "
-                "dans contracts/.env[/muted]"
+                "[muted]ENS mint failed — check ALCHEMY_API_KEY and PRIVATE_KEY "
+                "in contracts/.env[/muted]"
             )
         console.print(Panel(
             body,
@@ -630,9 +630,9 @@ def _render_ens_badge(
 
     else:
         body = Text.from_markup(
-            "[danger]✘  Non certifié — findings HIGH détectés[/danger]\n\n"
-            "[muted]Le certificat ENS est émis uniquement lorsqu'aucun finding "
-            "HIGH n'est détecté.\nCorrigez les findings et relancez l'audit.[/muted]"
+            "[danger]✘  Not certified — HIGH findings detected[/danger]\n\n"
+            "[muted]ENS certificates are issued only when no HIGH finding "
+            "is detected.\nFix findings and rerun the audit.[/muted]"
         )
         console.print(Panel(
             body,
@@ -640,27 +640,27 @@ def _render_ens_badge(
             border_style="danger",
             padding=(1, 2),
         ))
-        # Pas de lien — rien n'a été minté, un lien serait trompeur
+        # No link — nothing was minted, a link would be misleading
 
 
 # ─── Contribution opt-in ───────────────────────────────────────────────────────
 def _handle_optional_contribution(findings: list[dict], user_config: dict[str, Any]) -> None:
-    section("Contribution mémoire collective")
+    section("Collective Memory Contribution")
     info(
-        f"[accent]{len(findings)}[/accent] vulnérabilité(s) identifiée(s). "
-        "Partager ces patterns ANONYMES à la mémoire collective ?"
+        f"[accent]{len(findings)}[/accent] vulnerability pattern(s) identified. "
+        "Share these ANONYMIZED patterns with collective memory?"
     )
-    info("Récompense : [accent]0.05 USDC[/accent] par pattern validé (max 3).")
+    info("Reward: [accent]0.05 USDC[/accent] per validated pattern (max 3).")
 
-    if not click.confirm("Contribuer ?", default=False):
-        warn("Contribution refusée — vos données restent strictement locales.")
+    if not click.confirm("Contribute?", default=False):
+        warn("Contribution declined — your data remains strictly local.")
         return
 
     MAX_REWARDABLE = 3
     payable_count  = min(len(findings), MAX_REWARDABLE)
     reward         = payable_count * 0.05
 
-    info(f"Envoi de la récompense ({reward:.2f} USDC) sur Base Sepolia…")
+    info(f"Sending reward ({reward:.2f} USDC) on Base Sepolia...")
     try:
         contributor_address = os.getenv("RECEIVER_ADDRESS")
         with httpx.Client(timeout=180.0) as client:
@@ -677,7 +677,7 @@ def _handle_optional_contribution(findings: list[dict], user_config: dict[str, A
         user_config["credit_usdc"] += reward
         save_config(user_config)
 
-        success(f"{payable_count} pattern(s) payé(s) on-chain.")
+        success(f"{payable_count} pattern(s) paid onchain.")
         
         real_balance = user_config["credit_usdc"]
         try:
@@ -689,17 +689,17 @@ def _handle_optional_contribution(findings: list[dict], user_config: dict[str, A
 
         console.print(
             kv_panel(
-                "Récompense",
+                "Reward",
                 {
-                    "Patterns payés": str(payable_count),
+                    "Paid patterns": str(payable_count),
                     "TX hash":        tx_hash or "—",
-                    "Nouveau solde":  f"{real_balance:.2f} USDC",
+                    "New balance":    f"{real_balance:.2f} USDC",
                 },
             )
         )
         if contributed:
             console.print()
-            section("Preuves contribution 0G")
+            section("0G Contribution Proofs")
             for i, c in enumerate(contributed[:MAX_REWARDABLE], 1):
                 tx0g = (c.get("tx_hash") or "").strip()
                 root = (c.get("root_hash") or "").strip()
@@ -708,7 +708,7 @@ def _handle_optional_contribution(findings: list[dict], user_config: dict[str, A
                 if root:
                     info(f"[{i}] root: [muted]{root}[/muted]")
     except Exception as e:
-        error(f"Erreur lors du paiement : {e}")
+        error(f"Payment error: {e}")
 
 
 if __name__ == "__main__":

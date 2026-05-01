@@ -188,7 +188,7 @@ def kv_panel(title: str, items: dict[str, str]) -> Panel:
 
 
 def credentials_summary_table(rows: list[dict[str, str]]) -> Table:
-    """Table onboarding : credential · statut · détail."""
+    """Onboarding table: credential · status · detail."""
     table = Table(
         show_header=True,
         header_style="label",
@@ -196,17 +196,17 @@ def credentials_summary_table(rows: list[dict[str, str]]) -> Table:
         expand=True,
     )
     table.add_column("Credential", overflow="fold", style="label")
-    table.add_column("Statut", justify="center", width=14)
-    table.add_column("Détail", overflow="fold", style="white")
+    table.add_column("Status", justify="center", width=14)
+    table.add_column("Detail", overflow="fold", style="white")
 
     for r in rows:
         raw_st = str(r.get("status", "") or "").strip().lower()
         if raw_st in ("valid", "ok", "validated"):
-            st = "[ok]✓ validé[/ok]"
+            st = "[ok]✓ validated[/ok]"
         elif raw_st in ("invalid", "bad", "error"):
-            st = "[danger]✗ invalide[/danger]"
+            st = "[danger]✗ invalid[/danger]"
         elif raw_st in ("skip", "skipped", "optional"):
-            st = "[muted]— ignoré[/muted]"
+            st = "[muted]— skipped[/muted]"
         else:
             st = f"[muted]{r.get('status', '—')}[/muted]"
         table.add_row(r.get("name", "—"), st, str(r.get("detail", "")))
@@ -225,7 +225,7 @@ SEVERITY_STYLES = {
 
 
 def verdict_panel(verdict: str, risk_score: float | None = None) -> Panel:
-    """Panel de verdict final coloré selon le résultat."""
+    """Colorized final verdict panel."""
     v = (verdict or "UNKNOWN").upper()
     if v in {"CERTIFIED", "SAFE"}:
         style, icon = "ok", "✔"
@@ -235,12 +235,12 @@ def verdict_panel(verdict: str, risk_score: float | None = None) -> Panel:
         style, icon = "warn", "!"
 
     score = f"  ·  risk score: [bold]{risk_score:.1f}/10[/bold]" if risk_score is not None else ""
-    body = Text.from_markup(f"[{style}]{icon}  Verdict : {v}[/{style}]{score}")
+    body = Text.from_markup(f"[{style}]{icon}  Verdict: {v}[/{style}]{score}")
     return Panel(Align.center(body), border_style=style, padding=(1, 2))
 
 
 def findings_table(findings: list[dict]) -> Table:
-    """Tableau des findings (severity / file / line / description)."""
+    """Findings table (severity / file / line / description)."""
     table = Table(
         show_header=True,
         header_style="label",

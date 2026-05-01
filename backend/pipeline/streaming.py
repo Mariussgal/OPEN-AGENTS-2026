@@ -45,12 +45,12 @@ from pipeline.phases import PIPELINE_PHASES  # noqa: F401
 
 
 def _emit(event: dict[str, Any]) -> bytes:
-    """Sérialise un event en NDJSON (1 ligne JSON + \\n, encodé UTF-8)."""
+    """Serialize one event to NDJSON (one JSON line + \\n, UTF-8 encoded)."""
     return (json.dumps(event, default=str) + "\n").encode("utf-8")
 
 
 def _pulse_interval_sec() -> float:
-    """Délai entre events ``pulse`` NDJSON pendant les phases longues (keep-alive TCP / proxies)."""
+    """Delay between NDJSON `pulse` events during long phases (TCP/proxy keep-alive)."""
     raw = os.getenv("STREAM_HEARTBEAT_SEC", "20")
     try:
         v = float(raw)
@@ -60,7 +60,7 @@ def _pulse_interval_sec() -> float:
 
 
 async def _heartbeat_while(task: asyncio.Task, phase_id: str, base_msg: str) -> AsyncGenerator[bytes, None]:
-    """Tant que ``task`` n'est pas terminée, émet périodiquement une ligne NDJSON ``status: pulse``."""
+    """While `task` is running, periodically emit an NDJSON `status: pulse` line."""
     interval = _pulse_interval_sec()
     pulses = 0
     while not task.done():
@@ -103,7 +103,7 @@ async def stream_audit_pipeline(
         yield _emit({
             "phase":  "resolve",
             "status": "error",
-            "msg":    f"Aucun fichier Solidity trouvé pour : {path}",
+            "msg":    f"No Solidity files found for: {path}",
         })
         yield _emit({"phase": "pipeline", "status": "done"})
         return

@@ -1,33 +1,33 @@
 /**
- * Registry des commandes du shell Onchor.ai (frontend).
+ * Onchor.ai frontend shell command registry.
  *
- * Chaque commande retourne un tableau de "ShellLine". Une ligne peut être
- * du texte coloré (style sémantique) ou un payload spécial (banner, table).
+ * Each command returns an array of "ShellLine". A line can be
+ * colored text (semantic style) or a special payload (banner, table).
  *
- * Le ton est volontairement sec et pro security — pas de fioritures,
- * pas d'emoji, output factuel comme nmap/metasploit/burp.
+ * Tone is intentionally concise and security-focused: no fluff,
+ * no emoji, factual output like nmap/metasploit/burp.
  */
 
 import { ASCII_LOGO } from "@/components/branding/AsciiLogo";
 
 export type LineStyle =
-  | "log"       // texte par défaut
-  | "muted"     // commentaire / dim
+  | "log"       // default text
+  | "muted"     // comment / dim
   | "comment"   // # ...
   | "brand"     // violet brand
-  | "accent"    // teal succès
+  | "accent"    // teal success
   | "warn"      // jaune
-  | "danger"    // rouge / HIGH
-  | "label"     // gris clair label
-  | "rule";     // séparateur
+  | "danger"    // red / HIGH
+  | "label"     // light gray label
+  | "rule";     // separator
 
 export type ProgressLine = {
   kind: "progress";
-  /** Valeur de progression entre 0 et 100. */
+  /** Progress value between 0 and 100. */
   value: number;
-  /** Label à gauche de la barre (ex: "audit progress"). */
+  /** Label on left side of bar (e.g. "audit progress"). */
   label: string;
-  /** Hint à droite de la barre (ex: "phase 3/6 · triage"). */
+  /** Hint on right side of bar (e.g. "phase 3/6 · triage"). */
   sublabel?: string;
   /** running = brand · done = accent · fail = red. */
   status?: "running" | "done" | "fail";
@@ -35,36 +35,36 @@ export type ProgressLine = {
 
 export type ShellLine =
   | { kind: "text"; style: LineStyle; content: string }
-  | { kind: "banner"; content: string }     // logo ASCII préformaté
-  | { kind: "raw"; content: string }        // texte brut sans style spécifique
-  | ProgressLine;                            // barre de progression dynamique
+  | { kind: "banner"; content: string }     // preformatted ASCII logo
+  | { kind: "raw"; content: string }        // raw text without style
+  | ProgressLine;                            // dynamic progress bar
 
 /**
- * API exposée aux runners async (commandes streaming type `audit`).
- * Permet d'ajouter / remplacer des lignes dans l'entrée courante au fil
- * du temps, et d'attendre proprement entre deux étapes.
+ * API exposed to async runners (streaming commands like `audit`).
+ * Lets them append/replace lines in the current entry over time
+ * and wait cleanly between steps.
  */
 export type StreamApi = {
-  /** Ajoute une ligne et renvoie son index dans l'output. */
+  /** Append a line and return its output index. */
   append: (line: ShellLine) => number;
-  /** Remplace la ligne à l'index donné (utilisé pour la barre de progression). */
+  /** Replace line at given index (used for progress bar). */
   replace: (index: number, line: ShellLine) => void;
-  /** Pause le runner. */
+  /** Pause the runner. */
   sleep: (ms: number) => Promise<void>;
-  /** True si l'utilisateur a `clear` ou rechargé : le runner doit s'arrêter. */
+  /** True if user ran `clear` or reloaded: runner must stop. */
   cancelled: () => boolean;
 };
 
 export type CommandResult = {
   lines: ShellLine[];
-  /** Si true, le shell efface tout le buffer avant d'afficher (clear). */
+  /** If true, shell clears full buffer before rendering (clear). */
   clear?: boolean;
-  /** Si true, applique une fade-in douce à chaque ligne ajoutée. */
+  /** If true, apply smooth fade-in on each appended line. */
   typewriter?: boolean;
   /**
-   * Runner asynchrone optionnel. S'il est défini, il est appelé après que
-   * l'entrée a été montée avec `lines`, et peut streamer du contenu
-   * supplémentaire dans cette même entrée (logs, progress bar, etc.).
+   * Optional async runner. If defined, it is called after
+   * entry is mounted with `lines`, and can stream additional
+   * content in this same entry (logs, progress bar, etc.).
    */
   run?: (api: StreamApi) => Promise<void>;
 };
@@ -89,25 +89,24 @@ const help: CommandHandler = () => ({
   lines: [
     t("log", " Usage: onchor-ai [OPTIONS] COMMAND [ARGS]..."),
     blank(),
-    t("muted", " Onchor.ai — Solidity Security Copilot avec mémoire collective."),
-    t("muted", " Audit contracts, paiements USDC testnet (x402), ancrages KeeperHub, patterns"),
-    t("muted", " 0G. Détail et options propres à chaque commande : utilise -h après le nom de"),
-    t("muted", " la commande."),
+    t("muted", " Onchor.ai — Solidity Security Copilot with collective memory."),
+    t("muted", " Audit contracts, testnet USDC payments (x402), KeeperHub anchors, 0G patterns."),
+    t("muted", " Use -h after each command name for detailed options."),
     blank(),
-    t("label", "╭─ Commandes disponibles ──────────────────────────────────────────────────────╮"),
-    t("log", "│ audit     Auditer fichier, dossier ou adresse 0x (contrat vérifié).          │"),
-    t("log", "│ doctor    Vérifier clés & connexions réseau (~/.onchor-ai ou .env).          │"),
-    t("log", "│ init      Initialiser le dossier projet .onchor/ (config locale).            │"),
-    t("log", "│ status    Afficher mode, version, solde USDC côté serveur local.             │"),
+    t("label", "╭─ Available Commands ─────────────────────────────────────────────────────────╮"),
+    t("log", "│ audit     Audit file, folder, or 0x address (verified contract).             │"),
+    t("log", "│ doctor    Validate keys & network connectivity (~/.onchor-ai or .env).       │"),
+    t("log", "│ init      Initialize .onchor/ project folder (local config).                 │"),
+    t("log", "│ status    Show mode, version, USDC balance from local server.                │"),
     t("label", "╰──────────────────────────────────────────────────────────────────────────────╯"),
     blank(),
     t("label", "╭─ Navigation Web (Demo CLI) ──────────────────────────────────────────────────╮"),
-    t("log", "│ memory    Voir les statistiques de la mémoire collective 0G.                 │"),
-    t("log", "│ history   Ouvrir la page d'historique des audits.                            │"),
-    t("log", "│ pipeline  Voir l'architecture en 6 phases du pipeline.                       │"),
-    t("log", "│ pricing   Voir les tarifs x402.                                              │"),
-    t("log", "│ stack     Voir la stack technologique.                                       │"),
-    t("log", "│ clear     Effacer l'écran.                                                   │"),
+    t("log", "│ memory    View collective 0G memory stats.                                   │"),
+    t("log", "│ history   Open audit history page.                                           │"),
+    t("log", "│ pipeline  View 6-phase pipeline architecture.                                │"),
+    t("log", "│ pricing   View x402 pricing.                                                 │"),
+    t("log", "│ stack     View technology stack.                                             │"),
+    t("log", "│ clear     Clear screen.                                                      │"),
     t("label", "╰──────────────────────────────────────────────────────────────────────────────╯"),
     blank(),
     t("comment", "# tip: ↑/↓ to navigate history · Tab to autocomplete"),
@@ -339,10 +338,10 @@ const man: CommandHandler = (args) => {
 
 // ─── External-link commands (handled by the shell with side effects) ─────────
 const navHistory: CommandHandler = () => ({
-  lines: [t("muted", "opening /history…")],
+  lines: [t("muted", "opening /history...")],
 });
 const navMemoryPage: CommandHandler = () => ({
-  lines: [t("muted", "opening /memory…")],
+  lines: [t("muted", "opening /memory...")],
 });
 const navGithub: CommandHandler = () => ({
   lines: [t("muted", "opening github.com/cnm-agency/Onchor-ai…")],

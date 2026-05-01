@@ -11,20 +11,20 @@ import {
 } from "./commands";
 
 export type ShellEntry = {
-  /** Identifiant stable pour les keys React. */
+  /** Stable identifier for React keys. */
   id: string;
-  /** Commande tapée (avec le prompt) — null pour le banner initial. */
+  /** Typed command (with prompt) — null for initial banner. */
   prompt: string | null;
-  /** Lignes de sortie. */
+  /** Output lines. */
   output: ShellLine[];
-  /** Si true, l'output doit s'afficher caractère par caractère / ligne par ligne. */
+  /** If true, output should animate line-by-line. */
   typewriter?: boolean;
 };
 
-/** Contrôleur d'un stream actif — permet l'annulation depuis l'extérieur. */
+/** Active stream controller — allows external cancellation. */
 type StreamController = {
   cancelled: boolean;
-  /** Buffer mutable qui reflète l'output courant de l'entrée. */
+  /** Mutable buffer mirroring current entry output. */
   output: ShellLine[];
 };
 
@@ -33,13 +33,13 @@ export type ShellApi = {
   input: string;
   setInput: (value: string) => void;
   submit: () => void;
-  /** Navigation historique : -1 = remonte, 1 = descend. */
+  /** History navigation: -1 = up, 1 = down. */
   navigateHistory: (delta: -1 | 1) => void;
-  /** Auto-complétion sur Tab. */
+  /** Tab autocomplete. */
   autocomplete: () => void;
-  /** Reset complet (utilisé par la commande `clear`). */
+  /** Full reset (used by `clear`). */
   reset: () => void;
-  /** Liste des commandes disponibles (pour autocomplete UI). */
+  /** List of available commands (for UI autocomplete). */
   commandNames: string[];
 };
 
@@ -58,21 +58,19 @@ function initialEntries(): ShellEntry[] {
   ];
 }
 
-/**
- * Hook principal du shell. Ne touche pas à l'UI — pure logique d'état.
- */
+/** Main shell hook. No UI logic, state only. */
 export function useShell(): ShellApi {
   const [entries, setEntries] = useState<ShellEntry[]>(() => initialEntries());
   const [input, setInput] = useState("");
 
-  // Historique des commandes tapées (pour ↑/↓).
+  // Typed command history (for ↑/↓).
   const historyRef = useRef<string[]>([]);
   const historyIndexRef = useRef<number>(-1);
 
-  // Streams actifs (audit, etc.) — keyed by entry id pour cancellation.
+  // Active streams (audit, etc.) — keyed by entry id for cancellation.
   const streamsRef = useRef<Map<string, StreamController>>(new Map());
 
-  // Annule tous les streams au démontage (navigation, hot reload, etc.).
+  // Cancel all streams on unmount (navigation, hot reload, etc.).
   useEffect(() => {
     const streams = streamsRef.current;
     return () => {
@@ -84,9 +82,8 @@ export function useShell(): ShellApi {
   }, []);
 
   /**
-   * Lance un runner async sur l'entrée `entryId`. L'entrée doit déjà avoir
-   * été montée avec ses lignes initiales. Le runner peut ensuite append /
-   * replace via l'API qu'on lui passe.
+   * Start async runner on `entryId`. Entry must already be mounted
+   * with initial lines. Runner can append/replace through passed API.
    */
   const startStream = useCallback(
     (entryId: string, initialLines: ShellLine[], runner: (api: StreamApi) => Promise<void>) => {
@@ -96,7 +93,7 @@ export function useShell(): ShellApi {
       };
       streamsRef.current.set(entryId, ctrl);
 
-      // Patch l'entrée correspondante dans le state à partir du buffer mutable.
+      // Patch matching entry in state from mutable buffer.
       const flush = () => {
         if (ctrl.cancelled) return;
         const snapshot = [...ctrl.output];
@@ -121,8 +118,8 @@ export function useShell(): ShellApi {
         },
         sleep: (ms) =>
           new Promise<void>((resolve) => {
-            // On poll la flag d'annulation pour libérer le sleep tôt si
-            // l'utilisateur fait `clear` pendant un audit en cours.
+            // Poll cancel flag to end sleep early if user runs `clear`
+            // during an ongoing audit.
             const tick = 50;
             let elapsed = 0;
             const handle = setInterval(() => {
@@ -136,7 +133,7 @@ export function useShell(): ShellApi {
         cancelled: () => ctrl.cancelled,
       };
 
-      // Fire and forget — on ne bloque pas le shell.
+      // Fire and forget — do not block shell.
       void runner(api).finally(() => {
         streamsRef.current.delete(entryId);
       });
@@ -144,7 +141,7 @@ export function useShell(): ShellApi {
     [],
   );
 
-  /** Annule tous les streams (utilisé par `clear`). */
+  /** Cancel all streams (used by `clear`). */
   const cancelAllStreams = useCallback(() => {
     streamsRef.current.forEach((ctrl) => {
       ctrl.cancelled = true;
@@ -158,7 +155,7 @@ export function useShell(): ShellApi {
     historyIndexRef.current = -1;
 
     if (!raw) {
-      // Enter sur ligne vide → ajoute une ligne vide pour donner du feedback.
+      // Enter on empty line -> append empty entry as feedback.
       setEntries((prev) => [
         ...prev,
         { id: makeId(), prompt: "", output: [] },
@@ -190,7 +187,7 @@ export function useShell(): ShellApi {
 
     const result = handler(args);
 
-    // Side effects : navigation pour quelques commandes spéciales.
+    // Side effects: navigation for special commands.
     if (cmdName === "history") {
       window.location.href = "/history";
     } else if (cmdName === "memory-page") {
@@ -216,7 +213,7 @@ export function useShell(): ShellApi {
       },
     ]);
 
-    // Si la commande expose un runner async, on le démarre maintenant.
+    // If command exposes async runner, start it now.
     if (result.run) {
       startStream(entryId, result.lines, result.run);
     }
@@ -229,7 +226,7 @@ export function useShell(): ShellApi {
     const current = historyIndexRef.current;
     let next = current + (delta === -1 ? -1 : 1);
 
-    // -1 = remonter dans le passé (ex : 5 entrées → indices 4..0).
+    // -1 = go up in history (e.g. 5 entries -> indices 4..0).
     if (current === -1 && delta === -1) next = history.length - 1;
 
     if (next < 0) next = 0;
@@ -252,7 +249,7 @@ export function useShell(): ShellApi {
       return;
     }
     if (matches.length > 1) {
-      // Affiche les candidats dans le buffer comme le ferait un vrai shell.
+      // Show completion candidates in output buffer like a real shell.
       setEntries((prev) => [
         ...prev,
         {

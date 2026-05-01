@@ -45,7 +45,7 @@ _PHASE_LABEL = {pid: label for pid, label in PIPELINE_PHASES}
 
 
 def _summary_for_done(event: dict[str, Any]) -> str:
-    """Construit un petit résumé teal après le `done` d'une phase."""
+    """Build a short teal summary after phase `done` event."""
     phase = event.get("phase")
 
     if phase == "resolve":
@@ -230,16 +230,16 @@ async def consume_audit_stream(
                         full_result = event.get("result")
 
     if full_result is None:
-        raise RuntimeError("Stream terminé sans payload de rapport final.")
+        raise RuntimeError("Stream ended without final report payload.")
     return full_result, payment_tx
 
 
-# ─── Helpers de plus haut niveau (utilisés depuis cli.py) ────────────────────
+# ─── High-level helpers (used from cli.py) ────────────────────────────────────
 
 async def run_streaming_audit_local(api_url: str, path: str) -> tuple[dict[str, Any], str | None]:
-    """Lance un audit --local en streaming et retourne le payload final et le tx paiement si présent."""
-    info("Pipeline démarré — voir progression ci-dessous.")
-    # Lecture longue (Phase 4 agent) sans couper la connexion : read élevé, connect raisonnable
+    """Run a --local audit in streaming mode and return final payload + payment tx if present."""
+    info("Pipeline started — see progress below.")
+    # Long reads (Phase 4 agent) without cutting connection: high read, reasonable connect.
     tout = httpx.Timeout(connect=60.0, read=7200.0, write=60.0, pool=7200.0)
     async with httpx.AsyncClient(timeout=tout) as client:
         return await consume_audit_stream(
@@ -255,11 +255,11 @@ async def run_streaming_paid_audit(
     path: str,
     x_payment_header: str,
 ) -> tuple[dict[str, Any], str | None]:
-    """Lance un audit paid en streaming et retourne le payload final et le tx paiement si présent.
+    """Run a paid audit in streaming mode and return final payload + payment tx if present.
 
-    Le header X-PAYMENT a déjà été construit côté caller (cf. x402_client.py).
+    X-PAYMENT header is already built by caller (see x402_client.py).
     """
-    info("Pipeline démarré — voir progression ci-dessous.")
+    info("Pipeline started — see progress below.")
     tout = httpx.Timeout(connect=60.0, read=7200.0, write=60.0, pool=7200.0)
     async with httpx.AsyncClient(timeout=tout) as client:
         return await consume_audit_stream(

@@ -81,9 +81,9 @@ function LineView({ line }: { line: ShellLine }) {
 }
 
 function EntryView({ entry }: { entry: ShellEntry }) {
-  // Pour les entrées streamées (typewriter), chaque nouvelle ligne fade-in
-  // au montage. Les remontages dus à `replace()` ne re-déclenchent pas
-  // l'animation car les keys sont stables (index dans output).
+  // For streamed entries (typewriter), each new line fades in on mount.
+  // Re-renders from `replace()` do not restart animation because keys
+  // remain stable (index in output).
   const lineWrapper = entry.typewriter ? "animate-fade-in-up" : "";
 
   return (
@@ -112,7 +112,7 @@ export function Shell() {
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
 
-  // Autoscroll en bas à chaque nouvel entry.
+  // Auto-scroll to bottom on each new entry.
   useEffect(() => {
     const el = scrollerRef.current;
     if (el) el.scrollTop = el.scrollHeight;
@@ -141,9 +141,9 @@ export function Shell() {
     }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "l") {
       e.preventDefault();
-      // Ctrl+L / Cmd+L : émule `clear`
+      // Ctrl+L / Cmd+L: emulate `clear`.
       setInput("");
-      // Ré-injection en passant par submit avec "clear"
+      // Re-inject through submit with "clear".
       setTimeout(() => {
         setInput("clear");
         setTimeout(() => submit(), 0);
@@ -156,7 +156,7 @@ export function Shell() {
       className="flex flex-col h-full w-full bg-[--terminal-bg] text-[--terminal-label] font-mono text-sm"
       onClick={() => inputRef.current?.focus()}
     >
-      {/* Output buffer — min-h-0 requis pour que flex-1 + overflow-y-auto fonctionne */}
+      {/* Output buffer — min-h-0 required for flex-1 + overflow-y-auto */}
       <div
         ref={scrollerRef}
         className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-4 space-y-3 leading-relaxed"

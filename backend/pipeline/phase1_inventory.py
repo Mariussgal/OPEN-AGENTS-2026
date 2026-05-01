@@ -38,7 +38,7 @@ def analyze_solidity_file(file_path: str) -> Dict[str, Any]:
 
 
 def generate_file_hash(file_path: str) -> str:
-    """Hash SHA256 du contenu du fichier."""
+    """SHA256 hash of file contents."""
     try:
         if not os.path.exists(file_path):
             return ""
@@ -84,11 +84,11 @@ async def load_known_findings(scope: ResolvedContract) -> tuple[List[Any], set]:
         search_query += f" at {scope.address}"
 
     try:
-        print(f"🧠 [Phase 1] Interrogation de la mémoire vive : '{search_query}'...")
+        print(f"🧠 [Phase 1] Querying live memory: '{search_query}'...")
         search_results = await cognee.recall(search_query)
 
         if search_results:
-            print(f"💡 [Phase 1] {len(search_results)} souvenir(s) récupéré(s) du Knowledge Graph.")
+            print(f"💡 [Phase 1] {len(search_results)} memory hit(s) retrieved from Knowledge Graph.")
             for res in search_results:
                 content = ""
 
@@ -126,7 +126,7 @@ async def load_known_findings(scope: ResolvedContract) -> tuple[List[Any], set]:
                         "pattern_hash": mem_hash,
                     })
         else:
-            print("ℹ️  [Phase 1] Aucun souvenir spécifique trouvé dans le graphe.")
+            print("ℹ️  [Phase 1] No specific memory found in the graph.")
 
     except Exception as e:
         print(f"⚠️  [Phase 1] Cognee Recall Error : {e}")
@@ -135,8 +135,8 @@ async def load_known_findings(scope: ResolvedContract) -> tuple[List[Any], set]:
 
 
 async def run_inventory(scope: ResolvedContract):
-    """Exécute l'inventaire complet avec déduplication activée."""
-    print(f"🔍 [Phase 1] Analyse de {len(scope.files)} fichier(s)...")
+    """Run full inventory with deduplication enabled."""
+    print(f"🔍 [Phase 1] Analyzing {len(scope.files)} file(s)...")
 
     await setup_cognee()
 
@@ -157,7 +157,7 @@ async def run_inventory(scope: ResolvedContract):
             if is_duplicate(p_hash, known_hashes):
                 file_duplicates.append(flag)
                 duplicates_count += 1
-                print(f"  ♻️  Duplicate détecté : {flag} sur {os.path.basename(file_path)}")
+                print(f"  ♻️  Duplicate detected: {flag} in {os.path.basename(file_path)}")
 
         inventory_details.append({
             "file":         file_path,

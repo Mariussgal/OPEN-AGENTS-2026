@@ -40,7 +40,7 @@ def _usdc_balance_base_sepolia(address: str) -> float:
 
 
 async def _assert_usdc_covers_quote(private_key: str, price_usd: float) -> None:
-    """Bloque un audit payant si le portefeuille n’a pas assez d’USDC sur Base Sepolia."""
+    """Block paid audit when wallet does not have enough USDC on Base Sepolia."""
     account = Account.from_key(private_key)
     bal = await asyncio.to_thread(_usdc_balance_base_sepolia, account.address)
     if bal + 1e-6 < price_usd:
@@ -117,7 +117,7 @@ def sign_server_reward(contributor_address: str, amount_usdc: float = 0.15) -> d
     """
     private_key = os.getenv("OG_PRIVATE_KEY")
     if not private_key:
-        raise ValueError("OG_PRIVATE_KEY manquante pour le remboursement")
+        raise ValueError("Missing OG_PRIVATE_KEY for refund path")
 
     # Configuration Base Sepolia USDC
     USDC_ADDRESS = "0x036CbD53842c5426634e7929541eC2318f3dCF7e"
@@ -170,43 +170,43 @@ async def fetch_quote(api_url: str, path: str) -> dict:
 
 
 async def prepare_x_payment(api_url: str, path: str) -> tuple[str, float, int]:
-    """Récupère le quote, demande confirmation user, signe l'autorisation EIP-3009.
+    """Fetch quote, ask for user confirmation, sign EIP-3009 authorization.
 
     Returns:
         (x_payment_header, price_usd, nb_files)
 
     Raises:
-        click.Abort si l'utilisateur refuse le paiement.
-        click.ClickException si la clé privée est manquante.
+        click.Abort if user declines payment.
+        click.ClickException if private key is missing.
     """
     private_key = os.getenv("OG_PRIVATE_KEY")
     if not private_key:
-        raise click.ClickException("Clé privée OG_PRIVATE_KEY manquante.")
+        raise click.ClickException("Missing private key OG_PRIVATE_KEY.")
 
     # 1. Quote
-    click.secho("  ⟳  Récupération du prix...", fg="cyan")
+    click.secho("  ⟳  Fetching quote...", fg="cyan")
     quote    = await fetch_quote(api_url, path)
     price    = float(quote["price_usd"])
     nb_files = quote["files_count"]
     reqs     = quote["payment_requirements"]
 
-    click.secho(f"  →  {nb_files} fichier(s) détecté(s) — Prix : {price} USDC", fg="yellow")
+    click.secho(f"  →  {nb_files} file(s) detected — Price: {price} USDC", fg="yellow")
 
     await _assert_usdc_covers_quote(private_key, price)
 
-    if not click.confirm("  Procéder au paiement x402 ?"):
+    if not click.confirm("  Proceed with x402 payment?"):
         raise click.Abort()
 
     # 2. Signature EIP-3009
-    click.secho("  ⟳  Signature du paiement (EIP-3009)...", fg="cyan")
+    click.secho("  ⟳  Signing payment (EIP-3009)...", fg="cyan")
     x_payment = _build_x_payment_header(reqs[0], private_key, price)
-    click.secho("  ✓  Payload signé (EIP-712)", fg="green")
+    click.secho("  ✓  Payload signed (EIP-712)", fg="green")
 
     return x_payment, price, nb_files
 
 
 async def run_paid_audit(api_url: str, path: str) -> dict:
-    """Mode paid non-streaming (legacy). Conservé pour rétrocompat."""
+    """Paid non-streaming mode (legacy). Kept for backward compatibility."""
     x_payment, _price, _nb = await prepare_x_payment(api_url, path)
 
     click.secho("  ⟳  Envoi au serveur avec X-PAYMENT...", fg="cyan")

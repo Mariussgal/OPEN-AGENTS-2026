@@ -225,15 +225,15 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-[--background] text-[--foreground] relative overflow-x-hidden">
-      {/* Glow brand discret derrière le hero */}
+      {/* Subtle brand glow behind hero */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-3xl h-[420px] bg-[--terminal-brand] opacity-[0.06] rounded-[100%] blur-[120px] pointer-events-none" />
 
-      {/* ═════ HEADER — sticky, 3 colonnes égales ══════════════════════════ */}
+      {/* ═════ HEADER — sticky, 3 equal columns ════════════════════════════ */}
       <header className="sticky top-0 z-30 backdrop-blur-md bg-[--background]/80 border-b border-[--terminal-border]">
-        {/* Layout desktop : 3 colonnes — brand | text centré | nav */}
+        {/* Desktop layout: 3 columns — brand | centered text | nav */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 grid grid-cols-3 items-center">
 
-          {/* Col 1 — brand (gauche) */}
+          {/* Col 1 — brand (left) */}
           <div className="flex justify-start">
             <button
               onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
@@ -257,20 +257,20 @@ export default function HomePage() {
             </button>
           </div>
 
-          {/* Col 2 — text (centre) */}
+          {/* Col 2 — text (center) */}
           <div className="hidden md:flex justify-center">
             <span className="text-[10px] uppercase tracking-[0.25em] font-mono text-[--terminal-muted] whitespace-nowrap">
               ETHGlobal · Open Agents 2026
             </span>
           </div>
 
-          {/* Col 3 — nav (droite) */}
+          {/* Col 3 — nav (right) */}
           <div className="flex justify-end items-center gap-4">
             <nav className="hidden md:flex items-center gap-6">
               <NavLinks />
             </nav>
 
-            {/* Mobile : burger */}
+            {/* Mobile: burger */}
             <button
               className="md:hidden text-[--terminal-muted] hover:text-[--terminal-accent] transition-colors p-1"
               onClick={() => setMenuOpen(!menuOpen)}

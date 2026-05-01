@@ -34,7 +34,7 @@ async def run_phase5_anchor(findings: List[Dict]) -> List[Dict]:
                 tx = await get_anchor_tx_from_chain(finding["pattern_hash"])
                 if tx:
                     finding["tx_hash"] = tx
-                    logger.info(f"  ✓ tx résolue depuis Etherscan : {tx}")
+                    logger.info(f"  ✓ tx resolved from Etherscan: {tx}")
             anchored_results.append(finding)
             continue
 
@@ -69,7 +69,7 @@ async def run_phase5_anchor(findings: List[Dict]) -> List[Dict]:
 
             if kh.get("skipped"):
                 logger.warning(
-                    "  KeeperHub non configuré — JSON sur 0G uniquement "
+                    "  KeeperHub not configured — JSON on 0G only "
                     "(fixe KEEPERHUB_API_KEY + ANCHOR_REGISTRY_ADDRESS)."
                 )
             elif kh.get("error"):
@@ -94,7 +94,7 @@ async def run_phase5_anchor(findings: List[Dict]) -> List[Dict]:
                         finding["tx_hash"] = tx
                         logger.info(f"  ✓ tx onchain (retry) : {tx}")
                     else:
-                        logger.warning(f"  ⚠ tx non encore minée — executionId conservé")
+                        logger.warning("  ⚠ tx not mined yet — executionId kept")
 
                 proof = finding.get("tx_hash") or finding.get("execution_id")
                 logger.info(f"  → KeeperHub OK — preuve: {proof}")

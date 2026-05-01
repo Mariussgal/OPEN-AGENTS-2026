@@ -42,7 +42,7 @@ def _derive_ens_label(
     scope,
     report_hash: str | None = None,
 ) -> str:
-    """Label ENS unique selon la source du contrat audité."""
+    """Unique ENS label based on audited contract source."""
     suffix = ""
     if report_hash and len(report_hash) >= 10:
         suffix = f"-{report_hash[2:6]}"
@@ -85,7 +85,7 @@ _FIX_SYSTEM = (
 )
 
 async def _generate_fix_sketch(finding: dict, client: OpenAI) -> str:
-    """Génère une correction courte via LLM pour HIGH/MEDIUM findings."""
+    """Generate a short fix via LLM for HIGH/MEDIUM findings."""
     user_msg = (
         f"Title: {finding.get('title', '')}\n"
         f"Severity: {finding.get('severity', '')}\n"
@@ -200,7 +200,7 @@ def _mint_ens_cert(
     """
     try:
         print(f"  [Phase 6] ENS label: {ens_label}")
-        print(f"  [Phase 6] report_hash à passer: {report_hash}")
+        print(f"  [Phase 6] report_hash to pass: {report_hash}")
         print(f"  [Phase 6] longueur: {len(report_hash)}")
 
         cmd = [
@@ -358,7 +358,7 @@ async def run_report(
         contracts_dir     : chemin vers le dossier npm/hardhat contenant scripts/ensManager.ts
                             (défaut: ../contracts depuis backend, ou CONTRACTS_DIR)
     """
-    print("📋 [Phase 6] Génération du rapport final...")
+    print("📋 [Phase 6] Generating final report...")
     _contracts_dir = contracts_dir or os.getenv("CONTRACTS_DIR") or _default_contracts_dir()
     client = _get_llm_client()
 
@@ -368,7 +368,7 @@ async def run_report(
     known_findings    = inventory_data.get("known_findings", [])
 
     all_findings = _merge_findings(raw_investigation, raw_slither)
-    print(f"  ↳ {len(all_findings)} finding(s) après fusion (agent: {len(raw_investigation)}, slither-only: {len(all_findings) - len(raw_investigation)})")
+    print(f"  ↳ {len(all_findings)} finding(s) after merge (agent: {len(raw_investigation)}, slither-only: {len(all_findings) - len(raw_investigation)})")
 
     # ── 2. Enrichissement ─────────────────────────────────────────────────────
     enriched: list[dict] = []
@@ -456,7 +456,7 @@ async def run_report(
     ens_url     = None
 
     if high_count == 0:
-        print(f"  ✓ Aucun finding HIGH — label ENS: {ens_label}")
+        print(f"  ✓ No HIGH findings — ENS label: {ens_label}")
         ens_subname, ens_mint_tx = _mint_ens_cert(
             contract_address=contract_addr,
             verdict=final_verdict,
@@ -472,7 +472,7 @@ async def run_report(
             ens_url = f"https://sepolia.app.ens.domains/{ens_subname}"
     else:
         ens_subname, ens_mint_tx = None, None
-        print(f"   {high_count} finding(s) HIGH — certificat ENS non émis")
+        print(f"   {high_count} HIGH finding(s) — ENS certificate not minted")
 
     # ── 6. Rapport final ──────────────────────────────────────────────────────
     og_hits = sum(
@@ -544,7 +544,7 @@ async def run_report(
     }
 
     print(
-        f"\n [Phase 6] Rapport final — verdict: {final_verdict} | "
+        f"\n [Phase 6] Final report — verdict: {final_verdict} | "
         f"HIGH: {high_count} · MED: {medium_count} · LOW: {low_count} | "
         f"anchors: {anchored_count}"
     )

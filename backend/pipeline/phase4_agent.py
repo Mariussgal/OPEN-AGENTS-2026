@@ -182,7 +182,7 @@ TOOLS = [
 # ─── Tool implementations ─────────────────────────────────────────────────────
 
 def tool_read_contract(file: str, function_name: str = None) -> str:
-    """Lit le source Solidity d'un fichier ou d'une fonction spécifique."""
+    """Read Solidity source from a file or specific function."""
     if not os.path.exists(file):
         return f"ERROR: File not found: {file}"
     with open(file, "r", encoding="utf-8") as f:
@@ -265,13 +265,13 @@ async def tool_query_memory(query: str) -> str:
             format_collective_results,
         )
         collective_results = await query_collective_memory(query)
-        print(f"[DEBUG 0G] query='{query}' → {len(collective_results)} résultats")
+        print(f"[DEBUG 0G] query='{query}' -> {len(collective_results)} results")
         if collective_results:
             formatted = format_collective_results(collective_results)
             output_lines.append(formatted)
     except Exception as e:
         import traceback
-        print(f"[0G ERROR DÉTAILLÉ] {e}")
+        print(f"[0G DETAILED ERROR] {e}")
         traceback.print_exc()
         output_lines.append(f"[0G Collective] error: {e}")
 
@@ -282,7 +282,7 @@ async def tool_query_memory(query: str) -> str:
 
 
 def _extract_cognee_content(res) -> str:
-    """Helper pour extraire le contenu d'un résultat Cognee."""
+    """Helper to extract content from a Cognee result."""
     if hasattr(res, "search_result"):
         val = getattr(res, "search_result")
         return "\n".join(val) if isinstance(val, list) else str(val)
@@ -293,7 +293,7 @@ def _extract_cognee_content(res) -> str:
 
 
 def tool_simulate_call(signature: str, args: list = None) -> str:
-    """Simulation Tenderly — optionnel, skippé en dev."""
+    """Tenderly simulation — optional, skipped in dev."""
     return f"[simulate_call skipped — Tenderly not configured] signature={signature} args={args}"
 
 
@@ -315,7 +315,7 @@ async def tool_anchor_finding(pattern_hash: str, root_hash: str) -> str:
 # ─── Tool dispatcher ──────────────────────────────────────────────────────────
 
 async def dispatch_tool(tool_name: str, tool_args: dict, scope_files: list[str]) -> str:
-    """Route l'appel outil de Claude vers la bonne implémentation."""
+    """Route Claude tool call to the correct implementation."""
     if tool_name == "read_contract":
         return tool_read_contract(
             tool_args["file"],
@@ -458,7 +458,7 @@ def _get_fix_hint(label: str) -> str:
 
 
 def _pre_screen(files: list[str]) -> list[dict]:
-    """Détection déterministe par regex des patterns critiques avant l'audit LLM."""
+    """Deterministic regex detection of critical patterns before LLM audit."""
     hits = []
     for file in files:
         try:
@@ -473,7 +473,7 @@ def _pre_screen(files: list[str]) -> list[dict]:
 
 
 def _slither_to_hypotheses(findings: list[dict]) -> str:
-    """Transforme les findings Slither en hypothèses d'enquête pour l'Agent."""
+    """Transform Slither findings into investigation hypotheses for the agent."""
     hypotheses = []
     for f in findings:
         impact = str(f.get("impact", "")).upper()
@@ -489,7 +489,7 @@ def _slither_to_hypotheses(findings: list[dict]) -> str:
 
 
 async def _call_llm_with_retry(client, **kwargs) -> Any:
-    """Appel LLM avec retry exponentiel sur 429, sans sleep systématique."""
+    """LLM call with exponential retry on 429, no systematic sleep."""
     for attempt in range(3):
         try:
             return await asyncio.to_thread(
@@ -504,7 +504,7 @@ async def _call_llm_with_retry(client, **kwargs) -> Any:
                 await asyncio.sleep(wait)
             else:
                 raise
-    raise RuntimeError("LLM rate limit persistent après 3 tentatives")
+    raise RuntimeError("Persistent LLM rate limit after 3 attempts")
 
 
 # ─── Main agent loop ──────────────────────────────────────────────────────────
@@ -516,10 +516,10 @@ async def run_investigation(
     triage_data: dict
 ) -> dict:
     """
-    Agent adversarial claude-sonnet-4-5 avec 7 outils, 30 turns max.
-    Retourne les findings confirmés + anchors onchain.
+    Adversarial claude-sonnet-4-5 agent with 7 tools, 30 turns max.
+    Returns confirmed findings + onchain anchors.
     """
-    print(f"🕵️  [Phase 4] Agent adversarial — {len(scope.files)} fichier(s)...")
+    print(f"🕵️  [Phase 4] Adversarial agent — {len(scope.files)} file(s)...")
     await setup_cognee()
     auto_findings: list[dict] = []
 
@@ -530,7 +530,7 @@ async def run_investigation(
     # Court-circuit total si demandé via ENV (bypass LLM pour CRITICAL évidents)
     critical_hits = [h for h in screening_hits if "CRITICAL" in h["label"]]
     if critical_hits:
-        print(f"  ⚡ Fast-path : {len(critical_hits)} pattern(s) critiques détectés par regex")
+        print(f"  ⚡ Fast-path: {len(critical_hits)} critical pattern(s) detected by regex")
         
         # Génère les findings préliminaires sans LLM
         auto_findings = [{
@@ -544,7 +544,7 @@ async def run_investigation(
         } for h in critical_hits]
 
         if os.getenv("ONCHOR_SKIP_LLM_ON_CRITICAL", "").lower() == "true":
-            print(f"  ⚡ ONCHOR_SKIP_LLM_ON_CRITICAL=true — BYPASS TOTAL de l'agent LLM")
+            print("  ⚡ ONCHOR_SKIP_LLM_ON_CRITICAL=true — full LLM agent bypass")
             return {
                 "findings": auto_findings,
                 "anchored": [],
@@ -572,14 +572,14 @@ async def run_investigation(
         MODEL = "anthropic/claude-haiku-4-5"
         MAX_TURNS = 8
 
-    print(f"  ↳ Routage : {MODEL} ({MAX_TURNS} turns max) | Risk: {risk_score}")
+    print(f"  ↳ Routing: {MODEL} ({MAX_TURNS} turns max) | Risk: {risk_score}")
 
     # Pre-chargement de la mémoire collective ( Phase 1++ )
     if critical_hits:
-        print("  ⚡ Fast-path : skip pre-chargement mémoire collective")
+        print("  ⚡ Fast-path: skip collective memory pre-load")
         memory_context = "Skipped — fast-path confirmation mode. Query memory tool if needed."
     else:
-        print("  ⟳  Pre-chargement de la mémoire collective...")
+        print("  ⟳  Pre-loading collective memory...")
         memory_query = "ERC20 token vulnerabilities balance assignment admin function honeypot access control"
         try:
             memory_context = await asyncio.wait_for(
@@ -587,10 +587,10 @@ async def run_investigation(
                 timeout=3.0
             )
         except asyncio.TimeoutError:
-            print("  ⚠ Timeout mémoire (3s) : l'agent interrogera à la demande")
+            print("  ⚠ Memory timeout (3s): the agent will query on demand")
             memory_context = "Memory timeout during pre-load. Use query_memory tool if needed."
         except Exception as e:
-            print(f"  ⚠ Erreur mémoire : {e}")
+            print(f"  ⚠ Memory error: {e}")
             memory_context = f"Memory error: {e}"
 
     client = get_agent_client()
@@ -613,7 +613,7 @@ async def run_investigation(
                     f"Flagged by pre-screening: {screening_str}"
                 )
         except Exception as e:
-            print(f"  ⚠ Impossible de charger {file} : {e}")
+            print(f"  ⚠ Unable to load {file}: {e}")
             initial_context[file] = f"[ERROR: could not read file — {e}]"
 
     slither_findings = slither_data.get("findings", [])
@@ -657,8 +657,8 @@ Anchor LIKELY and CONFIRMED only.
 
     # Court-circuit si pre-screening critique (déjà calculé en début de fonction)
     if critical_hits:
-        print(f"  ⚡ Pre-screening court-circuit : {len(critical_hits)} finding(s) critiques détectés")
-        print(f"  ↳ Agent LLM lancé en mode CONFIRMATION uniquement")
+        print(f"  ⚡ Pre-screening short-circuit: {len(critical_hits)} critical finding(s) detected")
+        print("  ↳ LLM agent running in CONFIRMATION-ONLY mode")
 
         # L'agent ne fait que confirmer, pas explorer
         initial_message += f"""

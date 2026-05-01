@@ -130,7 +130,7 @@ def _build_requirements(nb_files: int, price_usd: float):
         pay_to=RECEIVER_ADDRESS,
         price=f"${price_usd:.2f}",
         resource=f"{API_BASE_URL}/audit",
-        description=f"Onchor.ai audit — {nb_files} fichier(s)",
+        description=f"Onchor.ai audit — {nb_files} file(s)",
     )
     return x402_server.build_payment_requirements(config)
 
@@ -164,7 +164,7 @@ async def run_audit(
     if not x_payment:
         raise HTTPException(
             status_code=402,
-            detail="X-PAYMENT header manquant. Appelle GET /audit/quote d'abord.",
+            detail="Missing X-PAYMENT header. Call GET /audit/quote first.",
         )
 
     scope     = await resolve_scope(path)
@@ -179,7 +179,7 @@ async def run_audit(
         payload_dict = json.loads(payload_json)
         payload      = PaymentPayload.model_validate(payload_dict)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"X-PAYMENT header invalide : {e}")
+        raise HTTPException(status_code=400, detail=f"Invalid X-PAYMENT header: {e}")
 
     async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as http:
         facilitator_resp = await http.post(
@@ -195,7 +195,7 @@ async def run_audit(
     if not facilitator_data.get("isValid"):
         raise HTTPException(
             status_code=402,
-            detail=f"Paiement invalide : {facilitator_data.get('invalidReason', 'inconnu')}",
+            detail=f"Invalid payment: {facilitator_data.get('invalidReason', 'unknown')}",
         )
 
     async with httpx.AsyncClient(timeout=300.0, follow_redirects=True) as http:
@@ -212,11 +212,11 @@ async def run_audit(
     if not settle_data.get("success"):
         raise HTTPException(
             status_code=402,
-            detail=f"Settlement échoué : {settle_data.get('error', 'inconnu')}",
+            detail=f"Settlement failed: {settle_data.get('error', 'unknown')}",
         )
 
     tx_hash = settle_data.get("transaction")
-    print(f"✅ USDC settlé onchain — tx: {tx_hash}")
+    print(f"✅ USDC settled onchain — tx: {tx_hash}")
 
     # ── Pipeline complet ──────────────────────────────────────────────────────
     target = path
@@ -228,7 +228,7 @@ async def run_audit(
     triage_data        = await run_triage(slither_data, inventory_data)
     investigation_data = await run_investigation(scope, slither_data, inventory_data, triage_data)
 
-    # Phase 5 : Ancrage de sécurité
+    # Phase 5: security anchoring
     anchored_findings = await run_phase5_anchor(investigation_data.get("findings", []))
     investigation_data["findings"] = anchored_findings
 
@@ -266,7 +266,7 @@ async def run_audit(
         return {
             "status":  "success",
             "phase":   "gate_safe",
-            "message": "Contrat jugé SAFE.",
+            "message": "Contract assessed as SAFE.",
             "triage":  triage_data,
             "report":  report,
         }
@@ -288,7 +288,7 @@ async def run_audit(
 
 @app.post("/audit/local")
 async def run_audit_local(path: str):
-    """Route gratuite — mode --local ou --dev, sans paiement."""
+    """Free route — --local or --dev mode, without payment."""
     scope  = await resolve_scope(path)
     target = path
     if scope.is_onchain and scope.files:
@@ -329,20 +329,19 @@ async def run_audit_local(path: str):
 
 
 # ── Streaming variants (NDJSON) ──────────────────────────────────────────────
-# Versions streaming des routes ci-dessus. Émettent un event JSON par ligne
-# (`application/x-ndjson`) au fil de l'exécution des 7 phases pour que le CLI
-# puisse afficher une progress bar dynamique. Le payload final est strictement
-# identique à celui des routes non-stream.
+# Streaming variants of the routes above. Emit one JSON event per line
+# (`application/x-ndjson`) during the 7 phases so the CLI can display
+# a dynamic progress bar. Final payload is strictly identical to non-stream routes.
 
 
 @app.post("/audit/local/stream")
 async def run_audit_local_stream(path: str):
-    """Variante streaming de /audit/local — NDJSON, 1 event par phase."""
+    """Streaming variant of /audit/local — NDJSON, one event per phase."""
     scope = await resolve_scope(path)
     if not scope.files:
         raise HTTPException(
             status_code=400,
-            detail=f"Aucun fichier Solidity trouvé : {path}"
+            detail=f"No Solidity files found: {path}"
         )
     return StreamingResponse(
         stream_audit_pipeline(path),
@@ -360,23 +359,23 @@ async def run_audit_stream(
     path: str,
     x_payment: Optional[str] = Header(default=None),
 ):
-    """Variante streaming de /audit (paid) — NDJSON, 1 event par phase.
+    """Streaming variant of /audit (paid) — NDJSON, one event per phase.
 
-    Le paiement x402 (verify + settle) émet deux events `phase: payment` au
-    début du flux. Le pipeline démarre seulement si le settlement réussit.
+    x402 payment (verify + settle) emits two `phase: payment` events at stream start.
+    Pipeline starts only if settlement succeeds.
     """
     if not x_payment:
         raise HTTPException(
             status_code=402,
-            detail="X-PAYMENT header manquant. Appelle GET /audit/quote d'abord.",
+            detail="Missing X-PAYMENT header. Call GET /audit/quote first.",
         )
 
-    # ── Pré-validation x402 (synchrone — peut 4xx avant streaming) ───────────
+    # ── x402 pre-validation (synchronous — may 4xx before streaming) ─────────
     scope     = await resolve_scope(path)
     if not scope.files:
         raise HTTPException(
             status_code=400,
-            detail=f"Aucun fichier Solidity trouvé : {path}"
+            detail=f"No Solidity files found: {path}"
         )
     nb_files  = len(scope.files)
     price_usd = calculate_price(nb_files)
@@ -389,7 +388,7 @@ async def run_audit_stream(
         payload_dict = json.loads(payload_json)
         PaymentPayload.model_validate(payload_dict)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"X-PAYMENT header invalide : {e}")
+        raise HTTPException(status_code=400, detail=f"Invalid X-PAYMENT header: {e}")
 
     async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as http:
         verify_resp = await http.post(
@@ -405,7 +404,7 @@ async def run_audit_stream(
     if not verify_data.get("isValid"):
         raise HTTPException(
             status_code=402,
-            detail=f"Paiement invalide : {verify_data.get('invalidReason', 'inconnu')}",
+            detail=f"Invalid payment: {verify_data.get('invalidReason', 'unknown')}",
         )
 
     # ── Wrapper async generator : payment events → pipeline → persistance ───
@@ -433,7 +432,7 @@ async def run_audit_stream(
             return
 
         tx_hash = settle_data.get("transaction")
-        print(f"USDC settlé onchain — tx: {tx_hash}")
+        print(f"USDC settled onchain — tx: {tx_hash}")
         yield emit({"phase": "payment", "status": "done",
                     "tx_hash": tx_hash, "amount_usd": price_usd})
 
@@ -496,27 +495,27 @@ async def send_reward(
     amount: float,
     findings: List[dict] = Body(default=[]),
 ):
-    print(f"💰 Requête de récompense reçue : {amount} USDC pour {contributor_address}")
+    print(f"💰 Reward request received: {amount} USDC for {contributor_address}")
     clean_amount = round(float(amount), 2)
     contributed = []
 
-    # 1. Upload réel sur 0G + mise à jour manifest
+    # 1. Real upload to 0G + manifest update
     if findings:
         try:
             from memory.collective_0g import contribute_patterns
             contributed = await contribute_patterns(findings)
-            print(f"[0G] {len(contributed)} pattern(s) ajouté(s) à la mémoire collective")
+            print(f"[0G] {len(contributed)} pattern(s) added to collective memory")
         except Exception as e:
-            print(f"[0G] Contribution failed (paiement quand même): {e}")
+            print(f"[0G] Contribution failed (payment still proceeds): {e}")
 
-    # 2. Paiement USDC
+    # 2. USDC payment
     dummy_hash = "0x" + hashlib.sha256(contributor_address.encode()).hexdigest()
     tx_hash = await anchor_contribution(dummy_hash, dummy_hash, contributor_address, amount_usdc=clean_amount)
 
     if tx_hash in ["payment_failed", "error", "no_gas"]:
-        detail = "Échec du transfert USDC."
+        detail = "USDC transfer failed."
         if tx_hash == "no_gas":
-            detail = "Wallet serveur sans ETH — rechargez-le via faucet Base Sepolia"
+            detail = "Server wallet has no ETH — top it up via Base Sepolia faucet"
         raise HTTPException(status_code=500, detail=detail)
 
     return {"status": "success", "tx": tx_hash, "contributed": contributed}
@@ -525,7 +524,7 @@ async def send_reward(
 
 @app.get("/user/balance")
 async def get_user_balance(address: str):
-    """Récupère le solde USDC réel on-chain pour une adresse donnée."""
+    """Fetch real onchain USDC balance for a given address."""
     from web3 import Web3
     try:
         w3 = Web3(Web3.HTTPProvider("https://sepolia.base.org"))
@@ -546,7 +545,7 @@ async def get_wallet_info():
     from eth_account import Account
 
     private_key = os.getenv("OG_PRIVATE_KEY")
-    address     = Account.from_key(private_key).address if private_key else "Non configuré"
+    address     = Account.from_key(private_key).address if private_key else "Not configured"
 
     balance_usdc = 0.0
     try:
@@ -590,7 +589,7 @@ async def get_audit_report(audit_id: str):
     audits = _load_audits()
     audit  = next((a for a in audits if a["id"] == audit_id), None)
     if not audit:
-        raise HTTPException(status_code=404, detail="Audit non trouvé")
+        raise HTTPException(status_code=404, detail="Audit not found")
 
     if not audit.get("verdict"):
         audit["verdict"] = _map_verdict(audit.get("triage", {}))

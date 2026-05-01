@@ -70,23 +70,23 @@ async def _ensure_cognee_db_ready() -> None:
         await create_db_and_tables()
         await get_default_user()
     except Exception as e:
-        print(f"⚠️  [Cognee] Init DB / utilisateur par défaut : {e}")
+        print(f"⚠️  [Cognee] DB init / default user: {e}")
 
 
 async def setup_cognee():
-    """Initialise Cognee avec la mémoire globale."""
+    """Initialize Cognee with global memory."""
 
     await _ensure_cognee_db_ready()
 
     api_key = os.getenv("LLM_API_KEY")
     if not api_key:
-        print("❌ ERREUR : LLM_API_KEY est absente du .env")
+        print("❌ ERROR: LLM_API_KEY is missing in .env")
         return False
 
     cognee.config.set_llm_provider("openai")
     cognee.config.set_llm_model("gpt-4o-mini")
 
-    print(f"✅ Moteur Cognee initialisé (Mémoire Globale).")
+    print("✅ Cognee engine initialized (Global Memory).")
     print(f"   System DB : {COGNEE_SYSTEM_DIR}")
     print(f"   Data Dir  : {COGNEE_DATA_DIR}")
     print(f"   Cache     : {COGNEE_CACHE_DIR}")
@@ -94,7 +94,7 @@ async def setup_cognee():
 
 
 async def add_finding_to_memory(finding: dict, contract_name: str):
-    """Enregistre la vulnérabilité de façon sécurisée dans le graphe."""
+    """Store vulnerability safely in the graph."""
 
     safe_finding = sanitize_finding_for_memory(finding)
     safe_desc = normalize_snippet(safe_finding.get("description", ""))
@@ -109,16 +109,16 @@ async def add_finding_to_memory(finding: dict, contract_name: str):
     try:
         await cognee.add(text_data)
         await cognee.cognify()
-        print(f"🧠 Graphe mis à jour en mémoire globale : {safe_finding.get('check')} pour {contract_name}")
+        print(f"🧠 Global memory graph updated: {safe_finding.get('check')} for {contract_name}")
     except Exception as e:
-        print(f"❌ Erreur lors de l'ajout en mémoire : {e}")
+        print(f"❌ Error while adding to memory: {e}")
 
 
 async def load_known_findings(scope):
-    """Recherche des vulnérabilités connues dans la mémoire Cognee globale."""
+    """Search known vulnerabilities in global Cognee memory."""
     try:
         results = await cognee.search(f"findings for {scope.name}")
         return results if results else []
     except Exception as e:
-        print(f"⚠️ Erreur lors de la recherche mémoire : {e}")
+        print(f"⚠️ Memory search error: {e}")
         return []

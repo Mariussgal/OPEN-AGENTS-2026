@@ -20,13 +20,13 @@ async def anchor_contribution(
     amount_usdc: float = 0.05
 ) -> str:
     """
-    Ancre une contribution on-chain.
-    Si amount_usdc > 0 → transfert USDC direct (ERC-20) signé par le serveur.
-    Note : x402 est pour paiements ENTRANTS (client→serveur), pas sortants.
+    Anchor one onchain contribution.
+    If amount_usdc > 0 -> direct USDC transfer (ERC-20) signed by server.
+    Note: x402 is for incoming payments (client -> server), not outgoing.
     """
     try:
         if amount_usdc <= 0:
-            logger.info(f"⚓ Ancrage POC pour {pattern_hash} — Pas de récompense.")
+            logger.info(f"⚓ POC anchor for {pattern_hash} — no reward.")
             return "anchored_only"
 
         from web3 import Web3
@@ -34,10 +34,10 @@ async def anchor_contribution(
 
         private_key = os.getenv("OG_PRIVATE_KEY")
         if not private_key:
-            raise ValueError("OG_PRIVATE_KEY manquante")
+            raise ValueError("Missing OG_PRIVATE_KEY")
 
         clean_amount  = round(amount_usdc, 2)
-        amount_atomic = int(clean_amount * 1_000_000)   # 6 décimales USDC
+        amount_atomic = int(clean_amount * 1_000_000)   # 6 USDC decimals
 
         w3      = Web3(Web3.HTTPProvider("https://sepolia.base.org"))
         account = Account.from_key(private_key)
@@ -53,7 +53,7 @@ async def anchor_contribution(
             }]
         )
 
-        # Vérifie le solde ETH avant d'envoyer
+        # Check ETH balance before sending
         eth_balance = w3.eth.get_balance(account.address)
         gas_estimate = 80_000
         gas_price    = w3.eth.gas_price
@@ -63,10 +63,10 @@ async def anchor_contribution(
             eth_needed = w3.from_wei(gas_needed, 'ether')
             eth_have   = w3.from_wei(eth_balance, 'ether')
             logger.error(
-                f"❌ Gas insuffisant — besoin: {eth_needed:.6f} ETH, "
-                f"disponible: {eth_have:.6f} ETH\n"
-                f"   → Recharge le wallet serveur : {account.address}\n"
-                f"   → Faucet Base Sepolia : https://faucet.quicknode.com/base/sepolia"
+                f"❌ Insufficient gas — needed: {eth_needed:.6f} ETH, "
+                f"available: {eth_have:.6f} ETH\n"
+                f"   -> Top up server wallet: {account.address}\n"
+                f"   -> Base Sepolia faucet: https://faucet.quicknode.com/base/sepolia"
             )
             return "no_gas"
 
@@ -81,21 +81,21 @@ async def anchor_contribution(
             "chainId":  84532,
         })
 
-        logger.info(f"💰 Envoi {clean_amount} USDC → {contributor_address} (ERC-20 direct)")
+        logger.info(f"💰 Sending {clean_amount} USDC -> {contributor_address} (direct ERC-20)")
         signed  = account.sign_transaction(tx)
         tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
         receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=60)
 
         hex_hash = tx_hash.hex()
         if receipt.status == 1:
-            logger.info(f"✅ Récompense envoyée — tx: {hex_hash}")
+            logger.info(f"✅ Reward sent — tx: {hex_hash}")
             return hex_hash
         else:
-            logger.error(f"❌ Transaction revertée — tx: {hex_hash}")
+            logger.error(f"❌ Transaction reverted — tx: {hex_hash}")
             return "payment_failed"
 
     except Exception as e:
-        logger.error(f"❌ Erreur transfert USDC direct : {e}")
+        logger.error(f"❌ Direct USDC transfer error: {e}")
         return "error"
 
 async def is_already_anchored(pattern_hash: str) -> bool:
