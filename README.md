@@ -4,15 +4,14 @@
 
 # ONCHOR.AI
 
-**Onchor.ai** is a Solidity security copilot with **persistent collective memory**: **Slither** for a fixed static baseline, **0G** for decentralized pattern storage that grows with audits, **Cognee** for local graph ingest + semantic **recall** fed into the **LLM** (alongside 0G collective queries), plus **KeeperHub** anchoring and **ENS** certification.
+**Onchor.ai** is a Solidity security copilot with **persistent collective memory**: **Slither** for a fixed static baseline, **0G** on **Galileo** for decentralized pattern storage that grows with audits, **Cognee** for local graph ingest + semantic **recall** fed into the **LLM** (alongside 0G collective queries), plus **KeeperHub** anchoring and **ENS** certification.
 
 ---
 
 ### 1. 0G (decentralized storage)
 
-- **Pattern payloads on Galileo:** CONFIRMED / LIKELY findings are serialized (title, reason, severity, file, line, etc.) and uploaded through the `0g/` Node helpers; the pipeline records a **`rootHash`** used as the immutable content pointer.
-- **Modes:** `OG_STORAGE_MODE` supports `live` (real 0G testnet), `merkle` (root only), and `mock` (local files under `backend/storage/.zero_g_mock/`). See `backend/storage/zero_g_client.py`.
-- **Wallet / gas:** Galileo testnet for storage operations
+- **Pattern payloads on Galileo:** CONFIRMED / LIKELY findings are serialized (title, reason, severity, file, line, etc.) and uploaded through the `0g/` Node helpers; the pipeline records a **`rootHash`** used as the immutable content pointer against **0G Galileo**.
+- **Wallet / gas:** Galileo testnet for storage operations.
 
 
 ---
@@ -36,7 +35,7 @@
 Onchor combines a **fixed static baseline** with a **decentralized memory** that **feeds itself** over time — the “open agent” idea: every audit can strengthen what the next one knows.
 
 - **Slither (fixed layer):** **Slither** brings a **stable, built-in rule set** of vulnerability detectors. It always runs the same static-analysis corpus on your code and yields a structured list of candidates before triage and LLM investigation — think of it as the **fixed reference** layer.
-- **0G (collective layer):** **0G storage** is our **shared / collective memory**: verified pattern payloads (hashed content) live on the network and accumulate as audits run — especially when findings are **anchored** (and when users opt in to contribute patterns). The store **replenishes itself** from the pipeline instead of staying a closed file.
+- **0G (collective layer):** **0G** on **Galileo** is our **shared / collective memory**: verified pattern payloads (hashed content) sit on the network and accumulate as audits run — especially when findings are **anchored** (and when users opt in to contribute patterns).
 - **Cognee (local graph + recall):** Vulnerable snippets are **sanitized** (`memory/privacy_guard.py`), flattened to **structured text** (type / severity / description), then **`cognee.add` + `cognee.cognify()`** build Cognee’s graph under **`~/.onchor-ai/memory`**. **Phase 1** runs **`cognee.recall`** and turns hits into **`known_findings` dicts** for dedup / triage. **Phase 4** **`tool_query_memory`** combines **Cognee recall** (local) and **`query_collective_memory`** (**0G** manifest) so the LLM sees both. So: Cognee is **not** “only JSON filing” — it’s a **real local store + graph pipeline**; **cross-user, content-addressed blobs** stay centered on **0G** (`memory/collective_0g.py`) plus anchoring/contributions.
 - **Paid path:** In the default **pip-install** flow, audits are **paid via x402**, which runs the full pipeline against that memory stack.
 - **Opt-in contribution:** At the **end** of a paid audit, the CLI asks if you want to contribute **anonymized** patterns to the shared memory. If you accept, you get **0.05 USDC per finding** on **Base Sepolia**, for **up to three findings** per opt-in.
@@ -67,7 +66,7 @@ flowchart LR
         AR["AnchorRegistry"]
     end
 
-    G["0G Storage\n(Galileo)"]
+    G["0G\n(Galileo)"]
     KH["KeeperHub\nDirect Execution"]
     ENSn["ENS\nRegistry + Resolver"]
 
