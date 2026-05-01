@@ -146,7 +146,7 @@ const HERO_BG_ASCII = String.raw`
                                                                               ..:                                                                              
                                                                                                                                                                
                                                                                                                                                                
-                                                                                                                                                               `;
+                                                                                                                                                              `;
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -168,18 +168,18 @@ function CopyCommand({
   return (
     <div
       className={[
-        "group inline-flex items-center gap-3 terminal-box rounded-sm pl-3 pr-1 py-1.5 hover:border-[--terminal-brand]/60 transition-colors max-w-full",
+        "group inline-flex min-w-0 items-center gap-2 sm:gap-3 terminal-box rounded-sm pl-3 pr-1 py-1.5 hover:border-[--terminal-brand]/60 transition-colors max-w-full",
         className,
       ].join(" ")}
     >
       {showPrompt && <span className="font-mono text-xs text-[--terminal-accent] shrink-0">$</span>}
-      <code className="font-mono text-xs sm:text-sm text-[--terminal-label] truncate min-w-0">{cmd}</code>
+      <code className="font-mono text-xs sm:text-sm lg:text-base text-[--terminal-label] truncate min-w-0">{cmd}</code>
       <button
         onClick={copy}
         aria-label="Copy install command"
-        className="shrink-0 p-1.5 rounded-sm text-[--terminal-muted] hover:text-[--terminal-accent] hover:bg-[--terminal-bg] transition-colors"
+        className="shrink-0 p-1.5 lg:p-2 rounded-sm text-[--terminal-muted] hover:text-[--terminal-accent] hover:bg-[--terminal-bg] transition-colors"
       >
-        {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+        {copied ? <Check className="w-3.5 h-3.5 lg:w-4 lg:h-4" /> : <Copy className="w-3.5 h-3.5 lg:w-4 lg:h-4" />}
       </button>
     </div>
   );
@@ -231,7 +231,7 @@ export default function HomePage() {
       {/* ═════ HEADER — sticky, 3 equal columns ════════════════════════════ */}
       <header className="sticky top-0 z-30 backdrop-blur-md bg-[--background]/80 border-b border-[--terminal-border]">
         {/* Desktop layout: 3 columns — brand | centered text | nav */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 grid grid-cols-3 items-center">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 grid grid-cols-[minmax(0,1fr)_auto] md:grid-cols-3 items-center gap-3">
 
           {/* Col 1 — brand (left) */}
           <div className="flex justify-start">
@@ -289,14 +289,14 @@ export default function HomePage() {
         )}
       </header>
 
-      <main className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 pt-16 sm:pt-20 pb-32 space-y-28 sm:space-y-32">
+      <main className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 pt-10 sm:pt-20 pb-20 sm:pb-32 space-y-20 sm:space-y-28 lg:space-y-32">
 
         {/* ═════ HERO ═════════════════════════════════════════════════════ */}
-        <section className="text-center max-w-4xl mx-auto flex flex-col items-center justify-center relative min-h-[60vh] sm:min-h-[calc(100vh-140px)] py-10 sm:py-20">
+        <section className="text-center max-w-5xl mx-auto flex flex-col items-center justify-center relative min-h-[calc(100svh-88px)] sm:min-h-[calc(100vh-140px)] py-16 sm:py-20">
           {/* ASCII background — below title on mobile, top-aligned on sm+ */}
-          <div className="pointer-events-none absolute top-32 bottom-0 sm:-top-20 sm:bottom-auto left-1/2 -translate-x-1/2 w-screen select-none overflow-hidden flex justify-center items-start sm:block" aria-hidden>
+          <div className="pointer-events-none absolute top-24 sm:-top-8 left-1/2 -translate-x-1/2 w-screen select-none overflow-visible flex justify-center items-start" aria-hidden>
             <pre
-              className="font-mono text-[7px] leading-[0.9] text-[--terminal-brand]/20 whitespace-pre scale-[0.65] origin-top sm:scale-100 sm:mx-auto"
+              className="font-mono text-[7px] leading-[0.9] text-[--terminal-brand]/18 whitespace-pre origin-top scale-[0.56] min-[420px]:scale-[0.66] sm:scale-[0.76] lg:scale-[1.15] xl:scale-[1.28]"
               style={{ width: "max-content" }}
             >
               {HERO_BG_ASCII}
@@ -304,10 +304,10 @@ export default function HomePage() {
           </div>
 
           {/* Veil to keep text readable */}
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[--background]/30 via-[--background]/60 to-[--background]" />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[--background]/50 via-[--background]/72 to-[--background]" />
 
           <h1
-            className="animate-fade-in-up opacity-0 text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-5 sm:mb-8 text-balance leading-[1.05] px-2 -mt-16 sm:mt-0"
+            className="relative z-10 animate-fade-in-up opacity-0 text-4xl min-[380px]:text-5xl sm:text-5xl md:text-6xl lg:text-8xl xl:text-[6.75rem] font-bold tracking-tight mb-5 sm:mb-8 lg:mb-10 text-balance leading-[1.05] px-1"
             style={{ animationDelay: "100ms" }}
           >
             <span className="text-[--terminal-label]">The audit tool that</span>{" "}
@@ -315,14 +315,14 @@ export default function HomePage() {
           </h1>
 
           <div
-            className="animate-fade-in-up opacity-0 flex flex-col items-center justify-center gap-3 mb-6 sm:mb-10 w-full px-4 sm:px-0"
+            className="relative z-10 animate-fade-in-up opacity-0 flex flex-col items-center justify-center gap-3 mb-6 sm:mb-10 w-full px-2 sm:px-0"
             style={{ animationDelay: "200ms" }}
           >
-            <CopyCommand cmd={INSTALL_CMD} className="w-full sm:w-auto max-w-xs sm:max-w-none" />
+            <CopyCommand cmd={INSTALL_CMD} className="w-full sm:w-auto max-w-sm sm:max-w-none lg:text-base lg:px-4 lg:py-2" />
           </div>
 
           <p
-            className="animate-fade-in-up opacity-0 text-sm sm:text-lg text-[--terminal-muted] max-w-2xl text-balance leading-relaxed font-mono mt-80 sm:mt-14 px-2"
+            className="relative z-10 animate-fade-in-up opacity-0 text-sm sm:text-lg lg:text-xl text-[--terminal-muted] max-w-2xl lg:max-w-3xl text-balance leading-relaxed font-mono px-1"
             style={{ animationDelay: "300ms" }}
           >
             A Solidity security copilot with persistent collective memory.
@@ -332,7 +332,7 @@ export default function HomePage() {
 
           <a
             href="#playground"
-            className="animate-fade-in-up opacity-0 font-mono text-xs uppercase tracking-[0.18em] text-[--terminal-muted] hover:text-[--terminal-accent] transition-colors px-3 py-2 mt-6 sm:mt-16"
+            className="relative z-10 animate-fade-in-up opacity-0 font-mono text-xs uppercase tracking-[0.18em] text-[--terminal-muted] hover:text-[--terminal-accent] transition-colors px-3 py-2 mt-8 sm:mt-16"
             style={{ animationDelay: "800ms" }}
           >
             try the playground ↓
@@ -361,7 +361,7 @@ export default function HomePage() {
             </p>
           </div>
 
-          <TerminalWindow title="onchor-ai" live className="h-[480px] sm:h-[520px]" bodyClassName="p-0">
+          <TerminalWindow title="onchor-ai" live className="h-[420px] min-[380px]:h-[460px] sm:h-[520px]" bodyClassName="p-0">
             <Shell />
           </TerminalWindow>
         </section>
@@ -381,9 +381,9 @@ export default function HomePage() {
             {PHASES.map((phase) => (
               <div
                 key={phase.id}
-                className="terminal-box rounded-sm p-5 hover:border-[--terminal-brand]/60 transition-colors flex flex-col"
+                className="terminal-box rounded-sm p-4 sm:p-5 hover:border-[--terminal-brand]/60 transition-colors flex flex-col"
               >
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                   <span className="font-mono text-sm font-semibold text-[--terminal-label]">
                     {phase.name}
                   </span>
@@ -466,7 +466,7 @@ export default function HomePage() {
               </p>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+            <div className="grid grid-cols-1 min-[420px]:grid-cols-2 md:grid-cols-4 gap-3 mb-6">
               {PRICING.map((tier) => (
                 <div
                   key={tier.scope}

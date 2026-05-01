@@ -38,7 +38,7 @@ function ProgressView({ line }: { line: ProgressLine }) {
         : "text-[--terminal-brand]";
 
   return (
-    <div className="whitespace-pre font-mono">
+    <div className="whitespace-pre font-mono min-w-max">
       <span className="text-[--terminal-label]">{line.label.padEnd(14, " ")}</span>
       <span className="text-[--terminal-comment]">[</span>
       <span className={fillColor}>{"█".repeat(filled)}</span>
@@ -62,7 +62,7 @@ function ProgressView({ line }: { line: ProgressLine }) {
 function LineView({ line }: { line: ShellLine }) {
   if (line.kind === "banner") {
     return (
-      <pre className="text-[--terminal-brand] glow-brand whitespace-pre leading-tight text-[10px] sm:text-xs md:text-sm">
+      <pre className="text-[--terminal-brand] glow-brand whitespace-pre leading-tight text-[9px] min-[380px]:text-[10px] sm:text-xs md:text-sm">
         {line.content}
       </pre>
     );
@@ -153,13 +153,13 @@ export function Shell() {
 
   return (
     <div
-      className="flex flex-col h-full w-full bg-[--terminal-bg] text-[--terminal-label] font-mono text-sm"
+      className="flex flex-col h-full w-full bg-[--terminal-bg] text-[--terminal-label] font-mono text-xs sm:text-sm"
       onClick={() => inputRef.current?.focus()}
     >
       {/* Output buffer — min-h-0 required for flex-1 + overflow-y-auto */}
       <div
         ref={scrollerRef}
-        className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-4 space-y-3 leading-relaxed"
+        className="flex-1 min-h-0 overflow-auto px-3 sm:px-6 py-3 sm:py-4 space-y-3 leading-relaxed"
         onWheel={(e) => e.stopPropagation()}
       >
         {entries.map((entry) => (
@@ -168,7 +168,7 @@ export function Shell() {
       </div>
 
       {/* Prompt input */}
-      <div className="flex items-baseline gap-2 px-4 sm:px-6 py-3 border-t border-[--terminal-border]">
+      <div className="flex items-baseline gap-2 px-3 sm:px-6 py-3 border-t border-[--terminal-border]">
         <span className="text-[--terminal-accent] shrink-0 select-none">{SHELL_PROMPT}</span>
         <div className="relative flex-1">
           <input
