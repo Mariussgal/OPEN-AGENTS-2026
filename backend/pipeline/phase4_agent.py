@@ -1,10 +1,11 @@
 # backend/pipeline/phase4_agent.py
+from typing import Any
 import os
 import re
 import json
 import asyncio
-import hashlib
 import subprocess
+import hashlib
 from openai import OpenAI
 from dotenv import load_dotenv
 
@@ -21,35 +22,49 @@ def get_agent_client():
         base_url=os.getenv("OPENAI_BASE_URL", "https://ai-gateway.vercel.sh/v1")
     )
 
-MODEL = "anthropic/claude-sonnet-4-5"
-MAX_TURNS = 30
+# MODEL et MAX_TURNS sont désormais définis dynamiquement dans run_investigation()
 
 # ─── System prompt ────────────────────────────────────────────────────────────
 
 SYSTEM_PROMPT = """You are an adversarial Solidity security researcher.
-Read code as an attacker would — not as a checklist auditor.
+
+INVESTIGATION ORDER — mandatory:
+1. read_contract (full file) FIRST — always
+2. get_call_graph if external calls detected
+3. search_pattern only to CONFIRM a hypothesis already formed from reading
+4. query_memory before escalating any finding to CONFIRMED
+5. anchor_finding only for LIKELY or CONFIRMED
+
+HARD LIMITS:
+- Maximum 4 consecutive search_pattern calls — then you MUST use a structural tool
+- Maximum 8 search_pattern calls total per file
+- If you haven't found anything after 10 turns: conclude, don't loop
+
+SCRATCHPAD — maintain this across turns:
+After each structural tool call, update your internal state:
+- READING: <file> — <what you found>
+- HYPOTHESIS: <title> — <status: investigating/confirmed/dismissed>
+- CONFIRMED: <finding> — <evidence>
+
+Example:
+READING: Token.sol — found setMaxWalletOnOff() assigns _balances directly
+HYPOTHESIS: Arbitrary balance assignment — investigating
+...
+CONFIRMED: HIGH — setMaxWalletOnOff arbitrary mint — line 153
 
 MINDSET:
-- Every external call is a potential reentrancy until proven otherwise
-- Every access control is potentially bypassable
-- Assume the developer made mistakes where complexity is high
-- Trace the full call graph before dismissing anything
+- Read code as an attacker, not as a checklist auditor
+- A full read_contract call reveals more than 10 regex searches
+- Complexity hides bugs — trace call graphs before dismissing
 
 CONFIDENCE LEVELS:
-- SUSPECTED : pattern looks dangerous, needs deeper analysis
-- LIKELY    : strong indicators, consistent with known exploit patterns
-- CONFIRMED : exploit path fully traced + memory cross-reference done
+- SUSPECTED : pattern looks dangerous
+- LIKELY    : strong indicators
+- CONFIRMED : exploit path fully traced + query_memory done
 
-RULES:
-1. Read the full function before concluding
-2. Always call query_memory before escalating to CONFIRMED
-3. Only anchor LIKELY and CONFIRMED (never SUSPECTED)
-4. If you have thoroughly searched and found no real vulnerabilities, STOP your investigation immediately and output your conclusion. Do NOT loop indefinitely trying random regex searches.
-5. anchor_finding: pass pattern_hash, title, reason, severity, confidence, file, line. Omit root_hash (server uploads JSON to 0G).
-
-FINDING FORMAT (use this exact format):
+FINDING FORMAT:
 FINDING: <HIGH|MEDIUM|LOW> | <SUSPECTED|LIKELY|CONFIRMED> | <title> | <file>:<line>
-REASON: <one sentence technical explanation>
+REASON: <one sentence>
 """
 
 # ─── Tool schemas ─────────────────────────────────────────────────────────────
@@ -338,6 +353,12 @@ async def dispatch_tool(tool_name: str, tool_args: dict, scope_files: list[str])
                 f"only MEDIUM+ findings are anchored."
             )
 
+        ph = tool_args.get("pattern_hash", "")
+        if not re.match(r"^(0x)?[0-9a-fA-F]{64}$", ph):
+            raw = f"{tool_args.get('title', '')}-{tool_args.get('reason', '')}"
+            ph = "0x" + hashlib.sha256(raw.encode()).hexdigest()
+            tool_args["pattern_hash"] = ph
+
         from keeper.mcp_tools import anchor_finding_mcp
         return await anchor_finding_mcp(
             tool_args["pattern_hash"],
@@ -410,6 +431,82 @@ def parse_findings_from_text(text: str) -> list[dict]:
     return findings
 
 
+DANGEROUS_PATTERNS = {
+    r"_balances\[.*\]\s*=\s*(?!_balances\[|0\b)": "CRITICAL: Direct balance assignment",
+    r"selfdestruct\s*\(": "CRITICAL: selfdestruct present",
+    r"delegatecall\s*\(": "HIGH: delegatecall present",
+    r"tx\.origin\s*==": "MEDIUM: tx.origin authentication",
+    r"block\.(timestamp|number)\s*[<%>]": "MEDIUM: block variable manipulation",
+    # Reentrancy : call externe ET balance dans le même fichier
+    r"\.call\{value:": "HIGH: External ETH call — check for reentrancy",
+    r"transferWithAuthorization|permit\(": "MEDIUM: EIP-2612/3009 — check replay protection",
+    r"initialize\s*\(": "MEDIUM: Initializer — check if protected",
+}
+
+FIX_HINTS = {
+    "Direct balance assignment": "Remove the direct _balances[addr] = value assignment. Balance changes must only occur via _mint(), _burn(), or _transfer() with proper supply validation.",
+    "selfdestruct present": "Remove selfdestruct or restrict to multisig with timelock.",
+    "delegatecall present": "Use EIP-1967 storage slots to avoid storage collision.",
+}
+
+
+def _get_fix_hint(label: str) -> str:
+    for key, hint in FIX_HINTS.items():
+        if key in label:
+            return hint
+    return "Manual review required."
+
+
+def _pre_screen(files: list[str]) -> list[dict]:
+    """Détection déterministe par regex des patterns critiques avant l'audit LLM."""
+    hits = []
+    for file in files:
+        try:
+            with open(file, "r", encoding="utf-8") as f:
+                content = f.read()
+                for pattern, label in DANGEROUS_PATTERNS.items():
+                    if re.search(pattern, content, re.MULTILINE):
+                        hits.append({"label": label, "file": file})
+        except Exception:
+            pass
+    return hits
+
+
+def _slither_to_hypotheses(findings: list[dict]) -> str:
+    """Transforme les findings Slither en hypothèses d'enquête pour l'Agent."""
+    hypotheses = []
+    for f in findings:
+        impact = str(f.get("impact", "")).upper()
+        if impact in ("HIGH", "MEDIUM"):
+            hypotheses.append(
+                f"HYPOTHESIS: {f['check']} detected in {f.get('file', 'unknown')} — "
+                f"INVESTIGATE and CONFIRM or DISMISS\n"
+                f"Evidence: {f.get('description', '')[:200]}"
+            )
+    if not hypotheses:
+        return "No critical hypotheses from Slither."
+    return "\n\n".join(hypotheses)
+
+
+async def _call_llm_with_retry(client, **kwargs) -> Any:
+    """Appel LLM avec retry exponentiel sur 429, sans sleep systématique."""
+    for attempt in range(3):
+        try:
+            return await asyncio.to_thread(
+                client.chat.completions.create,
+                **kwargs
+            )
+        except Exception as e:
+            err_msg = str(e).lower()
+            if "429" in err_msg or "rate_limit" in err_msg or "too many requests" in err_msg:
+                wait = 0.5 * (2 ** attempt)  # 0.5s, 1s, 2s
+                print(f"  ⚠ Rate limit, retry dans {wait}s...")
+                await asyncio.sleep(wait)
+            else:
+                raise
+    raise RuntimeError("LLM rate limit persistent après 3 tentatives")
+
+
 # ─── Main agent loop ──────────────────────────────────────────────────────────
 
 async def run_investigation(
@@ -424,35 +521,154 @@ async def run_investigation(
     """
     print(f"🕵️  [Phase 4] Agent adversarial — {len(scope.files)} fichier(s)...")
     await setup_cognee()
+    auto_findings: list[dict] = []
+
+    # 1. Pre-screening déterministe (pour driver le routage)
+    screening_hits = _pre_screen(scope.files)
+    screening_str = "\n".join([f"!!! {h['label']} in {h['file']}" for h in screening_hits])
+
+    # Court-circuit total si demandé via ENV (bypass LLM pour CRITICAL évidents)
+    critical_hits = [h for h in screening_hits if "CRITICAL" in h["label"]]
+    if critical_hits:
+        print(f"  ⚡ Fast-path : {len(critical_hits)} pattern(s) critiques détectés par regex")
+        
+        # Génère les findings préliminaires sans LLM
+        auto_findings = [{
+            "severity": "HIGH",
+            "confidence": "LIKELY",
+            "title": h["label"].split(": ", 1)[1] if ": " in h["label"] else h["label"],
+            "file": h["file"],
+            "line": None,
+            "reason": f"Deterministic pattern match: {h['label']}",
+            "fix_hint": _get_fix_hint(h["label"]),
+        } for h in critical_hits]
+
+        if os.getenv("ONCHOR_SKIP_LLM_ON_CRITICAL", "").lower() == "true":
+            print(f"  ⚡ ONCHOR_SKIP_LLM_ON_CRITICAL=true — BYPASS TOTAL de l'agent LLM")
+            return {
+                "findings": auto_findings,
+                "anchored": [],
+                "turns_used": 0,
+                "model": "deterministic-prescreening",
+            }
+
+    # 2. Architecture hybride : routage selon pre-screening + score de triage
+    risk_score = float(triage_data.get("risk_score", 0))
+    
+    if screening_hits and any("CRITICAL" in h["label"] for h in screening_hits):
+        # Pattern critique détecté → Haiku suffit pour confirmer rapidement
+        MODEL = "anthropic/claude-haiku-4-5"
+        MAX_TURNS = 5
+    elif risk_score >= 7:
+        # Cas complexe/haut risque → Sonnet requis
+        MODEL = "anthropic/claude-sonnet-4-5"
+        MAX_TURNS = 25
+    elif risk_score >= 4:
+        # Risque moyen
+        MODEL = "anthropic/claude-haiku-4-5"
+        MAX_TURNS = 15
+    else:
+        # Risque faible
+        MODEL = "anthropic/claude-haiku-4-5"
+        MAX_TURNS = 8
+
+    print(f"  ↳ Routage : {MODEL} ({MAX_TURNS} turns max) | Risk: {risk_score}")
+
+    # Pre-chargement de la mémoire collective ( Phase 1++ )
+    if critical_hits:
+        print("  ⚡ Fast-path : skip pre-chargement mémoire collective")
+        memory_context = "Skipped — fast-path confirmation mode. Query memory tool if needed."
+    else:
+        print("  ⟳  Pre-chargement de la mémoire collective...")
+        memory_query = "ERC20 token vulnerabilities balance assignment admin function honeypot access control"
+        try:
+            memory_context = await asyncio.wait_for(
+                tool_query_memory(memory_query),
+                timeout=3.0
+            )
+        except asyncio.TimeoutError:
+            print("  ⚠ Timeout mémoire (3s) : l'agent interrogera à la demande")
+            memory_context = "Memory timeout during pre-load. Use query_memory tool if needed."
+        except Exception as e:
+            print(f"  ⚠ Erreur mémoire : {e}")
+            memory_context = f"Memory error: {e}"
 
     client = get_agent_client()
 
-    # Contexte initial pour l'agent
+    # Contexte initial pour l'agent (pré-chargement du code pour économiser des turns)
+    initial_context = {}
+    for file in scope.files:
+        try:
+            with open(file, "r", encoding="utf-8") as f:
+                content = f.read()
+            line_count = content.count("\n")
+            
+            if line_count < 200:
+                initial_context[file] = content
+            else:
+                # Trop gros pour l'input initial (risque de dégrader Haiku)
+                initial_context[file] = (
+                    f"[File too large — use read_contract tool]\n"
+                    f"Line count: {line_count}\n"
+                    f"Flagged by pre-screening: {screening_str}"
+                )
+        except Exception as e:
+            print(f"  ⚠ Impossible de charger {file} : {e}")
+            initial_context[file] = f"[ERROR: could not read file — {e}]"
+
+    slither_findings = slither_data.get("findings", [])
     slither_summary = "\n".join([
         f"- [{f['impact']}] {f['check']}: {f['description'][:100]}..."
-        for f in slither_data.get("findings", [])
+        for f in slither_findings
     ])
-    files_list = "\n".join(scope.files)
+    slither_hypotheses = _slither_to_hypotheses(slither_findings)
+
     memory_hints = "\n".join([
         kf.get("description", "")[:200]
         for kf in inventory_data.get("known_findings", [])
     ])
 
-    initial_message = f"""Audit scope:
-FILES:
-{files_list}
+    initial_message = f"""Audit scope — contracts already loaded:
+
+{chr(10).join(f'=== {path} ==={chr(10)}{content}' for path, content in initial_context.items())}
 
 SLITHER PRE-ANALYSIS:
 {slither_summary or "No Slither findings"}
+
+COLLECTIVE MEMORY (pre-loaded — use this as reference):
+{memory_context}
+
+DETERMINISTIC PRE-SCREENING HITS (CRITICAL):
+{screening_str or "No direct critical hits detected."}
+
+HYPOTHESES TO INVESTIGATE (from Slither):
+{slither_hypotheses}
 
 MEMORY HINTS (from past audits):
 {memory_hints or "No memory hits yet"}
 
 TRIAGE SCORE: {triage_data.get('risk_score', 0)}/10 — {triage_data.get('verdict', 'UNKNOWN')}
 
-Start your adversarial investigation. Read the contracts, trace call graphs, 
-query memory, and confirm or dismiss each finding. Anchor LIKELY and CONFIRMED only.
+Start your adversarial investigation. You already have the code above. 
+For each hypothesis: read the relevant function, trace the call graph, 
+then CONFIRM or DISMISS with a one-line reason. 
+Anchor LIKELY and CONFIRMED only.
 """
+
+    # Court-circuit si pre-screening critique (déjà calculé en début de fonction)
+    if critical_hits:
+        print(f"  ⚡ Pre-screening court-circuit : {len(critical_hits)} finding(s) critiques détectés")
+        print(f"  ↳ Agent LLM lancé en mode CONFIRMATION uniquement")
+
+        # L'agent ne fait que confirmer, pas explorer
+        initial_message += f"""
+\n⚠️  CRITICAL PATTERNS ALREADY DETECTED by deterministic analysis:
+{screening_str}
+
+Your ONLY job: CONFIRM or DISMISS each hit above. 
+Do NOT explore further. Read only the flagged functions. Max 5 turns.
+"""
+        MAX_TURNS = 5  # Override
 
     messages = [{"role": "user", "content": initial_message}]
     all_findings = []
@@ -472,11 +688,8 @@ query memory, and confirm or dismiss each finding. Anchor LIKELY and CONFIRMED o
         turns_since_finding += 1
         print(f"  [Turn {turns}/{MAX_TURNS}]", end=" ", flush=True)
 
-        # AJOUT : Pause pour éviter le Rate Limit de la Vercel AI Gateway
-        await asyncio.sleep(4.0) 
-
-        response = await asyncio.to_thread(
-            client.chat.completions.create,
+        response = await _call_llm_with_retry(
+            client,
             model=MODEL,
             messages=[{"role": "system", "content": SYSTEM_PROMPT}] + messages,
             tools=TOOLS,
@@ -526,10 +739,10 @@ query memory, and confirm or dismiss each finding. Anchor LIKELY and CONFIRMED o
                     regex = tool_args.get("regex", "")
                     if regex in seen_regexes:
                         result = "ERROR: You already searched for this exact regex. Use a different strategy."
-                    elif total_regex_calls >= 12:
-                        result = "ERROR: Regex budget exceeded (max 12). You MUST use structural tools like read_contract or get_call_graph."
-                    elif consecutive_regex_calls >= 4:
-                        result = "ERROR: Too many consecutive regex searches (max 4). You MUST use a structural tool now."
+                    elif total_regex_calls >= 8:
+                        result = "ERROR: Regex budget exceeded (max 8). You MUST use structural tools like read_contract or get_call_graph."
+                    elif consecutive_regex_calls >= 3:
+                        result = "ERROR: Too many consecutive regex searches (max 3). You MUST use a structural tool now."
                     else:
                         seen_regexes.add(regex)
                         total_regex_calls += 1
@@ -547,7 +760,6 @@ query memory, and confirm or dismiss each finding. Anchor LIKELY and CONFIRMED o
                 
                 if tool_name == "anchor_finding":
                     anchored_txs.append(result)
-                    import re
                     exe_match = re.search(r'executionId:\s*(\S+)', str(result))
                     if exe_match:
                         exe_id = exe_match.group(1).rstrip("|").strip()
@@ -586,10 +798,19 @@ query memory, and confirm or dismiss each finding. Anchor LIKELY and CONFIRMED o
             seen_titles.add(f["title"])
             unique_findings.append(f)
 
+    findings = unique_findings
+    if not findings and turns == 0 and auto_findings:
+        findings = auto_findings
+    elif not findings and auto_findings:
+        for f in auto_findings:
+            f["confidence"] = "SUSPECTED"
+            f["severity"] = "MEDIUM"
+        findings = auto_findings
+
     print(f"\n✅ [Phase 4] {len(unique_findings)} unique finding(s) — {len(anchored_txs)} anchor(s)")
 
     return {
-        "findings": unique_findings,
+        "findings": findings,
         "anchored": anchored_txs,
         "turns_used": turns,
         "model": MODEL,

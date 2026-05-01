@@ -483,6 +483,14 @@ async def run_report(
     # 🚨 L'Agent IA a le dernier mot. Si le contrat est CERTIFIÉ, on écrase 
     # le score de Triage (Phase 3) qui avait pu paniquer à cause de Slither.
     final_risk_score = float(triage_data.get("risk_score", 0))
+
+    # Plancher selon les findings confirmés
+    if high_count >= 1:
+        final_risk_score = max(final_risk_score, 8.0)
+    elif medium_count >= 1:
+        final_risk_score = max(final_risk_score, 5.5)
+
+    # Plafond si certifié
     if final_verdict == "CERTIFIED":
         final_risk_score = min(final_risk_score, 2.0)
         

@@ -166,6 +166,18 @@ async def stream_audit_pipeline(
     async for hb in _heartbeat_while(inv_task, "investigate", "Adversarial agent still running"):
         yield hb
     investigation_data = await inv_task
+
+    # Override le triage si l'agent a trouvé des failles critiques (Phase 4 -> Phase 3 override)
+    confirmed_findings = investigation_data.get("findings", [])
+    if confirmed_findings:
+        has_high = any(
+            str(f.get("severity", "")).upper() == "HIGH" and f.get("confidence") in ("CONFIRMED", "LIKELY")
+            for f in confirmed_findings
+        )
+        if has_high and float(triage_data.get("risk_score", 0)) < 6:
+            triage_data["risk_score"] = 8.0
+            triage_data["verdict"] = "DANGER"
+
     yield _emit({
         "phase":          "investigate",
         "status":         "done",

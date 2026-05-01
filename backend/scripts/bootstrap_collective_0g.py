@@ -158,6 +158,34 @@ BOOTSTRAP_PATTERNS = [
         "confirmation_count": 9,
         "source": "Classic MEV — Flashbots research",
     },
+    # ── Honeypot / Arbitrary Mint ──────────────────────────────────────────────
+    {
+        "type": "arbitrary_balance_assignment",
+        "severity": "HIGH",
+        "abstract_description": "admin function assigns arbitrary balance to caller bypassing totalSupply constraints, enabling unlimited minting",
+        "fix_pattern": "Remove _balances[msg.sender] = amount from non-mint functions; only _mint() should modify balances",
+        "keywords": ["balance", "assignment", "admin", "maxwallet", "exempt", "rug", "honeypot"],
+        "confirmation_count": 8,
+        "source": "ERC20 Honeypot patterns — BSC/ETH rug pulls 2021-2024",
+    },
+    {
+        "type": "hidden_mint_in_setter",
+        "severity": "HIGH",
+        "abstract_description": "setter function for a configuration parameter secretly modifies token balances, classic rug pull vector",
+        "fix_pattern": "Setter functions must only modify their declared state variable, never _balances",
+        "keywords": ["setter", "balance", "mint", "hidden", "rug", "erc20", "exempt"],
+        "confirmation_count": 6,
+        "source": "Token audit patterns — Trail of Bits / Immunefi",
+    },
+    {
+        "type": "maxwallet_bypass_mint",
+        "severity": "HIGH", 
+        "abstract_description": "maxWalletExempt or similar whitelist allows arbitrary balance inflation for privileged addresses",
+        "fix_pattern": "Exempt lists should only bypass transfer limits, never touch _balances directly",
+        "keywords": ["maxwallet", "exempt", "whitelist", "balance", "inflation"],
+        "confirmation_count": 5,
+        "source": "BSC honeypot analysis — DeFiYield REKT database",
+    },
 ]
 
 

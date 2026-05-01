@@ -190,6 +190,9 @@ export default function AuditDetailPage() {
     const highFindings = report.findings.filter(f => f.severity === "HIGH");
     const medFindings = report.findings.filter(f => f.severity === "MEDIUM");
     const lowFindings = report.findings.filter(f => f.severity === "LOW");
+    const infoFindings = report.findings.filter(
+        f => f.severity === "INFO" || f.severity === "INFORMATIONAL"
+    );
     const riskColor = report.risk_score >= 7 ? "#ff4444" : report.risk_score >= 4 ? "#f59e0b" : "#0DFC67";
     const date = new Date(report.created_at).toLocaleDateString("en-GB", {
         day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit"
@@ -282,31 +285,6 @@ export default function AuditDetailPage() {
                     </div>
                 </div>
 
-                {/* ── ENS Certificate ─────────────────────────────────────── */}
-                {report.ens_cert && (
-                    <div className="border border-[#0DFC6730] bg-[#0DFC6708] p-4 flex items-start justify-between gap-4 flex-wrap">
-                        <div className="flex items-start gap-3">
-                            <Shield className="w-4 h-4 text-[#0DFC67] shrink-0 mt-0.5" />
-                            <div>
-                                <div className="text-xs text-[#0DFC67] mb-1">ENS Certificate minted</div>
-                                <div className="text-xs text-zinc-400">{report.ens_cert}</div>
-                                <p className="text-xs text-zinc-600 mt-1 leading-relaxed">
-                                    Verifiable without our backend:{" "}
-                                    <span className="text-zinc-500">ens.get_text(name, &quot;verdict&quot;) → &quot;CERTIFIED&quot;</span>
-                                </p>
-                            </div>
-                        </div>
-                        <a
-                            href={`https://app.ens.domains/${report.ens_cert}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xs text-[#0DFC67] hover:text-[#0DFC67] transition-colors flex items-center gap-1.5 shrink-0"
-                        >
-                            View on ENS <ExternalLink className="w-3 h-3" />
-                        </a>
-                    </div>
-                )}
-
                 {/* ── Memory hits ─────────────────────────────────────────── */}
                 {report.memory_hits.length > 0 && (
                     <div>
@@ -353,9 +331,42 @@ export default function AuditDetailPage() {
                             {[...highFindings, ...medFindings, ...lowFindings].map((finding) => (
                                 <FindingCard key={finding.id} finding={finding} />
                             ))}
+                            {infoFindings.length > 0 && (
+                                <details className="mt-2">
+                                    <summary className="text-xs text-zinc-500 cursor-pointer hover:text-zinc-400 py-2">
+                                        {infoFindings.length} informational finding(s) — click to expand
+                                    </summary>
+                                    <div className="mt-2 space-y-2">
+                                        {infoFindings.map((finding) => (
+                                            <FindingCard key={finding.id} finding={finding} />
+                                        ))}
+                                    </div>
+                                </details>
+                            )}
                         </div>
                     )}
                 </div>
+
+                {(report as any).ens?.certified && (
+                    <div className="border border-green-500/30 rounded-lg p-4 bg-green-500/5">
+                        <div className="flex items-center gap-2 mb-2">
+                            <span className="text-green-400 text-lg">🏅</span>
+                            <span className="font-semibold text-green-400">CERTIFIED</span>
+                        </div>
+                        <p className="text-sm text-gray-300 font-mono">{(report as any).ens.subname}</p>
+                        <div className="mt-2 flex gap-3 text-xs">
+                            <a href={(report as any).ens.url} target="_blank" rel="noopener noreferrer" className="text-green-400 hover:underline">
+                                ENS Sepolia ↗
+                            </a>
+                            <a href={`https://sepolia.etherscan.io/tx/${(report as any).ens.mint_tx}`} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:underline">
+                                Mint tx ↗
+                            </a>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1 font-mono">
+                            report_hash: {(report as any).report?.report_hash}
+                        </p>
+                    </div>
+                )}
 
                 {/* ── Metadata ────────────────────────────────────────────── */}
                 <div>

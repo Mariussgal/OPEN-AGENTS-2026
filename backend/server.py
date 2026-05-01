@@ -42,9 +42,14 @@ def _load_audits() -> list:
 
 def _save_audit(audit: dict):
     audits = _load_audits()
-    audit["verdict"]     = _map_verdict(audit["triage"])
-    audit["findings"]    = _format_findings(audit.get("slither", {}))
+    report = audit.get("report", {})
+
+    # Priorité au rapport Phase 6, fallback triage
+    audit["verdict"]     = report.get("verdict") or _map_verdict(audit.get("triage", {}))
+    audit["risk_score"]  = report.get("risk_score") or audit.get("triage", {}).get("risk_score", 0)
+    audit["findings"]    = report.get("findings") or _format_findings(audit.get("slither", {}))
     audit["memory_hits"] = _format_memory_hits(audit.get("inventory", {}))
+    audit["ens"]         = report.get("ens")
     audits.insert(0, audit)
     AUDITS_FILE.write_text(json.dumps(audits, indent=2))
 
@@ -567,8 +572,8 @@ async def get_audit_history():
             "id":           a["id"],
             "created_at":   a["created_at"],
             "target":       a["target"],
-            "verdict":      _map_verdict(a["triage"]),
-            "risk_score":   a["triage"].get("risk_score", 0),
+            "verdict":      a.get("verdict") or _map_verdict(a.get("triage", {})),
+            "risk_score":   a.get("risk_score", a.get("triage", {}).get("risk_score", 0)),
             "high_count":   a.get("report", {}).get("summary", {}).get("high_count",
                             sum(1 for f in a.get("slither", {}).get("findings", []) if f.get("impact") == "High")),
             "medium_count": a.get("report", {}).get("summary", {}).get("medium_count",
