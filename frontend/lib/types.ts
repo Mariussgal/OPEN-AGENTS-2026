@@ -50,7 +50,7 @@ export interface StreamEvent {
 
 // ─── Findings ─────────────────────────────────────────────────────────────────
 
-export type Severity = "HIGH" | "MEDIUM" | "LOW" | "INFO";
+export type Severity = "HIGH" | "MEDIUM" | "LOW" | "INFO" | "INFORMATIONAL";
 export type Confidence = "SUSPECTED" | "LIKELY" | "CONFIRMED";
 
 export interface Finding {

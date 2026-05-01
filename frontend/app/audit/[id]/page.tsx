@@ -27,6 +27,7 @@ const SEVERITY_CONFIG: Record<Severity, { color: string; bg: string; border: str
     MEDIUM: { color: "text-yellow-400", bg: "bg-yellow-400/10", border: "border-yellow-400/30", label: "MEDIUM" },
     LOW: { color: "text-blue-400", bg: "bg-blue-400/10", border: "border-blue-400/30", label: "LOW" },
     INFO: { color: "text-zinc-400", bg: "bg-zinc-400/10", border: "border-zinc-400/30", label: "INFO" },
+    INFORMATIONAL: { color: "text-zinc-400", bg: "bg-zinc-400/10", border: "border-zinc-400/30", label: "INFO" },
 };
 
 const VERDICT_CONFIG: Record<Verdict, { label: string; color: string; icon: React.ElementType }> = {
