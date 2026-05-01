@@ -4,7 +4,7 @@
 
 # ONCHOR.AI
 
-**Onchor.ai** is a Solidity security copilot with **persistent collective memory**: **Slither** for a fixed static baseline, **0G** on **Galileo** for decentralized pattern storage that grows with audits, **Cognee** for local graph ingest + semantic **recall** fed into the **LLM** (alongside 0G collective queries), plus **KeeperHub** anchoring and **ENS** certification.
+**Onchor.ai** is a Solidity security copilot with **persistent collective memory**: **Slither** for a fixed static baseline, **0G** for decentralized pattern storage that grows with audits, **Cognee** for local graph ingest + semantic **recall** fed into the **LLM** (alongside 0G collective queries), plus **KeeperHub** anchoring and **ENS** certification.
 
 ---
 
