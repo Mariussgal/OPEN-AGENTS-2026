@@ -168,7 +168,7 @@ function CopyCommand({
   return (
     <div
       className={[
-        "group inline-flex min-w-0 items-center gap-2 sm:gap-3 terminal-box rounded-sm pl-3 pr-1 py-1.5 hover:border-[--terminal-brand]/60 transition-colors max-w-full",
+        "group inline-flex min-w-0 items-center justify-center gap-2 sm:gap-3 terminal-box rounded-sm pl-3 pr-1 py-1.5 hover:border-[--terminal-brand]/60 transition-colors max-w-full",
         className,
       ].join(" ")}
     >
@@ -322,7 +322,7 @@ export default function HomePage() {
           </div>
 
           <p
-            className="relative z-10 animate-fade-in-up opacity-0 text-sm sm:text-lg lg:text-xl text-[--terminal-muted] max-w-2xl lg:max-w-3xl text-balance leading-relaxed font-mono px-1"
+            className="relative z-10 animate-fade-in-up opacity-0 text-sm sm:text-lg lg:text-xl text-[--terminal-muted] lg:text-[--terminal-label] max-w-2xl lg:max-w-3xl text-balance leading-relaxed font-mono px-1 lg:[text-shadow:0_1px_10px_var(--background),0_0_24px_var(--background)]"
             style={{ animationDelay: "300ms" }}
           >
             A Solidity security copilot with persistent collective memory.
