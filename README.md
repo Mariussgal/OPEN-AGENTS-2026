@@ -4,7 +4,7 @@
 
 # ONCHOR.AI
 
-**Onchor.ai** is a Solidity security copilot with **persistent collective memory**: it runs static analysis and LLM-assisted reasoning on your contracts, learns vulnerability patterns across audits, stores payloads on **0G**, and can anchor high-confidence findings on-chain via **KeeperHub**, with **ENS** text records for auditable certifications.
+**Onchor.ai** is a Solidity security copilot with **persistent collective memory**: **Slither** provides a fixed static-analysis baseline, **0G** holds the decentralized pattern store that **self-grows** with each audit, and the stack adds LLM investigation, optional **Cognee** recall, **KeeperHub** anchoring, and **ENS** certification.
 
 ---
 
@@ -31,13 +31,15 @@
 
 ---
 
-### 4. Collective memory (Cognee)
+### 4. Collective memory
 
-Onchor is not a one-shot auditor: it **accumulates knowledge** across runs so later audits benefit from what the agent (and the community) already learned. That is the core of an **open agent**: memory that persists and compounds.
+Onchor combines a **fixed static baseline** with a **decentralized memory** that **feeds itself** over time — the “open agent” idea: every audit can strengthen what the next one knows.
 
-- **Knowledge graph:** After each audit, sanitized findings can be ingested into **Cognee** via `cognee.add` / `cognee.cognify`, building a structured graph of **vulnerability patterns** tied to contract context. Recall uses semantic search over that graph (`load_known_findings` / `cognee.search`).
-- **Paid path:** In the default **pip-install** flow, audits are **paid via x402**; that run uses **collective memory** (curated external corpora and prior graph context) during analysis.
-- **Opt-in contribution:** At the **end** of a paid audit, the CLI asks if you want to contribute **anonymized** patterns to the shared memory. If you accept, you get a small **USDC** reward on **Base Sepolia**: **0.05 USDC per finding**, for **up to three findings** each time you opt in (capped at three rewarded patterns per contribution).
+- **Slither (fixed layer):** **Slither** brings a **stable, built-in rule set** of vulnerability detectors. It always runs the same static-analysis corpus on your code and yields a structured list of candidates before triage and LLM investigation — think of it as the **fixed reference** layer.
+- **0G (collective layer):** **0G storage** is our **shared / collective memory**: verified pattern payloads (hashed content) live on the network and accumulate as audits run — especially when findings are **anchored** (and when users opt in to contribute patterns). The store **replenishes itself** from the pipeline instead of staying a closed file.
+- **Cognee (in-flight recall):** During an audit, **Cognee** supports semantic **recall** over a knowledge graph so the agent can connect Slither output and prior context; durable, cross-user sharing of pattern blobs remains centered on **0G** + anchoring.
+- **Paid path:** In the default **pip-install** flow, audits are **paid via x402**, which runs the full pipeline against that memory stack.
+- **Opt-in contribution:** At the **end** of a paid audit, the CLI asks if you want to contribute **anonymized** patterns to the shared memory. If you accept, you get **0.05 USDC per finding** on **Base Sepolia**, for **up to three findings** per opt-in.
 
 ---
 
