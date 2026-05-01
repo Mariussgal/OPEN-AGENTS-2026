@@ -128,12 +128,12 @@ function FindingCard({ finding }: { finding: Finding }) {
                                     {copied ? <Check className="w-3 h-3 text-[#0DFC67]" /> : <Copy className="w-3 h-3" />}
                                 </button>
                                 <a
-                                    href={`https://sepolia.etherscan.io/tx/${finding.onchain_proof}`}
+                                    href={`https://sepolia.basescan.org/tx/${finding.onchain_proof}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="text-xs text-[#0DFC67] hover:text-[#0DFC67] transition-colors flex items-center gap-1"
                                 >
-                                    Etherscan <ExternalLink className="w-3 h-3" />
+                                    Basescan <ExternalLink className="w-3 h-3" />
                                 </a>
                             </div>
                         </div>
@@ -238,7 +238,7 @@ export default function AuditDetailPage() {
                                 </span>
                                 {report.target.kind === "address" && (
                                     <a
-                                        href={`https://sepolia.etherscan.io/address/${report.target.value}`}
+                                        href={`https://sepolia.basescan.org/address/${report.target.value}`}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="text-zinc-600 hover:text-[#0DFC67] transition-colors"
@@ -387,7 +387,7 @@ export default function AuditDetailPage() {
                     </button>
                     {report.payment_tx && (
                         <a
-                            href={`https://sepolia.etherscan.io/tx/${report.payment_tx}`}
+                            href={`https://sepolia.basescan.org/tx/${report.payment_tx}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-xs text-[#0DFC67] hover:text-[#0DFC67] transition-colors flex items-center gap-1.5"

@@ -66,6 +66,7 @@ export interface Finding {
     prior_audit_ref?: string; // Cognee memory ref
     onchain_proof?: string; // KeeperHub tx hash
     pattern_hash?: string;
+    root_hash?: string; // 0G rootHash
 }
 
 // ─── Audit Report ─────────────────────────────────────────────────────────────

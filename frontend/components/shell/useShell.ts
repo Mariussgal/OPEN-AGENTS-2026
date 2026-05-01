@@ -168,7 +168,16 @@ export function useShell(): ShellApi {
 
     historyRef.current = [...historyRef.current, raw];
 
-    const [cmdName, ...args] = raw.split(/\s+/);
+    let cmdToParse = raw;
+    if (cmdToParse.toLowerCase().startsWith("onchor-ai")) {
+      cmdToParse = cmdToParse.replace(/^onchor-ai\s*/i, "").trim();
+    }
+    
+    if (cmdToParse === "" && raw.toLowerCase() === "onchor-ai") {
+      cmdToParse = "help";
+    }
+
+    const [cmdName, ...args] = cmdToParse.split(/\s+/);
     const handler = COMMANDS[cmdName.toLowerCase()];
 
     if (!handler) {

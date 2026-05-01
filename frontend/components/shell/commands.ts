@@ -87,21 +87,28 @@ const rule = (): ShellLine => ({
 
 const help: CommandHandler = () => ({
   lines: [
-    t("label", "available commands:"),
+    t("log", " Usage: onchor-ai [OPTIONS] COMMAND [ARGS]..."),
     blank(),
-    t("log", "  help              show this message"),
-    t("log", "  audit             run sample audit pipeline (demo)"),
-    t("log", "  memory            collective memory statistics"),
-    t("log", "  pricing           x402 pricing tiers"),
-    t("log", "  pipeline          show 6-phase pipeline architecture"),
-    t("log", "  stack             show technology stack"),
-    t("log", "  init              initialize .onchor config"),
-    t("log", "  whoami            wallet & session info"),
-    t("log", "  version           version info"),
-    t("log", "  history           open audit history page"),
-    t("log", "  github            open project on GitHub"),
-    t("log", "  man <cmd>         show command details"),
-    t("log", "  clear             clear screen"),
+    t("muted", " Onchor.ai — Solidity Security Copilot avec mémoire collective."),
+    t("muted", " Audit contracts, paiements USDC testnet (x402), ancrages KeeperHub, patterns"),
+    t("muted", " 0G. Détail et options propres à chaque commande : utilise -h après le nom de"),
+    t("muted", " la commande."),
+    blank(),
+    t("label", "╭─ Commandes disponibles ──────────────────────────────────────────────────────╮"),
+    t("log", "│ audit     Auditer fichier, dossier ou adresse 0x (contrat vérifié).          │"),
+    t("log", "│ doctor    Vérifier clés & connexions réseau (~/.onchor-ai ou .env).          │"),
+    t("log", "│ init      Initialiser le dossier projet .onchor/ (config locale).            │"),
+    t("log", "│ status    Afficher mode, version, solde USDC côté serveur local.             │"),
+    t("label", "╰──────────────────────────────────────────────────────────────────────────────╯"),
+    blank(),
+    t("label", "╭─ Navigation Web (Demo CLI) ──────────────────────────────────────────────────╮"),
+    t("log", "│ memory    Voir les statistiques de la mémoire collective 0G.                 │"),
+    t("log", "│ history   Ouvrir la page d'historique des audits.                            │"),
+    t("log", "│ pipeline  Voir l'architecture en 6 phases du pipeline.                       │"),
+    t("log", "│ pricing   Voir les tarifs x402.                                              │"),
+    t("log", "│ stack     Voir la stack technologique.                                       │"),
+    t("log", "│ clear     Effacer l'écran.                                                   │"),
+    t("label", "╰──────────────────────────────────────────────────────────────────────────────╯"),
     blank(),
     t("comment", "# tip: ↑/↓ to navigate history · Tab to autocomplete"),
   ],
@@ -116,13 +123,13 @@ const version: CommandHandler = () => ({
     t("log", "  release    : 0.1.0-rc1"),
     t("log", "  commit     : 6bd2b87"),
     t("log", "  network    : base-sepolia (chain 84532)"),
-    t("log", "  llm        : claude-sonnet-4-5 / claude-haiku-4-5"),
+    t("log", "  llm        : claude-sonnet-4-5 / gpt-4o-mini"),
     blank(),
     t("comment", "# CNM Agency — ETHGlobal Open Agents 2026"),
   ],
 });
 
-const whoami: CommandHandler = () => ({
+const status: CommandHandler = () => ({
   lines: [
     t("label", "session"),
     t("log", "  user           : guest"),
@@ -132,6 +139,20 @@ const whoami: CommandHandler = () => ({
     t("log", "  balance        : 0.00 USDC"),
     blank(),
     t("comment", "# run `init` to generate a local wallet"),
+  ],
+});
+
+const doctor: CommandHandler = () => ({
+  lines: [
+    t("label", "Onchor.ai Doctor - System Check"),
+    blank(),
+    t("accent", "✓ Python Environment: Python 3.12+ detected"),
+    t("accent", "✓ Dependencies: Installed correctly"),
+    t("warn", "⚠ ANTHROPIC_API_KEY: Not configured in demo mode"),
+    t("warn", "⚠ OPENAI_API_KEY: Not configured in demo mode"),
+    t("warn", "⚠ Web3 Wallet: No local key found (~/.onchor-ai/config.json)"),
+    blank(),
+    t("comment", "# Run this locally via `pip install onchor-ai` to configure your agent."),
   ],
 });
 
@@ -242,165 +263,23 @@ const progress = (
   status,
 });
 
-const auditDemo: CommandHandler = (args) => {
-  const target = args.find((a) => !a.startsWith("--")) || "EulerVault.sol";
-  const isLocal = args.includes("--local") || args.includes("--dev");
-
+const auditDemo: CommandHandler = () => {
   return {
-    typewriter: true,
     lines: [
-      t("muted", "Onchor.ai v0.1.0  ·  audit pipeline"),
-      t("muted", `target  : ${target}`),
-      t("muted", `mode    : ${isLocal ? "--local (no payment, no anchor)" : "x402 + onchain anchor"}`),
-      rule(),
+      t("danger", "ERROR: Web audits are disabled in production."),
+      blank(),
+      t("log", "Onchor.ai is the Etherscan of smart contract security."),
+      t("log", "To guarantee on-chain proofs and decentralized execution, all audits"),
+      t("log", "must be run from your local CLI."),
+      blank(),
+      t("accent", "Install the CLI:"),
+      t("log", "  pip install onchor-ai"),
+      blank(),
+      t("accent", "Run an audit:"),
+      t("log", "  onchor-ai audit ./my-contracts/"),
+      blank(),
+      t("comment", "# View your audit history securely by typing `history`"),
     ],
-    run: async ({ append, replace, sleep, cancelled }) => {
-      // Petit jitter pour donner un feel de vraie latence réseau.
-      const wait = (ms: number) => sleep(ms + Math.floor(Math.random() * 90));
-      const stop = () => cancelled();
-
-      // ── Payment (x402) ───────────────────────────────────────────────
-      if (!isLocal) {
-        const i = append(t("warn", "[x402]    requesting payment quote..."));
-        await wait(280);
-        if (stop()) return;
-        replace(i, t("warn", "[x402]    quote: 0.50 USDC  ·  base-sepolia"));
-        await wait(220);
-        if (stop()) return;
-
-        const j = append(t("warn", "[x402]    signing eip-3009 authorization..."));
-        await wait(360);
-        if (stop()) return;
-        replace(j, t("warn", "[x402]    paid 0.50 USDC  ✓  tx: 0x8fa3c2…7e91"));
-        await wait(180);
-        if (stop()) return;
-      }
-
-      // ── Progress bar (mise à jour à chaque phase) ────────────────────
-      const pIdx = append(progress(0, "phase 0/6 · resolve"));
-      const setP = (value: number, sub: string, status: ProgressLine["status"] = "running") =>
-        replace(pIdx, progress(value, sub, status));
-
-      append(blank());
-
-      // ── Phase 0 — Resolve ────────────────────────────────────────────
-      append(t("muted", "  > GET https://onchor-ai.cnm.so/v1/resolve"));
-      await wait(380);
-      if (stop()) return;
-      append(t("muted", "  > parsing source map  ·  1 file  ·  412 LOC"));
-      await wait(260);
-      if (stop()) return;
-      append(t("muted", "  > fork-detect: comparing against 247 known protocols..."));
-      await wait(420);
-      if (stop()) return;
-      append(t("log", "[Phase 0] resolve         ✓  1 file  ·  no upstream fork"));
-      setP(15, "phase 1/6 · inventory");
-      await wait(220);
-      if (stop()) return;
-
-      // ── Phase 1 — Inventory ──────────────────────────────────────────
-      append(t("muted", "  > AST traversal  ·  47 functions  ·  12 storage slots"));
-      await wait(300);
-      if (stop()) return;
-      append(t("muted", "  > flagging delegatecall, low-level calls, unchecked math..."));
-      await wait(260);
-      if (stop()) return;
-      append(t("log", "[Phase 1] inventory       ✓  2 flags raised  ·  1 delegatecall  ·  1 unchecked"));
-      setP(30, "phase 2/6 · slither");
-      await wait(220);
-      if (stop()) return;
-
-      // ── Phase 2 — Slither ────────────────────────────────────────────
-      append(t("muted", "  > slither --detect all  ·  89 detectors loaded"));
-      await wait(620);
-      if (stop()) return;
-      append(t("muted", "  > diff-only: target is original, full scan"));
-      await wait(180);
-      if (stop()) return;
-      append(t("log", "[Phase 2] slither         ✓  3 findings  ·  1 HIGH · 1 MED · 1 LOW"));
-      setP(45, "phase 3/6 · triage");
-      await wait(220);
-      if (stop()) return;
-
-      // ── Phase 3 — Triage ─────────────────────────────────────────────
-      append(t("muted", "  > claude-haiku-4-5  ·  cost-gate triage..."));
-      await wait(440);
-      if (stop()) return;
-      append(t("log", "[Phase 3] triage          risk_score: 8.4 / 10  →  ESCALATE"));
-      setP(60, "phase 4/6 · investigate");
-      await wait(220);
-      if (stop()) return;
-
-      // ── Phase 4 — Investigate (adversarial agent) ────────────────────
-      append(t("log", "[Phase 4] investigate     spawning adversarial agent (claude-sonnet-4-5)"));
-      await wait(360);
-      if (stop()) return;
-      append(t("muted", "  > tool: read_contract('EulerVault.sol', 130, 160)"));
-      await wait(300);
-      if (stop()) return;
-      append(t("muted", "  > tool: get_call_graph('withdraw')"));
-      await wait(280);
-      if (stop()) return;
-      append(t("muted", "  > tool: query_memory('reentrancy external call')"));
-      await wait(520);
-      if (stop()) return;
-      append(t("brand", "  memory hit  ·  euler finance hack  (2024-03-15)  ·  $197M"));
-      await wait(260);
-      if (stop()) return;
-      append(t("muted", "  > tool: simulate_call('withdraw', attacker=true)"));
-      await wait(420);
-      if (stop()) return;
-      append(t("accent", "  finding CONFIRMED  ·  reentrancy in withdraw() (line 142)"));
-      setP(80, "phase 5/6 · anchor");
-      await wait(220);
-      if (stop()) return;
-
-      // ── Phase 5 — Anchor (KeeperHub) ─────────────────────────────────
-      if (isLocal) {
-        append(t("muted", "  > anchoring skipped  (--local)"));
-        await wait(220);
-        if (stop()) return;
-      } else {
-        const a1 = append(t("muted", "  > anchoring f-001 to KeeperHub..."));
-        await wait(380);
-        if (stop()) return;
-        replace(a1, t("muted", "  > waiting for sepolia confirmation (block #6,041,221)..."));
-        await wait(540);
-        if (stop()) return;
-        replace(a1, t("accent", "  ✓  f-001 anchored  →  0x7f2e…a91c"));
-        await wait(180);
-        if (stop()) return;
-
-        const a2 = append(t("muted", "  > anchoring f-002 to KeeperHub..."));
-        await wait(420);
-        if (stop()) return;
-        replace(a2, t("accent", "  ✓  f-002 anchored  →  0x7f2e…b03d"));
-      }
-      setP(92, "phase 6/6 · report");
-      await wait(220);
-      if (stop()) return;
-
-      // ── Phase 6 — Report ─────────────────────────────────────────────
-      append(t("muted", "  > minting ENS certificate audit-001.onchor.eth..."));
-      await wait(420);
-      if (stop()) return;
-      append(t("log", "[Phase 6] report          ✓  certificate ready  ·  json + onchain proof"));
-      setP(100, "complete", "done");
-      await wait(200);
-      if (stop()) return;
-
-      // ── Verdict ──────────────────────────────────────────────────────
-      append(blank());
-      append(rule());
-      append(t("danger", "VERDICT: HIGH RISK  (7.8 / 10)"));
-      append(blank());
-      append(t("danger", "[HIGH]  EulerVault.sol:142  reentrancy — external call before state update in withdraw()"));
-      append(t("warn",   "[MED]   EulerVault.sol:89   missing access control — setFeeRecipient()"));
-      append(t("muted",  "[LOW]   EulerVault.sol:204  shadowed local — `owner` shadows state var"));
-      append(blank());
-      append(t("comment", "# onchain proof  : https://sepolia.etherscan.io/tx/0x3bc4…d219"));
-      append(t("comment", "# certificate   : https://app.ens.domains/audit-001.onchor.eth"));
-    },
   };
 };
 
@@ -482,7 +361,9 @@ export const COMMANDS: Record<string, CommandHandler> = {
   "?": help,
   version,
   v: version,
-  whoami,
+  whoami: status,
+  status,
+  doctor,
   init,
   memory,
   pricing,

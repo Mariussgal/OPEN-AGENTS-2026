@@ -32,7 +32,7 @@ function WalletBanner({ wallet }: { wallet: WalletInfo }) {
                         <span className="text-sm font-medium text-zinc-200">{short}</span>
                         <span className="text-xs text-zinc-500 bg-white/5 px-2 py-0.5 rounded-md">{wallet.network}</span>
                         <a
-                            href={`https://sepolia.etherscan.io/address/${wallet.address}`}
+                            href={`https://sepolia.basescan.org/address/${wallet.address}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-zinc-600 hover:text-[#0DFC67] transition-colors"
@@ -109,12 +109,11 @@ function TargetLabel({ target }: { target: AuditSummary["target"] }) {
 export default function HistoryPage() {
     const router = useRouter();
     const [audits, setAudits] = useState<AuditSummary[]>([]);
-    const [wallet, setWallet] = useState<WalletInfo | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        Promise.all([getAuditHistory(), getWalletInfo()])
-            .then(([a, w]) => { setAudits(a); setWallet(w); })
+        getAuditHistory()
+            .then((a) => { setAudits(a); })
             .finally(() => setLoading(false));
     }, []);
 
@@ -158,9 +157,6 @@ export default function HistoryPage() {
                         <span className="text-zinc-400 leading-relaxed">Loading audits...</span>
                     </div>
                 )}
-
-                {/* Wallet Banner */}
-                {!loading && wallet && <WalletBanner wallet={wallet} />}
 
                 {/* Empty */}
                 {!loading && audits.length === 0 && (

@@ -608,6 +608,70 @@ async def get_audit_report(audit_id: str):
     return audit
 
 
+@app.get("/memory")
+async def get_memory_stats():
+    from memory.collective_0g import _get_or_fetch_manifest
+    try:
+        manifest = await _get_or_fetch_manifest()
+    except Exception:
+        manifest = []
+
+    total = len(manifest)
+    
+    # Calculate type counts
+    types_count = {}
+    for entry in manifest:
+        t = entry.get("type", "unknown")
+        types_count[t] = types_count.get(t, 0) + 1
+        
+    pattern_types = []
+    for t, count in sorted(types_count.items(), key=lambda x: x[1], reverse=True):
+        pattern_types.append({
+            "type": t,
+            "count": count,
+            "pct": int(count / total * 100) if total > 0 else 0
+        })
+        
+    # Convert latest entries to "recent hits" format
+    recent_hits = []
+    
+    # Filter to only keep entries with a real tx_hash
+    valid_entries = [e for e in manifest if e.get("tx_hash")]
+    
+    for entry in reversed(valid_entries[-50:]): # Last 50 valid ones
+        recent_hits.append({
+            "pattern": entry.get("type", "unknown"),
+            "match": entry.get("abstract_description", ""),
+            "keywords": entry.get("keywords", []),
+            "pattern_hash": entry.get("pattern_hash", ""),
+            "amount": "N/A",
+            "confirmations": entry.get("confirmation_count", 1),
+            "severity": entry.get("severity", "HIGH"),
+            "tx_hash": entry.get("tx_hash", ""),
+            "root_hash": entry.get("root_hash", "")
+        })
+
+    return {
+        "total_patterns": total,
+        "confirmed_patterns": total,
+        "sources": [
+            {
+                "name": "Onchor.ai Agent (0xe97F...0Fd8)", 
+                "count": total, 
+                "color": "text-[#0DFC67]",
+                "url": "https://storagescan-galileo.0g.ai/address/0xe97F62b7Bf214303419189ECD3D6688FdfF30Fd8"
+            },
+            {
+                "name": "Slither Analyzer (Static Engine)",
+                "count": total,
+                "color": "text-zinc-300",
+                "url": "https://github.com/crytic/slither"
+            }
+        ],
+        "pattern_types": pattern_types,
+        "recent_hits": recent_hits,
+    }
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("server:app", host="0.0.0.0", port=8000, reload=True)

@@ -17,29 +17,29 @@ const PHASES = [
   },
   {
     id: 1,
-    name: "Inventory",
-    desc: "Structural parse without LLM. Flags delegatecall, unchecked, assembly. Cross-references known findings via Cognee.",
+    name: "Inventory & Cognee",
+    desc: "The Semantic Brain. Structural parse flags risky operations. Cognee indexes the 0G library and retrieves past hacks relevant to this contract.",
   },
   {
     id: 2,
-    name: "Slither",
-    desc: "Static analysis JSON output. On detected fork, only modified files are scanned to save tokens and noise.",
+    name: "Slither Analysis",
+    desc: "The Stethoscope. Deterministic static analysis instantly scans for hundreds of known vulnerabilities to provide raw signals for the AI.",
   },
   {
     id: 3,
     name: "Triage",
-    desc: "claude-haiku-4-5 scores each file 0–10. Score below 3 stops the pipeline with a SAFE verdict.",
+    desc: "gpt-4o-mini scores each file 0–10. Score below 3 stops the pipeline with a SAFE verdict.",
   },
   {
     id: 4,
     name: "Investigation",
-    desc: "claude-sonnet reads code adversarially with 7 tools, 30 turns, cross-referencing memory patterns.",
+    desc: "claude-sonnet reads code adversarially with 7 tools, 30 turns, cross-referencing Cognee's retrieved memory patterns.",
     core: true,
   },
   {
     id: 5,
-    name: "Anchor",
-    desc: "Direct Execution API verifies and completes anchors. Mints an ENS certificate when zero HIGH findings.",
+    name: "0G Anchor",
+    desc: "The Immutable Memory. Confirmed patterns are anchored forever to 0G Storage. Mints an ENS certificate when zero HIGH findings.",
   },
 ];
 
@@ -49,7 +49,7 @@ const STACK = [
   { name: "ENS", role: "Audit certificate registry" },
   { name: "x402", role: "HTTP-native USDC payments" },
   { name: "Cognee", role: "Tridimensional memory" },
-  { name: "Anthropic", role: "Haiku and Sonnet models" },
+  { name: "OpenAI & Anthropic", role: "gpt-4o-mini & claude-sonnet" },
 ];
 
 const PRICING = [
@@ -356,8 +356,8 @@ export default function HomePage() {
               you get with{" "}
               <span className="text-[--terminal-accent]">onchor-ai</span>.
               type <span className="text-[--terminal-accent]">help</span>,{" "}
-              <span className="text-[--terminal-accent]">audit</span> or{" "}
-              <span className="text-[--terminal-accent]">memory</span>.
+              <span className="text-[--terminal-accent]">audit</span>, or{" "}
+              <span className="text-[--terminal-accent]">status</span>.
             </p>
           </div>
 
@@ -423,9 +423,9 @@ export default function HomePage() {
             <div className="absolute inset-y-0 right-0 w-24 sm:w-32 bg-gradient-to-l from-[--background] to-transparent z-10 pointer-events-none" />
 
             {/* Row 1: Right Moving (Infrastructure) */}
-            <div className="flex w-[200%] animate-marquee-right items-stretch">
-              {[...STACK.slice(0, 3), ...STACK.slice(0, 3)].map((s, i) => (
-                <div key={`${s.name}-r1-${i}`} className="w-1/6 shrink-0 px-2">
+            <div className="flex w-max animate-marquee-right items-stretch">
+              {[...STACK.slice(0, 3), ...STACK.slice(0, 3), ...STACK.slice(0, 3), ...STACK.slice(0, 3)].map((s, i) => (
+                <div key={`${s.name}-r1-${i}`} className="shrink-0 px-2">
                   <div className="terminal-box h-full px-4 py-2.5 rounded-sm flex items-center justify-center gap-3 whitespace-nowrap">
                     <span className="font-mono text-xs text-[--terminal-brand]">{s.name}</span>
                     <span className="text-[--terminal-comment]">::</span>
@@ -436,9 +436,9 @@ export default function HomePage() {
             </div>
 
             {/* Row 2: Left Moving (API & AI) */}
-            <div className="flex w-[200%] animate-marquee-left items-stretch">
-              {[...STACK.slice(3), ...STACK.slice(3)].map((s, i) => (
-                <div key={`${s.name}-r2-${i}`} className="w-1/6 shrink-0 px-2">
+            <div className="flex w-max animate-marquee-left items-stretch">
+              {[...STACK.slice(3), ...STACK.slice(3), ...STACK.slice(3), ...STACK.slice(3)].map((s, i) => (
+                <div key={`${s.name}-r2-${i}`} className="shrink-0 px-2">
                   <div className="terminal-box h-full px-4 py-2.5 rounded-sm flex items-center justify-center gap-3 whitespace-nowrap">
                     <span className="font-mono text-xs text-[--terminal-brand]">{s.name}</span>
                     <span className="text-[--terminal-comment]">::</span>
