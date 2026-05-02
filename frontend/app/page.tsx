@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Check, Copy, Menu, X } from "lucide-react";
 import { Shell } from "@/components/shell/Shell";
 import { TerminalWindow } from "@/components/branding/TerminalWindow";
@@ -13,7 +13,7 @@ const PHASES = [
   {
     id: 0,
     name: "Resolve",
-    desc: "Detects the contract address or local file. Identifies known forks (Uniswap, Aave, OZ) and reduces scope to the diff only.",
+    desc: "Detects the contract address or local file. Identifies known forks (Uniswap, Euler, OZ) and reduces scope to the diff only.",
   },
   {
     id: 1,
@@ -39,7 +39,12 @@ const PHASES = [
   {
     id: 5,
     name: "0G Anchor",
-    desc: "The Immutable Memory. Confirmed patterns are anchored forever to 0G Storage. Mints an ENS certificate when zero HIGH findings.",
+    desc: "The Immutable Memory. Confirmed patterns are anchored forever to 0G Storage and notarized onchain via KeeperHub.",
+  },
+  {
+    id: 6,
+    name: "Report",
+    desc: "Final enrichment. Adds fix sketches and historical references. Generates the final JSON report and verified ENS certificate.",
   },
 ];
 
@@ -222,6 +227,25 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
 
 export default function HomePage() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [activePhase, setActivePhase] = useState(0);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const handleScroll = () => {
+      const scrollLeft = el.scrollLeft;
+      const width = el.offsetWidth;
+      // Cards are min-w-[280px] + gap-4
+      const itemWidth = 280 + 16; 
+      const index = Math.round(scrollLeft / itemWidth);
+      setActivePhase(index);
+    };
+
+    el.addEventListener("scroll", handleScroll, { passive: true });
+    return () => el.removeEventListener("scroll", handleScroll);
+  }, []);
 
   return (
     <div className="min-h-screen bg-[--background] text-[--foreground] relative overflow-x-hidden">
@@ -355,9 +379,7 @@ export default function HomePage() {
               <span className="text-[--terminal-comment]">#</span> the same shell
               you get with{" "}
               <span className="text-[--terminal-accent]">onchor-ai</span>.
-              type <span className="text-[--terminal-accent]">help</span>,{" "}
-              <span className="text-[--terminal-accent]">audit</span>, or{" "}
-              <span className="text-[--terminal-accent]">status</span>.
+              type <span className="text-[--terminal-accent]">help</span>.
             </p>
           </div>
 
@@ -377,11 +399,14 @@ export default function HomePage() {
             </h2>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+          <div 
+            ref={scrollRef}
+            className="flex overflow-x-auto sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-4 pb-6 sm:pb-0 snap-x snap-mandatory scrollbar-hide"
+          >
             {PHASES.map((phase) => (
               <div
                 key={phase.id}
-                className="terminal-box rounded-sm p-4 sm:p-5 hover:border-[--terminal-brand]/60 transition-colors flex flex-col"
+                className="terminal-box rounded-sm p-4 sm:p-5 hover:border-[--terminal-brand]/60 transition-colors flex flex-col min-w-[280px] sm:min-w-0 snap-start"
               >
                 <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                   <span className="font-mono text-sm font-semibold text-[--terminal-label]">
@@ -402,6 +427,19 @@ export default function HomePage() {
                   </div>
                 )}
               </div>
+            ))}
+          </div>
+          {/* Pagination dots for mobile */}
+          <div className="flex justify-center gap-2 mt-2 sm:hidden">
+            {PHASES.map((phase) => (
+              <div
+                key={`dot-${phase.id}`}
+                className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
+                  activePhase === phase.id 
+                    ? "bg-[--terminal-brand] w-3" 
+                    : "bg-[--terminal-border]"
+                }`}
+              />
             ))}
           </div>
         </section>

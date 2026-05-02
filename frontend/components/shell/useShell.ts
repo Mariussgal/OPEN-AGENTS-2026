@@ -32,7 +32,7 @@ export type ShellApi = {
   entries: ShellEntry[];
   input: string;
   setInput: (value: string) => void;
-  submit: () => void;
+  submit: (forceInput?: string) => void;
   /** History navigation: -1 = up, 1 = down. */
   navigateHistory: (delta: -1 | 1) => void;
   /** Tab autocomplete. */
@@ -149,8 +149,8 @@ export function useShell(): ShellApi {
     streamsRef.current.clear();
   }, []);
 
-  const submit = useCallback(() => {
-    const raw = input.trim();
+  const submit = useCallback((forceInput?: string) => {
+    const raw = (forceInput ?? input).trim();
     setInput("");
     historyIndexRef.current = -1;
 

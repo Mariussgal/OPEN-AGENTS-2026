@@ -154,7 +154,9 @@ export function Shell() {
   return (
     <div
       className="flex flex-col h-full w-full bg-[--terminal-bg] text-[--terminal-label] font-mono text-xs sm:text-sm"
-      onClick={() => inputRef.current?.focus()}
+      onClick={() => {
+        if (window.innerWidth >= 768) inputRef.current?.focus();
+      }}
     >
       {/* Output buffer — min-h-0 required for flex-1 + overflow-y-auto */}
       <div
@@ -167,8 +169,24 @@ export function Shell() {
         ))}
       </div>
 
-      {/* Prompt input */}
-      <div className="flex items-baseline gap-2 px-3 sm:px-6 py-3 border-t border-[--terminal-border]">
+      {/* Mobile-friendly command suggestions */}
+      <div className="flex items-center gap-2 px-4 sm:px-6 py-2 border-t border-[--terminal-border] overflow-x-auto scrollbar-hide md:hidden bg-[--terminal-bg]/50">
+        <span className="text-[10px] uppercase tracking-wider text-[--terminal-muted] whitespace-nowrap mr-1">
+          Quick:
+        </span>
+        {["help", "pipeline", "pricing", "stack", "clear"].map((cmd) => (
+          <button
+            key={cmd}
+            onClick={() => submit(cmd)}
+            className="px-2.5 py-1 rounded-sm border border-[--terminal-border] text-[11px] font-mono text-[--terminal-muted] hover:text-[--terminal-accent] hover:border-[--terminal-accent]/50 transition-colors whitespace-nowrap active:bg-[--terminal-accent]/10"
+          >
+            {cmd}
+          </button>
+        ))}
+      </div>
+
+      {/* Prompt input — Hidden on mobile, shown on md+ */}
+      <div className="hidden md:flex items-baseline gap-2 px-4 sm:px-6 py-3 border-t border-[--terminal-border]">
         <span className="text-[--terminal-accent] shrink-0 select-none">{SHELL_PROMPT}</span>
         <div className="relative flex-1">
           <input

@@ -270,6 +270,15 @@ body {
 .terminal-line-error   { color: var(--severity-high); }
 .terminal-line-payment { color: var(--terminal-yellow); }
 
+/* ─── Utilities ──────────────────────────────────────────────────── */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none; /* Chrome, Safari and Opera */
+}
+
 /* ─── Terminal box (bordures fines, coin carrés) ─────────────────────────── */
 .terminal-box {
   border: 1px solid var(--terminal-border);
