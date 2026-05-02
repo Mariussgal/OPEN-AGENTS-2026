@@ -64,10 +64,35 @@ from ui import (
     SEVERITY_STYLES,
 )
 
-API_URL        = "http://localhost:8000"
+_DEFAULT_LOCAL_API  = "http://localhost:8000"
+_DEFAULT_PUBLIC_API = "https://open-agents-2026.onrender.com"
+_API_URL_CACHE: str | None = None
+
 CONFIG_DIR     = ".onchor"
 CONFIG_LEGACY  = os.path.join(CONFIG_DIR, "config.json")
 CONFIG_USER    = os.path.join(str(Path.home()), ".onchor-ai", "config.json")
+
+
+def get_api_url() -> str:
+    """Prefer explicit ONCHOR_API_URL; else local backend if reachable; else public Render."""
+    global _API_URL_CACHE
+    if _API_URL_CACHE is not None:
+        return _API_URL_CACHE
+    explicit = (os.getenv("ONCHOR_API_URL") or "").strip()
+    if explicit:
+        _API_URL_CACHE = explicit.rstrip("/")
+        return _API_URL_CACHE
+    local = _DEFAULT_LOCAL_API.rstrip("/")
+    try:
+        with httpx.Client(timeout=1.0) as client:
+            r = client.get(f"{local}/")
+            if r.status_code == 200:
+                _API_URL_CACHE = local
+                return _API_URL_CACHE
+    except Exception:
+        pass
+    _API_URL_CACHE = _DEFAULT_PUBLIC_API.rstrip("/")
+    return _API_URL_CACHE
 
 
 def _should_run_onboarding() -> bool:
@@ -225,7 +250,7 @@ def status() -> None:
     if address:
         try:
             with httpx.Client(timeout=10.0) as client:
-                resp = client.get(f"{API_URL}/user/balance", params={"address": address})
+                resp = client.get(f"{get_api_url()}/user/balance", params={"address": address})
                 real_balance = resp.json().get("balance", 0.0)
         except Exception:
             real_balance = cfg.get("credit_usdc", 0.0) # Fallback
@@ -238,7 +263,7 @@ def status() -> None:
                 "Mode": cfg.get("mode", "?"),
                 "USDC Balance (Real)": f"{real_balance:.2f} USDC",
                 "Wallet Address": address or "Not configured",
-                "API URL": API_URL,
+                "API URL": get_api_url(),
             },
         )
     )
@@ -273,7 +298,7 @@ def audit(path: str, local: bool, dev: bool, no_stream: bool) -> None:
     if not (local or dev) and address:
         try:
             with httpx.Client(timeout=10.0) as client:
-                resp = client.get(f"{API_URL}/user/balance", params={"address": address})
+                resp = client.get(f"{get_api_url()}/user/balance", params={"address": address})
                 real_balance = resp.json().get("balance", 0.0)
                 info(f"Available balance: [accent]{real_balance:.2f} USDC[/accent]")
         except Exception:
@@ -316,11 +341,11 @@ async def _run_audit_async(
     if local or dev:
         if stream:
             from streaming_client import run_streaming_audit_local
-            return await run_streaming_audit_local(API_URL, path)
+            return await run_streaming_audit_local(get_api_url(), path)
         # Legacy — POST unique + spinner.
         with console.status("[brand]Analyse en cours…[/brand]", spinner="dots"):
             async with httpx.AsyncClient(timeout=600.0) as client:
-                resp = await client.post(f"{API_URL}/audit/local", params={"path": path})
+                resp = await client.post(f"{get_api_url()}/audit/local", params={"path": path})
                 resp.raise_for_status()
                 return resp.json(), None
 
@@ -328,12 +353,12 @@ async def _run_audit_async(
     if stream:
         from payments.x402_client import prepare_x_payment
         from streaming_client import run_streaming_paid_audit
-        x_payment, _price, _nb = await prepare_x_payment(API_URL, path)
-        return await run_streaming_paid_audit(API_URL, path, x_payment)
+        x_payment, _price, _nb = await prepare_x_payment(get_api_url(), path)
+        return await run_streaming_paid_audit(get_api_url(), path, x_payment)
 
     # Legacy paid — POST unique vers /audit.
     from payments.x402_client import run_paid_audit
-    return await run_paid_audit(API_URL, path), None
+    return await run_paid_audit(get_api_url(), path), None
 
 
 # ─── Render Results ────────────────────────────────────────────────────────────
@@ -665,7 +690,7 @@ def _handle_optional_contribution(findings: list[dict], user_config: dict[str, A
         contributor_address = os.getenv("RECEIVER_ADDRESS")
         with httpx.Client(timeout=180.0) as client:
             reward_resp = client.post(
-                f"{API_URL}/audit/reward",
+                f"{get_api_url()}/audit/reward",
                 params={"contributor_address": contributor_address, "amount": reward},
                 json=findings[:MAX_REWARDABLE],  # envoie les patterns dans le body
             )
@@ -682,7 +707,7 @@ def _handle_optional_contribution(findings: list[dict], user_config: dict[str, A
         real_balance = user_config["credit_usdc"]
         try:
             with httpx.Client(timeout=10.0) as client:
-                resp = client.get(f"{API_URL}/user/balance", params={"address": contributor_address})
+                resp = client.get(f"{get_api_url()}/user/balance", params={"address": contributor_address})
                 real_balance = resp.json().get("balance", real_balance)
         except Exception:
             pass
