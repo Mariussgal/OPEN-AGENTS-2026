@@ -12,39 +12,39 @@ import { TerminalWindow } from "@/components/branding/TerminalWindow";
 const PHASES = [
   {
     id: 0,
-    name: "Resolve",
-    desc: "Detects the contract address or local file. Identifies known forks (Uniswap, Euler, OZ) and reduces scope to the diff only.",
+    name: "Target Resolution",
+    desc: "Detects address or local source. Identifies forks (Uniswap, Euler, OZ) and automatically reduces scope to custom diffs only.",
   },
   {
     id: 1,
-    name: "Inventory & Cognee",
-    desc: "The Semantic Brain. Structural parse flags risky operations. Cognee indexes the 0G library and retrieves past hacks relevant to this contract.",
+    name: "Semantic Inventory",
+    desc: "Cognee structural parsing. Indexes the 0G library to retrieve past hacks and relevant security patterns for the specific codebase.",
   },
   {
     id: 2,
-    name: "Slither Analysis",
-    desc: "The Stethoscope. Deterministic static analysis instantly scans for hundreds of known vulnerabilities to provide raw signals for the AI.",
+    name: "Static Analysis",
+    desc: "Slither deep scan. Runs 89+ deterministic detectors to provide high-precision raw signals and data-flow graphs for the AI agent.",
   },
   {
     id: 3,
-    name: "Triage",
-    desc: "gpt-4o-mini scores each file 0–10. Score below 3 stops the pipeline with a SAFE verdict.",
+    name: "Cost-Gate Triage",
+    desc: "GPT-4o-mini scoring. Rapidly assesses each file (0–10). A score below 3 halts the pipeline instantly with a SAFE verdict.",
   },
   {
     id: 4,
-    name: "Investigation",
-    desc: "claude-sonnet reads code adversarially with 7 tools, 30 turns, cross-referencing Cognee's retrieved memory patterns.",
+    name: "Adversarial Agent",
+    desc: "Sonnet 4.5 investigation. An autonomous LLM agent with 7 security tools and 30-turn recursion for deep vulnerability discovery.",
     core: true,
   },
   {
     id: 5,
-    name: "0G Anchor",
-    desc: "The Immutable Memory. Confirmed patterns are anchored forever to 0G Storage and notarized onchain via KeeperHub.",
+    name: "Onchain Anchor",
+    desc: "Immutable Notarization. Confirmed findings are anchored to 0G Storage and notarized onchain via KeeperHub direct execution.",
   },
   {
     id: 6,
-    name: "Report",
-    desc: "Final enrichment. Adds fix sketches and historical references. Generates the final JSON report and verified ENS certificate.",
+    name: "Final Report",
+    desc: "Verified Proof. Generates enriched JSON reports with fix sketches and historical refs, plus a minted ENS audit certificate.",
   },
 ];
 
@@ -388,7 +388,7 @@ export default function HomePage() {
           </TerminalWindow>
         </section>
 
-        {/* ═════ HOW IT WORKS — 6 phases ═══════════════════════════════════ */}
+        {/* ═════ HOW IT WORKS — 7 phases ═══════════════════════════════════ */}
         <section className="max-w-5xl mx-auto w-full">
           <div className="text-center mb-10">
             <span className="text-[10px] uppercase tracking-[0.25em] font-mono text-[--terminal-muted]">
@@ -401,12 +401,12 @@ export default function HomePage() {
 
           <div 
             ref={scrollRef}
-            className="flex overflow-x-auto sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-4 pb-6 sm:pb-0 snap-x snap-mandatory scrollbar-hide"
+            className="flex overflow-x-auto sm:flex-wrap sm:justify-center gap-4 pb-6 sm:pb-0 snap-x snap-mandatory scrollbar-hide"
           >
             {PHASES.map((phase) => (
               <div
                 key={phase.id}
-                className="terminal-box rounded-sm p-4 sm:p-5 hover:border-[--terminal-brand]/60 transition-colors flex flex-col min-w-[280px] sm:min-w-0 snap-start"
+                className="terminal-box rounded-sm p-4 sm:p-5 hover:border-[--terminal-brand]/60 transition-colors flex flex-col min-w-[280px] sm:min-w-0 sm:w-[calc(50%-0.5rem)] lg:w-[calc(33.33%-0.7rem)] snap-start"
               >
                 <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                   <span className="font-mono text-sm font-semibold text-[--terminal-label]">
