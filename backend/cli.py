@@ -838,10 +838,11 @@ def _handle_optional_contribution(findings: list[dict], user_config: dict[str, A
             console.print()
             section("0G Contribution Proofs")
             for i, c in enumerate(contributed[:MAX_REWARDABLE], 1):
-                tx0g = (c.get("tx_hash") or "").strip()
-                root = (c.get("root_hash") or "").strip()
+                tx0g = (c.get("tx_hash") or c.get("tx") or "").strip()
+                root = (c.get("root_hash") or c.get("pattern_hash") or "").strip()
                 if tx0g:
-                    info(f"[{i}] 0G tx: [accent]https://chainscan-galileo.0g.ai/tx/{tx0g}[/accent]")
+                    tx_link = tx0g if tx0g.startswith("0x") else f"0x{tx0g}"
+                    info(f"[{i}] 0G tx: [accent]https://chainscan-galileo.0g.ai/tx/{tx_link}[/accent]")
                 if root:
                     info(f"[{i}] root: [muted]{root}[/muted]")
     except Exception as e:
