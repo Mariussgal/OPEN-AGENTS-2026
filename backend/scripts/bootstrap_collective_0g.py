@@ -254,6 +254,7 @@ async def bootstrap():
             kv_set(ph, payload_for_kv)
             print(f"  [KV] Pattern indexé: {ph[:16]}...")
         except Exception as e:
+            print(f"  [KV] Erreur pattern {ph[:16]}: {e}")
 
     # Manifest global
     try:
