@@ -523,14 +523,6 @@ export default function HomePage() {
                 </div>
               ))}
             </div>
-
-            <p className="text-xs sm:text-sm text-[--terminal-muted] text-center font-mono">
-              Run free without anchoring with the{" "}
-              <span className="border border-[--terminal-border] px-1.5 py-0.5 rounded-sm text-[--terminal-accent]">
-                --local
-              </span>{" "}
-              flag.
-            </p>
           </TerminalWindow>
         </section>
 
@@ -540,10 +532,10 @@ export default function HomePage() {
       <footer className="relative z-10 border-t border-[--terminal-border] px-4 sm:px-6 py-6">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
           <span className="text-xs font-mono text-[--terminal-muted]">
-            <span className="text-[--terminal-comment]">#</span> Marius · Cyriac · Nohem — CNM Agency
+            <span className="text-[--terminal-comment]"></span> Marius · Cyriac · Nohem — CNM Agency
           </span>
           <span className="text-xs font-mono text-[--terminal-muted]">
-            <span className="text-[--terminal-comment]">#</span> ETHGlobal Open Agents 2026
+            <span className="text-[--terminal-comment]"></span> ETHGlobal Open Agents 2026
           </span>
         </div>
       </footer>
