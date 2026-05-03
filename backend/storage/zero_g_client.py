@@ -15,8 +15,29 @@ import subprocess
 from pathlib import Path
 from typing import Any, Literal
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]
-_ZERO_G_DIR = _REPO_ROOT / "0g"
+def _resolve_zero_g_dir() -> Path:
+    """
+    Trouve le dossier 0g/ (scripts Node) en remontant depuis ce fichier.
+    Nécessaire si le déploiement utilise la racine du repo (backend + 0g).
+    Si seul backend/ est déployé sur Render, 0g/ sera absent — erreur explicite.
+    """
+    p = Path(__file__).resolve().parent
+    for _ in range(8):
+        cand = p / "0g" / "0g_download.js"
+        if cand.is_file():
+            return p / "0g"
+        if p.parent == p:
+            break
+        p = p.parent
+    raise FileNotFoundError(
+        "Dossier 0g/ introuvable (0g_download.js). "
+        "Déploie la racine du monorepo (pas seulement backend/), "
+        "ou copie 0g/ à côté du backend. "
+        "Puis: cd 0g && npm install"
+    )
+
+
+_ZERO_G_DIR = _resolve_zero_g_dir()
 _UPLOAD_JS = _ZERO_G_DIR / "0g_upload.js"
 _DOWNLOAD_JS = _ZERO_G_DIR / "0g_download.js"
 _STORAGE_DIR = Path(__file__).resolve().parent

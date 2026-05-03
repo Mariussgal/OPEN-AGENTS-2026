@@ -11,7 +11,8 @@ from storage.zero_g_client import store_pattern, retrieve_pattern
 
 MANIFEST_KEY = "onchor-manifest-v1"
 CACHE_PATH = Path("~/.onchor-ai/manifest-cache.json").expanduser()
-CACHE_TTL_SECONDS = 3600  # 1h
+# Plus bas en prod (ex. 60) pour que /memory reflète vite les contributions 0G.
+CACHE_TTL_SECONDS = int(os.getenv("ONCHOR_MANIFEST_CACHE_TTL_SECONDS", "3600"))
 
 KEYWORD_MAP = {
     "reentrancy": ["reentrancy", "reentrance", "reentrant", "external call", "withdraw"],
@@ -43,17 +44,24 @@ async def _get_or_fetch_manifest() -> list[dict]:
         if age < CACHE_TTL_SECONDS:
             return json.loads(CACHE_PATH.read_text())
 
-    # Essai 1 : clé nommée
+    # 0g_download.js attend un rootHash on-chain, pas un libellé logique.
+    # La clé "onchor-manifest-v1" est un champ *dans* le JSON uploadé, pas l’id de téléchargement.
+    manifest_root = (os.getenv("MANIFEST_ROOT_HASH") or "").strip()
+    if not manifest_root:
+        print(
+            "[0G] MANIFEST_ROOT_HASH manquant — impossible de charger le manifest collectif. "
+            "Copie la valeur depuis ton .env local (après une contribution) dans les env Render."
+        )
+        return []
+
     try:
-        data = retrieve_pattern(MANIFEST_KEY)
-        manifest = data.get("entries", [])
-    except Exception:
-        # Essai 2 : rootHash depuis .env (fallback si clé nommée indisponible)
-        manifest_root = os.getenv("MANIFEST_ROOT_HASH")
-        if not manifest_root:
-            return []
         data = retrieve_pattern(manifest_root)
         manifest = data.get("entries", [])
+        if not isinstance(manifest, list):
+            manifest = []
+    except Exception as e:
+        print(f"[0G] Échec retrieve_pattern(MANIFEST_ROOT_HASH): {e}")
+        return []
 
     CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
     CACHE_PATH.write_text(json.dumps(manifest))

@@ -11,8 +11,6 @@ from dotenv import load_dotenv
 from typing import Any, AsyncGenerator, Optional, List
 import uuid
 from datetime import datetime
-from pathlib import Path
-
 from x402 import x402ResourceServer, ResourceConfig
 from x402.http import HTTPFacilitatorClient, FacilitatorConfig
 from x402.mechanisms.evm.exact import ExactEvmServerScheme
@@ -27,31 +25,24 @@ from pipeline.phase6_report import run_report          # ← NEW
 from pipeline.streaming import stream_audit_pipeline   # ← NEW (NDJSON streaming)
 from payments.x402_pricing import calculate_price
 from keeper.direct_api import anchor_contribution
+from storage.audits_store import load_audits, save_audit
 
 load_dotenv()
 
-AUDITS_FILE = Path(".onchor/audits.json")
-AUDITS_FILE.parent.mkdir(exist_ok=True)
 
-
-def _load_audits() -> list:
-    if AUDITS_FILE.exists():
-        return json.loads(AUDITS_FILE.read_text())
-    return []
-
-
-def _save_audit(audit: dict):
-    audits = _load_audits()
+def _prepare_audit_for_storage(audit: dict) -> None:
+    """Champs dérivés pour l’historique (fichier ou Postgres)."""
     report = audit.get("report", {})
-
-    # Priorité au rapport Phase 6, fallback triage
     audit["verdict"]     = report.get("verdict") or _map_verdict(audit.get("triage", {}))
     audit["risk_score"]  = report.get("risk_score") or audit.get("triage", {}).get("risk_score", 0)
     audit["findings"]    = report.get("findings") or _format_findings(audit.get("slither", {}))
     audit["memory_hits"] = _format_memory_hits(audit.get("inventory", {}))
     audit["ens"]         = report.get("ens")
-    audits.insert(0, audit)
-    AUDITS_FILE.write_text(json.dumps(audits, indent=2))
+
+
+def _save_audit(audit: dict):
+    _prepare_audit_for_storage(audit)
+    save_audit(audit)
 
 
 def _format_findings(slither_data: dict) -> list:
@@ -565,7 +556,7 @@ async def get_wallet_info():
 
 @app.get("/audits")
 async def get_audit_history():
-    audits = _load_audits()
+    audits = load_audits()
     return [
         {
             "id":           a["id"],
@@ -586,7 +577,7 @@ async def get_audit_history():
 
 @app.get("/audits/{audit_id}")
 async def get_audit_report(audit_id: str):
-    audits = _load_audits()
+    audits = load_audits()
     audit  = next((a for a in audits if a["id"] == audit_id), None)
     if not audit:
         raise HTTPException(status_code=404, detail="Audit not found")
@@ -617,7 +608,8 @@ async def get_memory_stats():
     from memory.collective_0g import _get_or_fetch_manifest
     try:
         manifest = await _get_or_fetch_manifest()
-    except Exception:
+    except Exception as e:
+        print(f"[0G] get_memory_stats: {e}")
         manifest = []
 
     total = len(manifest)
