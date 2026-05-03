@@ -80,6 +80,14 @@ export interface MemoryHit {
     confidence_boost: number; // +1 or +2
 }
 
+export interface OnchainMeta {
+    anchor_registry?: string;
+    network?: string;
+    etherscan_base?: string;
+    tx_proof?: string;
+    keeperhub_executions?: string[];
+}
+
 export interface AuditReport {
     id: string;
     created_at: string;
@@ -93,6 +101,7 @@ export interface AuditReport {
     payment_tx?: string;
     findings: Finding[];
     memory_hits: MemoryHit[];
+    onchain?: OnchainMeta;
     ens_cert?: string; // e.g. "vault-0x7f2e.certified.Onchor-ai.eth"
     report_hash?: string; // 0G rootHash
 }
