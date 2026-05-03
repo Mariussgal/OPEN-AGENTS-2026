@@ -20,7 +20,7 @@ async def anchor_finding_mcp(
     confidence: str = "",
     file: str = "",
     line: str | int | None = None,
-    contributor_address: str | None = None,  # réservé futures récompenses
+    contributor_address: str | None = None,  # reserved for future rewards
 ) -> str:
     ph = normalize_pattern_hash(pattern_hash)
 

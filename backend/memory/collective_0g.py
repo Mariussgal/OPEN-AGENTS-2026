@@ -1,5 +1,5 @@
 """
-Mémoire collective sur 0G KV Storage.
+Collective memory on 0G KV Storage.
 Plus de MANIFEST_ROOT_HASH — le manifest est lu directement depuis 0G.
 """
 import json
@@ -55,13 +55,13 @@ def _anonymize_description(finding: dict) -> str:
     return f"{title}: {reason}".strip()
 
 
-# Alias pour server.py qui appelle _get_or_fetch_manifest
+# Alias for server.py which calls _get_or_fetch_manifest
 async def _get_or_fetch_manifest() -> list[dict]:
     return await _get_manifest()
 
 
 async def _get_manifest() -> list[dict]:
-    """Lit le manifest depuis 0G KV — toujours à jour, sans env var."""
+    """Read manifest from 0G KV — always up to date, no env var needed."""
     data = kv_get(MANIFEST_KEY, use_cache=True)
     if not data:
         return []
@@ -69,21 +69,21 @@ async def _get_manifest() -> list[dict]:
 
 
 async def _update_manifest(new_entries: list[dict]) -> None:
-    """Met à jour le manifest dans 0G KV."""
+    """Update manifest in 0G KV."""
     kv_set(MANIFEST_KEY, {
         "schema": "onchor-ai/manifest/v1",
         "key": MANIFEST_KEY,
         "entries": new_entries,
         "updated_at": time.time(),
     })
-    # Invalider cache local
+    # Invalidate local cache
     cache = Path.home() / ".onchor-ai" / "kv_cache" / "onchor-manifest-v1.json"
     if cache.is_file():
         cache.unlink()
 
 
 async def query_collective_memory(query: str, top_k: int = 5) -> list[dict]:
-    """Cherche dans la mémoire collective sur 0G."""
+    """Search collective memory on 0G."""
     manifest = await _get_manifest()
     if not manifest:
         return []

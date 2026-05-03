@@ -1,8 +1,8 @@
 """
 Streaming NDJSON du pipeline d'audit.
 
-Émet un event JSON par ligne au fil de l'exécution des 7 phases pour que le
-CLI puisse afficher une progress bar dynamique + des logs intermédiaires.
+Emit one JSON event per line while running 7 phases so the
+CLI can render a dynamic progress bar + intermediate logs.
 
 Format des events (1 par ligne, NDJSON / application/x-ndjson) :
 
@@ -15,13 +15,13 @@ Format des events (1 par ligne, NDJSON / application/x-ndjson) :
     {"phase": "report",      "status": "done",   "result": {<full JSON>}, "verdict": "FINDINGS_FOUND", "risk_score": 8}
     {"phase": "pipeline",    "status": "done"}
 
-Le dernier `{"phase": "report", "status": "done"}` contient le payload complet
-dans `result` — strictement identique à ce que renvoient les routes non-stream
-`/audit/local` et `/audit`. Aucune régression côté frontend / scripts.
+The final `{"phase": "report", "status": "done"}` contains full payload
+in `result` — strictly identical to non-stream route responses
+`/audit/local` and `/audit`. No frontend/script regression.
 
 Mode "paid" :
-    Le caller émet en plus un event `{"phase": "payment", ...}` AVANT d'appeler
-    `stream_audit_pipeline()` — voir server.py pour la séquence x402.
+    Caller also emits `{"phase": "payment", ...}` BEFORE calling
+    `stream_audit_pipeline()` — see server.py for x402 sequence.
 """
 
 from __future__ import annotations
@@ -40,8 +40,8 @@ from pipeline.phase4_agent import run_investigation
 from pipeline.phase5_anchor import run_phase5_anchor
 from pipeline.phase6_report import run_report
 
-# Re-export pour back-compat — la source unique est `pipeline.phases`,
-# qui n'a aucune dépendance lourde (pas de cognee / slither / anthropic).
+# Re-export for backward compatibility — single source of truth is `pipeline.phases`,
+# which has zero heavy dependencies (no cognee / slither / anthropic).
 from pipeline.phases import PIPELINE_PHASES  # noqa: F401
 
 
@@ -86,14 +86,14 @@ async def stream_audit_pipeline(
     target_address: Optional[str] = None,
     assign_audit_id: bool = True,
 ) -> AsyncGenerator[bytes, None]:
-    """Exécute le pipeline 6-phases en émettant un event NDJSON par étape.
+    """Run 6-phase pipeline and emit one NDJSON event per step.
 
     Args:
-        path: Chemin local ou adresse 0x.
-        target_address: Adresse onchain (pour le report final). Auto-détecté
+        path: Local path or 0x address.
+        target_address: Onchain address (for final report). Auto-detected
             si `path` commence par "0x".
         assign_audit_id: Si True, ajoute un UUID stable dans le payload final
-            (`result.id`) pour l’historique / lien web. False pour routes sans persistance.
+            (`result.id`) for history/web link. False for non-persistent routes.
 
     Yields:
         Bytes — une ligne NDJSON par event.
@@ -121,7 +121,7 @@ async def stream_audit_pipeline(
 
     audit_id = str(uuid.uuid4()) if assign_audit_id else None
 
-    # Le `target` passé à slither / report dépend de scope (onchain ou pas).
+    # The `target` passed to slither/report depends on scope (onchain or not).
     target = path
     if scope.is_onchain and scope.files:
         target = os.path.dirname(scope.files[0])
@@ -173,7 +173,7 @@ async def stream_audit_pipeline(
         yield hb
     investigation_data = await inv_task
 
-    # Override le triage si l'agent a trouvé des failles critiques (Phase 4 -> Phase 3 override)
+    # Override triage if the agent found critical issues (Phase 4 -> Phase 3 override)
     confirmed_findings = investigation_data.get("findings", [])
     if confirmed_findings:
         has_high = any(
@@ -202,7 +202,7 @@ async def stream_audit_pipeline(
         yield hb
     anchored_findings = await anchor_task
     investigation_data["findings"] = anchored_findings
-    # Phase 5 remplit tx_hash ou execution_id (onchain_proof vient après Phase 6).
+    # Phase 5 sets tx_hash or execution_id (onchain_proof is added after Phase 6).
     anchored_count = sum(
         1
         for f in anchored_findings
@@ -232,7 +232,7 @@ async def stream_audit_pipeline(
         yield hb
     report = await report_task
 
-    # ── Payload final — strict equivalent des routes non-stream ──────────────
+    # -- Final payload — strict equivalent of non-stream routes --
     full_result: dict[str, Any] = {
         "status":        "success",
         "scope": {

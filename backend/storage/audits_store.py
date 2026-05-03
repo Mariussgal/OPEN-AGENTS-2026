@@ -1,8 +1,8 @@
 """
-Persistance des audits : fichier local (dev) ou PostgreSQL (prod partagé).
+Audit persistence: local file (dev) or PostgreSQL (shared prod).
 
-Si DATABASE_URL est défini (ex. Render Postgres, Neon, Supabase), tous les
-clients voient le même historique via GET /audits.
+If DATABASE_URL is set (e.g. Render Postgres, Neon, Supabase), all
+clients see the same history via GET /audits.
 """
 
 from __future__ import annotations

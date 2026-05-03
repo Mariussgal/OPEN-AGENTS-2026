@@ -6,13 +6,13 @@ from typing import List, Any, Dict
 
 from .phase_resolve import ResolvedContract
 
-# Initialise COGNEE_* sur disque avant le premier ``import cognee`` (évite OperationalError SQLite).
+# Initialize COGNEE_* on disk before first ``import cognee`` (avoid SQLite OperationalError).
 from memory.cognee_setup import setup_cognee
 import cognee
 
 
 def analyze_solidity_file(file_path: str) -> Dict[str, Any]:
-    """Analyse structurelle rapide sans LLM."""
+    """Fast structural analysis without LLM."""
     if not os.path.exists(file_path):
         return {"functions": [], "modifiers": [], "events": [], "flags": []}
 
@@ -50,9 +50,9 @@ def generate_file_hash(file_path: str) -> str:
 
 def generate_pattern_hash(check: str, file_hash: str) -> str:
     """
-    Hash déterministe pour un type de finding sur un fichier donné.
-    Même check + même contenu de fichier = même hash.
-    Utilisé pour la déduplication cross-audits.
+    Deterministic hash for a finding type on a given file.
+    Same check + same file content = same hash.
+    Used for cross-audit deduplication.
     """
     raw = f"{check}:{file_hash}"
     return hashlib.sha256(raw.encode()).hexdigest()
@@ -60,17 +60,17 @@ def generate_pattern_hash(check: str, file_hash: str) -> str:
 
 def is_duplicate(pattern_hash: str, known_hashes: set) -> bool:
     """
-    Vérifie si ce pattern a déjà été reporté sur ce contrat.
-    Évite de reporter deux fois la même vulnérabilité.
+    Check whether this pattern was already reported on this contract.
+    Avoid reporting the same vulnerability twice.
     """
     return pattern_hash in known_hashes
 
 
 async def load_known_findings(scope: ResolvedContract) -> tuple[List[Any], set]:
     """
-    Charge les findings déjà documentés depuis Cognee.
+    Load findings already documented in Cognee.
     Retourne (known_findings, known_hashes).
-    known_hashes = ensemble des pattern_hash déjà vus → utilisé pour is_duplicate().
+    known_hashes = set of previously seen pattern_hash values -> used for is_duplicate().
     """
     known_findings = []
     known_hashes   = set()
@@ -114,8 +114,8 @@ async def load_known_findings(scope: ResolvedContract) -> tuple[List[Any], set]:
                 content = content.replace("['", "").replace("']", "").replace("', '", "\n")
 
                 if content and content not in [f["description"] for f in known_findings]:
-                    # Générer un pattern_hash pour ce souvenir
-                    # → permet la déduplication si le même finding est trouvé à nouveau
+                    # Generate a pattern_hash for this memory item
+                    # -> enables deduplication if the same finding appears again
                     mem_hash = hashlib.sha256(content.strip().encode()).hexdigest()
                     known_hashes.add(mem_hash)
 
@@ -140,7 +140,7 @@ async def run_inventory(scope: ResolvedContract):
 
     await setup_cognee()
 
-    # Charger la mémoire + les hashes connus
+    # Load memory + known hashes
     known_findings, known_hashes = await load_known_findings(scope)
 
     inventory_details = []
@@ -150,7 +150,7 @@ async def run_inventory(scope: ResolvedContract):
         stats       = analyze_solidity_file(file_path)
         file_hash   = generate_file_hash(file_path)
 
-        # Vérifier la déduplication pour chaque flag détecté
+        # Check deduplication for each detected flag
         file_duplicates = []
         for flag in stats["flags"]:
             p_hash = generate_pattern_hash(flag, file_hash)
@@ -164,7 +164,7 @@ async def run_inventory(scope: ResolvedContract):
             "flags":        stats["flags"],
             "stats":        stats,
             "pattern_hash": file_hash,
-            "duplicates":   file_duplicates,     # flags déjà connus
+            "duplicates":   file_duplicates,     # already known flags
             "is_duplicate": len(file_duplicates) == len(stats["flags"]) and len(stats["flags"]) > 0,
         })
 

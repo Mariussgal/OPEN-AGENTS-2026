@@ -2,11 +2,11 @@
 """
 Phase 6 : Report
 
-- Enrichit chaque finding avec fix_sketch (LLM) + prior_audit_ref (mémoire) + onchain_proof
-- Génère un rapport JSON structuré : severity, file, line, description,
+- Enrich each finding with fix_sketch (LLM) + prior_audit_ref (memory) + onchain_proof
+- Generate structured JSON report: severity, file, line, description,
   prior_audit_ref, fix_sketch, onchain_proof
-- Déclenche mint_cert() ENS si 0 findings HIGH
-- Retourne le rapport complet pour le server + CLI
+- Trigger ENS mint_cert() if 0 HIGH findings
+- Return full report for server + CLI
 """
 
 from __future__ import annotations
@@ -27,8 +27,8 @@ from keeper.hub_anchor import is_evm_tx_hash
 
 def _default_contracts_dir() -> str:
     """
-    Dossier Hardhat à la racine du dépôt (sibling de backend/).
-    Si absent (paquet installé ailleurs), retombe sur ./contracts (CWD).
+    Hardhat folder at repo root (sibling of backend/).
+    If missing (package installed elsewhere), fallback to ./contracts (CWD).
     """
     backend_pkg = Path(__file__).resolve().parent.parent
     candidate = backend_pkg.parent / "contracts"
@@ -111,7 +111,7 @@ async def _generate_fix_sketch(finding: dict, client: OpenAI) -> str:
 
 # ─── Prior audit reference ────────────────────────────────────────────────────
 
-# Mapping léger : pattern keyword → référence historique connue
+# Lightweight mapping: pattern keyword -> known historical reference
 _PRIOR_REF_MAP: list[tuple[list[str], str]] = [
     (
         ["reentrancy", "reentrance", "reentrancy-eth", "reentrant"],
@@ -154,18 +154,18 @@ _PRIOR_REF_MAP: list[tuple[list[str], str]] = [
 
 def _find_prior_audit_ref(finding: dict, known_findings: list[dict]) -> Optional[str]:
     """
-    Cherche une référence historique :
-    1. D'abord dans la mémoire Cognee (sources bootstrapées)
-    2. Puis via le mapping statique
+    Find a historical reference:
+    1. First in Cognee memory (bootstrapped sources)
+    2. Then via static mapping
     """
     title_lower = (finding.get("title") or "").lower()
     check_lower = (finding.get("check") or finding.get("title") or "").lower()
     combined = f"{title_lower} {check_lower}"
 
-    # 1. Mémoire Cognee
+    # 1. Cognee memory
     for kf in known_findings:
         desc_lower = (kf.get("description") or "").lower()
-        # Cherche un mot-clé commun entre le finding et le souvenir
+        # Look for a common keyword between finding and memory item
         for kw in ["reentrancy", "access", "oracle", "overflow", "proxy", "flash"]:
             if kw in combined and kw in desc_lower:
                 if "[source:" in desc_lower:
@@ -173,7 +173,7 @@ def _find_prior_audit_ref(finding: dict, known_findings: list[dict]) -> Optional
                     return src.title()
                 return kf.get("type", "Historical Memory — Collective DB")
 
-    # 2. Mapping statique
+    # 2. Static mapping
     for keywords, ref in _PRIOR_REF_MAP:
         if any(kw in combined for kw in keywords):
             return ref
@@ -195,8 +195,8 @@ def _mint_ens_cert(
     ens_label: str,
 ) -> tuple[Optional[str], Optional[str]]:
     """
-    Appelle ensManager.ts via subprocess pour minter le certificat ENS.
-    Retourne (subname, mint_tx).
+    Call ensManager.ts via subprocess to mint ENS certificate.
+    Return (subname, mint_tx).
     """
     try:
         print(f"  [Phase 6] ENS label: {ens_label}")
@@ -298,7 +298,7 @@ def _merge_findings(
                 for inv_f in investigation_findings:
                     inv_title = (inv_f.get("title") or "").lower()
                     inv_file  = os.path.basename((inv_f.get("file") or "")).lower()
-                    # Même keyword ET même fichier (basename) → doublon
+                    # Same keyword AND same file (basename) -> duplicate
                     if kw in inv_title and (inv_file == sf_file or not sf_file):
                         already_covered = True
                         break
@@ -310,9 +310,9 @@ def _merge_findings(
 
         impact = (sf.get("impact") or "").upper()
         
-        # 🚨 L'Agent IA est l'arbitre final. Si Slither trouve une faille HIGH/MEDIUM
-        # mais que l'Agent ne l'a pas confirmée (pas dé-dupliquée), c'est un faux positif.
-        # On rétrograde la sévérité à LOW pour ne pas bloquer le certificat ENS.
+        # The AI agent is the final arbiter. If Slither flags a HIGH/MEDIUM issue
+        # but the agent did not confirm it (not deduplicated), treat as false positive.
+        # Downgrade severity to LOW so ENS certification is not blocked.
         if impact in ("HIGH", "MEDIUM"):
             impact = "LOW"
 
@@ -343,26 +343,26 @@ async def run_report(
     """
     Phase 6 — Rapport final.
 
-    1. Fusionne tous les findings
-    2. Enrichit chaque finding : fix_sketch (LLM) + prior_audit_ref + onchain_proof
-    3. Mint le certificat ENS si 0 findings HIGH
-    4. Retourne le rapport JSON complet
+    1. Merge all findings
+    2. Enrich each finding: fix_sketch (LLM) + prior_audit_ref + onchain_proof
+    3. Mint ENS certificate if 0 HIGH findings
+    4. Return full JSON report
 
     Args:
         scope             : ResolvedContract (Phase 0)
-        slither_data      : sortie de run_slither()
-        inventory_data    : sortie de run_inventory()
-        triage_data       : sortie de run_triage()
-        investigation_data: sortie de run_investigation() après Phase 5
-        target_address    : adresse 0x si audit onchain
-        contracts_dir     : chemin vers le dossier npm/hardhat contenant scripts/ensManager.ts
-                            (défaut: ../contracts depuis backend, ou CONTRACTS_DIR)
+        slither_data      : output from run_slither()
+        inventory_data    : output from run_inventory()
+        triage_data       : output from run_triage()
+        investigation_data: output from run_investigation() after Phase 5
+        target_address    : 0x address for onchain audit
+        contracts_dir     : path to npm/hardhat folder containing scripts/ensManager.ts
+                            (default: ../contracts from backend, or CONTRACTS_DIR)
     """
     print("📋 [Phase 6] Generating final report...")
     _contracts_dir = contracts_dir or os.getenv("CONTRACTS_DIR") or _default_contracts_dir()
     client = _get_llm_client()
 
-    # ── 1. Merge findings ──────────────────────────────────────────────────────
+    # -- 1. Merge findings --
     raw_investigation = investigation_data.get("findings", [])
     raw_slither       = slither_data.get("findings", [])
     known_findings    = inventory_data.get("known_findings", [])
@@ -370,15 +370,15 @@ async def run_report(
     all_findings = _merge_findings(raw_investigation, raw_slither)
     print(f"  ↳ {len(all_findings)} finding(s) after merge (agent: {len(raw_investigation)}, slither-only: {len(all_findings) - len(raw_investigation)})")
 
-    # ── 2. Enrichissement ─────────────────────────────────────────────────────
+    # -- 2. Enrichment --
     enriched: list[dict] = []
     for i, finding in enumerate(all_findings):
         sev = (finding.get("severity") or "INFO").upper()
 
-        # fix_sketch — seulement pour HIGH et MEDIUM (sinon trop long + rate limit)
+        # fix_sketch — only for HIGH and MEDIUM (otherwise too long + rate-limit risk)
         if sev in ("HIGH", "MEDIUM") and client:
             fix_sketch = await _generate_fix_sketch(finding, client)
-            await asyncio.sleep(1.2)   # respecte le quota Vercel Gateway
+            await asyncio.sleep(1.2)   # respect Vercel Gateway quota
         else:
             fix_sketch = (
                 f"// {sev} severity — manual review recommended for "
@@ -417,7 +417,7 @@ async def run_report(
         )
         print(f"  [{i + 1}/{len(all_findings)}] {sev:6s} · {finding.get('title', '')[:50]}")
 
-    # ── 3. Compteurs & verdict ─────────────────────────────────────────────────
+    # -- 3. Counters & verdict --
     high_count   = sum(1 for f in enriched if f["severity"] == "HIGH")
     medium_count = sum(1 for f in enriched if f["severity"] == "MEDIUM")
     low_count    = sum(1 for f in enriched if f["severity"] == "LOW")
@@ -427,7 +427,7 @@ async def run_report(
 
     final_verdict = "CERTIFIED" if high_count == 0 and medium_count == 0 else "FINDINGS_FOUND"
 
-    # ── 4. Report hash ────────────────────────────────────────────────────────
+    # -- 4. Report hash --
     audit_date  = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     report_core = {
         "verdict":  final_verdict,
@@ -438,13 +438,13 @@ async def run_report(
         json.dumps(report_core, sort_keys=True).encode()
     ).hexdigest()
 
-    # Premier tx_proof disponible (pour ENS text record)
+    # First available tx_proof (for ENS text record)
     tx_proof = next(
         (f["onchain_proof"] for f in enriched if f.get("onchain_proof")),
         "0x" + "0" * 64,
     )
 
-    # ── 5. ENS mint ───────────────────────────────────────────────────────────
+    # -- 5. ENS mint --
     contract_addr = (
         target_address
         or (scope.address if scope else None)
@@ -474,23 +474,23 @@ async def run_report(
         ens_subname, ens_mint_tx = None, None
         print(f"   {high_count} HIGH finding(s) — ENS certificate not minted")
 
-    # ── 6. Rapport final ──────────────────────────────────────────────────────
+    # -- 6. Final report --
     og_hits = sum(
         1 for f in enriched
         if f.get("prior_audit_ref")
     )
     
-    # 🚨 L'Agent IA a le dernier mot. Si le contrat est CERTIFIÉ, on écrase 
-    # le score de Triage (Phase 3) qui avait pu paniquer à cause de Slither.
+    # The AI agent has final authority. If contract is CERTIFIED, override
+    # triage score (Phase 3), which may be overly conservative due to Slither.
     final_risk_score = float(triage_data.get("risk_score", 0))
 
-    # Plancher selon les findings confirmés
+    # Floor based on confirmed findings
     if high_count >= 1:
         final_risk_score = max(final_risk_score, 8.0)
     elif medium_count >= 1:
         final_risk_score = max(final_risk_score, 5.5)
 
-    # Plafond si certifié
+    # Ceiling if certified
     if final_verdict == "CERTIFIED":
         final_risk_score = min(final_risk_score, 2.0)
         

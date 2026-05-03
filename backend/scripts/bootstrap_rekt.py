@@ -4,43 +4,43 @@ from bs4 import BeautifulSoup
 from memory.cognee_setup import setup_cognee, add_finding_to_memory
 
 async def scrape_and_inject_rekt():
-    print("🌐 Récupération des données depuis Rekt.news...")
+    print("🌐 Fetching data from Rekt.news...")
     
     # ---------------------------------------------------------
-    # Squelette de scraping (à adapter selon le DOM de rekt.news)
+    # Scraping skeleton (adapt to rekt.news DOM)
     # url = "https://rekt.news/leaderboard/"
     # response = requests.get(url)
     # soup = BeautifulSoup(response.text, 'html.parser')
     # entries = soup.find_all('div', class_='leaderboard-row')
     # ---------------------------------------------------------
     
-    # Pour démarrer immédiatement et tester Cognee, on utilise 
-    # un jeu de données simulant les entrées formatées extraites du site :
+    # To start immediately and test Cognee, use 
+    # a dataset simulating formatted entries extracted from the site:
     rekt_hacks = [
         {
             "check": "access-control-eth",
             "impact": "High",
-            "description": "Poly Network Hack. L'attaquant a exploité une faille de contrôle d'accès dans la fonction verifyHeaderAndExecuteTx pour modifier les gardiens (keepers) du contrat.",
+            "description": "Poly Network Hack. The attacker exploited an access-control flaw in verifyHeaderAndExecuteTx to modify contract keepers.",
             "contract_name": "EthCrossChainManager"
         },
         {
             "check": "oracle-manipulation",
             "impact": "High",
-            "description": "Cream Finance Hack. Manipulation de l'oracle de prix via des flash loans complexes causant un décalage de la valeur des actions yUSD.",
+            "description": "Cream Finance Hack. Price oracle manipulation via complex flash loans causing yUSD share-value distortion.",
             "contract_name": "CreamLending"
         },
         {
             "check": "reentrancy-eth",
             "impact": "High",
-            "description": "The DAO Hack. Réentrance classique lors de l'appel de splitDAO() permettant de retirer les fonds en boucle avant la mise à jour du solde.",
+            "description": "The DAO Hack. Classic reentrancy during splitDAO() allowing repeated withdrawals before balance update.",
             "contract_name": "TheDAO"
         }
     ]
 
-    print(f"📊 {len(rekt_hacks)} hacks historiques trouvés. Début de l'injection...")
+    print(f"📊 {len(rekt_hacks)} historical hacks found. Starting injection...")
 
     for hack in rekt_hacks:
-        # On formate selon la structure attendue par ton add_finding_to_memory
+        # Format according to structure expected by add_finding_to_memory
         finding_data = {
             "check": hack["check"],
             "impact": hack["impact"],
@@ -48,18 +48,18 @@ async def scrape_and_inject_rekt():
         }
         
         await add_finding_to_memory(finding_data, hack["contract_name"])
-        # Petit délai pour éviter de surcharger le LLM (OpenAI) lors de la "cognification"
+        # Small delay to avoid overloading the LLM (OpenAI) during "cognification"
         await asyncio.sleep(1)
 
-    print("✅ Bootstrap Rekt.news terminé avec succès. La mémoire s'est enrichie.")
+    print("✅ Rekt.news bootstrap completed successfully. Memory has been enriched.")
 
 async def main():
-    # 1. Initialisation de la base Cognee
+    # 1. Initialize Cognee database
     success = await setup_cognee()
     if not success:
         return
 
-    # 2. Lancement du scraping et de l'injection
+    # 2. Start scraping and injection
     await scrape_and_inject_rekt()
 
 if __name__ == "__main__":

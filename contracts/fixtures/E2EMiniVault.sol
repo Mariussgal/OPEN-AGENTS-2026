@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-/// @dev Contrat minimal pour tester le pipeline audit (réentrance évidente intent).
+/// @dev Minimal contract to test audit pipeline (intentionally obvious reentrancy).
 contract E2EMiniVault {
     mapping(address => uint256) public balances;
 

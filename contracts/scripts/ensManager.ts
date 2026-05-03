@@ -54,9 +54,9 @@ async function mintCert(
     const fullName    = `${label}.${PARENT_CERT}`;
     const subnameNode = namehash(fullName);
 
-    // ── Vérifier que le wallet est bien owner du parent ──────────────────
+    // ── Check that wallet is owner of parent ──────────────────
     const parentOwner = await registry.owner(parentNode);
-    console.log(`Owner de ${PARENT_CERT}: ${parentOwner}`);
+    console.log(`Owner of ${PARENT_CERT}: ${parentOwner}`);
     console.log(`Wallet:                  ${wallet.address}`);
 
     if (parentOwner.toLowerCase() !== wallet.address.toLowerCase()) {
@@ -66,7 +66,7 @@ async function mintCert(
         );
     }
 
-    // ── Mint du subname ──────────────────────────────────────────────────
+    // -- Mint subname --
     console.log(`Minting ${fullName}...`);
     const tx1 = await registry.setSubnodeRecord(
         parentNode,
@@ -79,7 +79,7 @@ async function mintCert(
     const mintTx = tx1.hash;
     console.log(`✓ Subname minted — tx: ${tx1.hash}`);
 
-    // ── Vérifier owner du subname avant setText ──────────────────────────
+    // ── Check subname owner before setText ──────────────────────────
     const subnameOwner = await registry.owner(subnameNode);
     console.log(`Owner subname: ${subnameOwner}`);
 
@@ -111,11 +111,11 @@ async function mintCert(
 }
 
 const [, , command, ...args] = process.argv;
-console.log(`Args reçus (${args.length}):`, args);
+console.log(`Args received (${args.length}):`, args);
 
 if (command === "mintCert") {
     const [ensLabel, verdict, high, medium, txProof, reportHash, date] = args;
-    console.log(`reportHash reçu: '${reportHash}'`);
+    console.log(`reportHash received: '${reportHash}'`);
     mintCert(ensLabel, verdict, high, medium, txProof, reportHash, date)
         .catch(console.error);
 } else {

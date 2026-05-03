@@ -1,7 +1,7 @@
 """
 Onchor.ai — CLI.
 
-UX terminal construite sur `click` + `rich` pour un rendu propre :
+Terminal UX built with `click` + `rich` for clean rendering:
 logo ASCII, panels de verdict, tableau des findings, spinners pendant l'audit.
 """
 
@@ -99,7 +99,7 @@ def get_api_url() -> str:
 
 
 def get_app_url() -> str:
-    """URL du frontend (rapport /audit/[id]). Surcharge via ONCHOR_APP_URL."""
+    """Frontend URL (report /audit/[id]). Override with ONCHOR_APP_URL."""
     explicit = (os.getenv("ONCHOR_APP_URL") or "").strip()
     if explicit:
         return explicit.rstrip("/")
@@ -107,7 +107,7 @@ def get_app_url() -> str:
 
 
 def _installed_package_version() -> str:
-    """Version du wheel PyPI installée (pas le champ ``version`` du config.json projet)."""
+    """Installed PyPI wheel version (not the project config.json ``version`` field)."""
     try:
         from importlib.metadata import PackageNotFoundError, version
 
@@ -355,7 +355,7 @@ def audit(path: str, local: bool, dev: bool, no_stream: bool) -> None:
 
 
 async def _upload_and_audit(path: str, *, local: bool, dev: bool, stream: bool = False) -> tuple[dict, str | None]:
-    # Mode local/dev → route gratuite, pas de paiement
+    # Local/dev mode -> free route, no payment
     if local or dev:
         route = "/audit/local/upload"
         if os.path.isfile(path):
@@ -370,9 +370,9 @@ async def _upload_and_audit(path: str, *, local: bool, dev: bool, stream: bool =
         if os.path.isdir(path):
             sol_files = list(Path(path).rglob("*.sol"))
             if not sol_files:
-                raise click.ClickException(f"Aucun fichier .sol trouvé dans {path}")
+                raise click.ClickException(f"No .sol file found in {path}")
 
-            info(f"{len(sol_files)} fichiers .sol trouvés, compression...")
+            info(f"{len(sol_files)} .sol files found, compressing...")
             with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as tmp_zip:
                 zip_path = tmp_zip.name
             try:
@@ -391,7 +391,7 @@ async def _upload_and_audit(path: str, *, local: bool, dev: bool, stream: bool =
                 os.unlink(zip_path)
         raise click.ClickException(f"Chemin invalide: {path}")
 
-    # Mode paid → préparer x402 d'abord
+    # Paid mode -> prepare x402 first
     from payments.x402_client import prepare_x_payment
 
     if stream:
@@ -421,9 +421,9 @@ async def _upload_and_audit(path: str, *, local: bool, dev: bool, stream: bool =
     if os.path.isdir(path):
         sol_files = list(Path(path).rglob("*.sol"))
         if not sol_files:
-            raise click.ClickException(f"Aucun fichier .sol trouvé dans {path}")
+            raise click.ClickException(f"No .sol file found in {path}")
 
-        info(f"{len(sol_files)} fichiers .sol trouvés, compression...")
+        info(f"{len(sol_files)} .sol files found, compressing...")
         with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as tmp_zip:
             zip_path = tmp_zip.name
         try:
@@ -454,8 +454,8 @@ async def _run_audit_async(
     dev: bool,
     stream: bool,
 ) -> tuple[dict[str, Any], str | None]:
-    """Dispatch des 4 combinaisons : local/paid × stream/legacy."""
-    # ← AJOUT : fichier local → upload vers Render
+    """Dispatch 4 combinations: local/paid x stream/legacy."""
+    # ADDED: local file/folder -> upload to Render
     if not path.startswith("0x") and (os.path.isfile(path) or os.path.isdir(path)):
         return await _upload_and_audit(path, local=local, dev=dev, stream=stream)
 
@@ -543,7 +543,7 @@ def _render_audit_result(data: dict[str, Any], payment_tx: str | None = None) ->
         # Per-finding details (fix_sketch + prior_audit_ref + onchain_proof)
         _render_finding_details(findings)
     else:
-        # Fallback sur les findings Slither bruts
+        # Fallback to raw Slither findings
         raw_findings = investigation.get("findings") or data.get("slither", {}).get("findings") or []
         if raw_findings:
             section(f"Findings ({len(raw_findings)})")
@@ -690,7 +690,7 @@ def _render_onchain_section(onchain: dict, findings: list[dict], report: dict) -
         ph   = f.get("pattern_hash", "")
         root = f.get("root_hash", "")
 
-        # Anchor tx — vrai lien Etherscan si disponible
+        # Anchor tx — use real Etherscan link when available
         if f.get("onchain_proof") and is_valid_proof(f["onchain_proof"]):
             items[f"Anchor #{i} ({fid})"] = (
                 f"{etherscan_tx}{f['onchain_proof']}"

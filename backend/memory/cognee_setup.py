@@ -3,17 +3,17 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-# 1. Charge le .env dès le départ
+# 1. Load .env first
 load_dotenv()
 
-# 2. Chemins absolus résolus (évite chemins ambigus + SQLite « unable to open database file »)
+# 2. Resolve absolute paths (avoid ambiguous paths + SQLite "unable to open database file")
 _GLOBAL_MEMORY = Path(os.path.expanduser("~/.onchor-ai/memory")).resolve()
 COGNEE_SYSTEM_DIR = str(_GLOBAL_MEMORY / ".cognee_system")
 COGNEE_DATA_DIR = str(_GLOBAL_MEMORY / ".cognee_data")
 COGNEE_CACHE_DIR = str(_GLOBAL_MEMORY / ".cognee_cache")
 _DATABASES_DIR = str(Path(COGNEE_SYSTEM_DIR) / "databases")
 
-# 3. Répertoires utilisateur créés avant tout import Cognee (SQLite + WAL / graphe / cache)
+# 3. Create user directories before any Cognee import (SQLite + WAL / graph / cache)
 for _d in (
     _GLOBAL_MEMORY,
     Path(COGNEE_SYSTEM_DIR),
@@ -23,9 +23,9 @@ for _d in (
 ):
     _d.mkdir(parents=True, exist_ok=True)
 
-# 4. Cognee 1.x : BaseConfig est figé au premier ``get_base_config()`` pendant ``import cognee``.
-#    Les variables COGNEE_* ne sont pas lues par pydantic-settings ; il faut SYSTEM_ROOT_DIRECTORY /
-#    DATA_ROOT_DIRECTORY / CACHE_ROOT_DIRECTORY pour que SQLite ne pointe pas vers site-packages
+# 4. Cognee 1.x: BaseConfig is frozen on first ``get_base_config()`` during ``import cognee``.
+#    COGNEE_* variables are not read by pydantic-settings; use SYSTEM_ROOT_DIRECTORY /
+#    DATA_ROOT_DIRECTORY / CACHE_ROOT_DIRECTORY so SQLite does not point to site-packages
 #    (souvent non inscriptible → OperationalError).
 os.environ["SYSTEM_ROOT_DIRECTORY"] = COGNEE_SYSTEM_DIR
 os.environ["DATA_ROOT_DIRECTORY"] = COGNEE_DATA_DIR
@@ -36,14 +36,14 @@ os.environ["COGNEE_DATA_ROOT_DIRECTORY"] = COGNEE_DATA_DIR
 os.environ["COGNEE_SKIP_CONNECTION_TEST"] = "true"
 os.environ["MOCK_EMBEDDING"] = "true"
 
-# 5. IMPORT DE COGNEE ICI (après makedirs + env)
+# 5. IMPORT COGNEE HERE (after makedirs + env)
 import cognee
 
 # Cascade explicite graphe / LanceDB sous databases/
 cognee.config.system_root_directory(COGNEE_SYSTEM_DIR)
 cognee.config.data_root_directory(COGNEE_DATA_DIR)
 
-# Si un moteur SQLAlchemy a été mis en cache avec un mauvais chemin (import anticipé), on purge.
+# If a SQLAlchemy engine was cached with a wrong path (early import), clear it.
 try:
     from cognee.infrastructure.databases.relational.create_relational_engine import (
         create_relational_engine,
@@ -53,14 +53,14 @@ try:
 except Exception:
     pass
 
-# Import de nos modules de sécurité et normalisation
+# Import security and normalization modules
 from memory.privacy_guard import sanitize_finding_for_memory
 from memory.normalizer import normalize_snippet
 
 
 async def _ensure_cognee_db_ready() -> None:
     """
-    Cognee 1.x : ``recall`` / ``search`` exigent des tables relationnelles + un utilisateur par défaut.
+    Cognee 1.x: ``recall`` / ``search`` require relational tables + a default user.
     Sans cet appel sur une install neuve → SearchPreconditionError (422).
     """
     try:

@@ -213,7 +213,7 @@ async def test_without_high_findings():
 
 
 async def test_empty_findings():
-    """Scenario C: Empty pipeline (simple contract, no finding)."""
+    """Scenario C: Empty pipeline (simple contract, no findings)."""
     print("\n" + "═" * 60)
     print("  TEST C — No finding (SAFE contract)")
     print("═" * 60)

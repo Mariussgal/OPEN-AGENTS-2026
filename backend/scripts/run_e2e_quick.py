@@ -1,24 +1,24 @@
 #!/usr/bin/env python3
 """
-Test rapide Phase 5 + 0G live + KeeperHub sans lancer tout le pipeline (pas de LLM).
+Quick test for Phase 5 + live 0G + KeeperHub without running full pipeline (no LLM).
 
-Prérequis (backend/.env ou export) ::
-  OG_* pour upload live · KEEPERHUB_* · ANCHOR_REGISTRY_ADDRESS
+Prerequisites (backend/.env or export) ::
+  OG_* for live upload · KEEPERHUB_* · ANCHOR_REGISTRY_ADDRESS
 
 Usage (depuis ``backend/``) ::
   OG_STORAGE_MODE=live python scripts/run_e2e_quick.py
 
-Audit complet bout-en-bout (fixture + CLI) ::
+Full end-to-end audit (fixture + CLI) ::
   Terminal 1 (depuis ``backend/``) : ``python3 -m uvicorn server:app --host 127.0.0.1 --port 8000``
       ou ``bash scripts/start_api.sh``
   Terminal 2: ``cp ../contracts/fixtures/E2EMiniVault.sol ./`` ou passe le chemin absolu
              ``export OG_STORAGE_MODE=live``
              ``cd .. && onchor-ai audit contracts/fixtures/E2EMiniVault.sol --local``
 
-Vérif chaîne ::
+Chain verification ::
   ``cd contracts && ANCHOR_RPC_URL=… npx ts-node scripts/verifyChain.ts 0x<pattern_hash>``
 
-Télécharge le JSON ::
+Download JSON ::
   ``node ../0g/0g_download.js 0x<rootHash>``
 """
 

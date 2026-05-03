@@ -1,6 +1,6 @@
 # backend/scripts/resolve_pending_tx.py
 """
-Résout les executionIds KeeperHub en attente dans l'historique des audits.
+Resolve pending KeeperHub executionIds in audit history.
 Usage : python scripts/resolve_pending_tx.py
 """
 
@@ -38,7 +38,7 @@ async def resolve_one(execution_id: str) -> str | None:
             if resp.status_code == 200:
                 data = resp.json()
                 print(f"  Response: {json.dumps(data, indent=2)[:300]}")
-                # Chercher le tx hash dans la réponse
+                # Search tx hash in response
                 tx = (
                     data.get("transactionHash")
                     or data.get("txHash")
@@ -54,7 +54,7 @@ async def resolve_one(execution_id: str) -> str | None:
 
 async def main():
     if not AUDITS_FILE.exists():
-        print("Aucun historique d'audits trouvé.")
+        print("No audit history found.")
         return
 
     audits = json.loads(AUDITS_FILE.read_text())
@@ -68,20 +68,20 @@ async def main():
         for f in findings:
             exe_id = f.get("keeperhub_execution_id")
             if exe_id and not f.get("onchain_proof"):
-                print(f"\nRésolution de {exe_id} pour {f.get('title', '?')}...")
+                print(f"\nResolving {exe_id} for {f.get('title', '?')}...")
                 tx = await resolve_one(exe_id)
                 if tx:
-                    print(f"  ✓ tx trouvée : {tx}")
+                    print(f"  ✓ tx found : {tx}")
                     f["onchain_proof"] = tx
                     updated = True
                 else:
-                    print(f"  ✗ toujours pending")
+                    print(f"  ✗ still pending")
 
     if updated:
         AUDITS_FILE.write_text(json.dumps(audits, indent=2))
-        print("\n✓ Historique mis à jour.")
+        print("\n✓ History updated.")
     else:
-        print("\nAucun tx résolu.")
+        print("\nNo tx resolved.")
 
 
 if __name__ == "__main__":

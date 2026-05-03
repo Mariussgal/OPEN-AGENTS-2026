@@ -17,7 +17,7 @@ logger = logging.getLogger("Phase5-Anchor")
 
 async def run_phase5_anchor(findings: List[Dict]) -> List[Dict]:
     """
-    Ancrage : upload JSON sur 0G (rootHash réel), puis KeeperHub → AnchorRegistry si configuré.
+    Anchoring: upload JSON to 0G (real rootHash), then KeeperHub -> AnchorRegistry when configured.
     """
     logger.info(f"🛡️ [Phase 5] Checking anchoring for {len(findings)} findings...")
 
@@ -29,7 +29,7 @@ async def run_phase5_anchor(findings: List[Dict]) -> List[Dict]:
 
         if finding.get("tx_hash") or finding.get("execution_id"):
             logger.info(f"Already anchored : {finding['title']}")
-            # Tenter de résoudre la tx via Etherscan si pas encore résolue
+            # Try to resolve tx via Etherscan if not resolved yet
             if not finding.get("tx_hash") and finding.get("pattern_hash"):
                 tx = await get_anchor_tx_from_chain(finding["pattern_hash"])
                 if tx:

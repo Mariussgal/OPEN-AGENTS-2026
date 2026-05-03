@@ -3,7 +3,7 @@ pragma solidity ^0.8.24;
 
 /**
  * @title Counter
- * @notice Compteur simple — aucune vulnérabilité intentionnelle.
+ * @notice Simple counter — no intentional vulnerability.
  */
 contract Counter {
     uint256 private count;

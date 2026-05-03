@@ -5,34 +5,34 @@ async def scrape_and_inject_audits():
     print("📄 Analyse des rapports d'audit publics (OpenZeppelin / Trail of Bits)...")
     
     # ---------------------------------------------------------
-    # Squelette de parsing PDF/Markdown
-    # Cognee supporte nativement l'ingestion de documents.
-    # Ici, nous simulons l'extraction structurée (findings) 
-    # issue d'une première passe de lecture LLM sur les rapports.
+    # PDF/Markdown parsing skeleton
+    # Cognee natively supports document ingestion.
+    # Here we simulate structured extraction (findings)
+    # from an initial LLM pass over reports.
     # ---------------------------------------------------------
     
     audit_reports = [
         {
             "check": "precision-loss",
             "impact": "Medium",
-            "description": "Trail of Bits: Perte de précision causée par une division avant multiplication (divide-before-multiply), entraînant un calcul de récompenses incorrect.",
+            "description": "Trail of Bits: Precision loss caused by divide-before-multiply, producing incorrect reward calculations.",
             "contract_name": "StakingRewards"
         },
         {
             "check": "governance-takeover",
             "impact": "Critical",
-            "description": "OpenZeppelin: Attaque par Flash loan sur le module de gouvernance. Un attaquant peut emprunter des jetons pour faire passer une proposition malveillante dans le même bloc.",
+            "description": "OpenZeppelin: Flash-loan attack on governance module. An attacker can borrow tokens to pass a malicious proposal in the same block.",
             "contract_name": "GovernorBravo"
         },
         {
             "check": "front-running-init",
             "impact": "High",
-            "description": "OpenZeppelin: La fonction d'initialisation n'est pas protégée, permettant à un attaquant de front-runner la transaction pour s'approprier le contrat proxy.",
+            "description": "OpenZeppelin: Initialization function is unprotected, allowing an attacker to front-run and take over the proxy contract.",
             "contract_name": "InitializableProxy"
         }
     ]
 
-    print(f"📑 {len(audit_reports)} vulnérabilités extraites des audits. Début de l'injection...")
+    print(f"📑 {len(audit_reports)} vulnerabilities extracted from audits. Starting injection...")
 
     for report in audit_reports:
         finding_data = {
@@ -44,7 +44,7 @@ async def scrape_and_inject_audits():
         await add_finding_to_memory(finding_data, report["contract_name"])
         await asyncio.sleep(1)
 
-    print("✅ Bootstrap des audits terminé. La base de données collective est désormais riche et variée.")
+    print("✅ Audit bootstrap completed. Collective database is now rich and varied.")
 
 async def main():
     success = await setup_cognee()

@@ -37,11 +37,11 @@ async function main() {
     );
 
     const wrapped = await nameWrapper.isWrapped(namehash("onchor-ai.eth"));
-    console.log("onchor-ai.eth wrappé :", wrapped);
+    console.log("onchor-ai.eth wrapped:", wrapped);
 
     const parentNode = namehash("Onchor-ai.eth");
 
-    // Vérifie que tu es bien owner
+    // Verify you are owner
     const owner = await registry.owner(parentNode);
     console.log("Onchor-ai.eth owner:", owner);
 

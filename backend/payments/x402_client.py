@@ -62,13 +62,13 @@ def _sign_eip3009(
 ) -> dict:
     """
     Signe une autorisation EIP-3009 (transferWithAuthorization).
-    Utilisé par le client pour payer un audit ou par le serveur pour payer une récompense.
-    Le facilitateur exécute le transfert USDC on-chain. Gaz gratuit pour le signataire.
+    Used by client to pay for an audit or by server to pay a reward.
+    Facilitator executes on-chain USDC transfer. Gas-free for signer.
     """
     account      = Account.from_key(private_key)
     valid_after  = 0
     valid_before = int(time.time()) + max_timeout_seconds
-    nonce_bytes  = secrets.token_bytes(32)  # bytes32 aléatoire anti-replay
+    nonce_bytes  = secrets.token_bytes(32)  # random bytes32 anti-replay
     nonce_hex    = "0x" + nonce_bytes.hex()
 
     signed = account.sign_typed_data(
@@ -112,8 +112,8 @@ def _sign_eip3009(
 
 def sign_server_reward(contributor_address: str, amount_usdc: float = 0.15) -> dict:
     """
-    Génère la signature EIP-3009 pour que le serveur paie un contributeur.
-    Réutilise la clé privée du serveur (OG_PRIVATE_KEY).
+    Generate EIP-3009 signature so server can pay a contributor.
+    Reuse server private key (OG_PRIVATE_KEY).
     """
     private_key = os.getenv("OG_PRIVATE_KEY")
     if not private_key:
@@ -123,7 +123,7 @@ def sign_server_reward(contributor_address: str, amount_usdc: float = 0.15) -> d
     USDC_ADDRESS = "0x036CbD53842c5426634e7929541eC2318f3dCF7e"
     CHAIN_ID = 84532
     
-    # Conversion en unités atomiques (6 décimales pour USDC) avec arrondi strict
+    # Convert to atomic units (6 decimals for USDC) with strict rounding
     amount_atomic = str(int(round(amount_usdc, 2) * 1_000_000))
 
     return _sign_eip3009(
@@ -134,13 +134,13 @@ def sign_server_reward(contributor_address: str, amount_usdc: float = 0.15) -> d
         chain_id=CHAIN_ID,
         pay_to=contributor_address,
         amount=amount_atomic,
-        max_timeout_seconds=3600  # 1 heure de validité
+        max_timeout_seconds=3600  # 1 hour validity
     )
 
 def _build_x_payment_header(requirement: dict, private_key: str, price_usd: float) -> str:
-    """Construit le header X-PAYMENT standard pour le protocole x402."""
+    """Build standard X-PAYMENT header for x402 protocol."""
     chain_id = int(requirement["network"].split(":")[1])
-    # Conversion du prix numérique en unités atomiques USDC (6 décimales)
+    # Convert numeric price to atomic USDC units (6 decimals)
     amount_atomic = str(int(price_usd * 1_000_000))
     
     inner    = _sign_eip3009(

@@ -2,7 +2,7 @@
 Onchor.ai — UI / branding du CLI terminal.
 
 Centralise le logo ASCII, la palette de couleurs et les helpers d'affichage
-(rich) pour garder une UX cohérente entre toutes les commandes.
+(rich) to keep UX consistent across all commands.
 """
 
 from __future__ import annotations
@@ -17,12 +17,12 @@ from rich.theme import Theme
 
 
 # ─── Palette Onchor ────────────────────────────────────────────────────────────
-# Choisie pour le terminal sombre, sans gradients, sans bruit visuel.
+# Chosen for dark terminal usage, without gradients or visual noise.
 ONCHOR_THEME = Theme(
     {
         "brand": "bold #7C5CFF",       # violet Onchor
         "brand.dim": "#5B47BF",
-        "accent": "bold #00E0B8",      # vert/teal — succès et highlights
+        "accent": "bold #00E0B8",      # green/teal — success and highlights
         "muted": "grey58",
         "info": "cyan",
         "warn": "yellow",
@@ -45,7 +45,7 @@ ASCII_LOGO = r"""   ____             __                     ___    ____
 \____/_/ /_/\___/_/ /_/\____/_/        /_/  |_/___/   
                                                       """
 
-# Logo iconique — sphère / "anchor seal" Onchor.
+# Iconic logo — sphere / Onchor "anchor seal".
 ASCII_ICON = r"""                                                                                     
                                           .:                                         
                                          ..::                                        
@@ -98,12 +98,12 @@ SUBLINE = "ETHGlobal Open Agents 2026 · CNM Agency"
 
 
 def _downsample(art: str, vstep: int = 2, hstep: int = 2) -> str:
-    """Réduit un ASCII art en ne gardant qu'1 ligne sur `vstep` et 1 char sur `hstep`."""
+    """Downsample ASCII art by keeping 1 line per `vstep` and 1 char per `hstep`."""
     lines = art.split("\n")
     return "\n".join(line[::hstep] for line in lines[::vstep])
 
 
-# Tailles disponibles pour l'icône — calculées au chargement.
+# Available icon sizes — computed at load time.
 ASCII_ICON_LARGE = ASCII_ICON                          # ~45 lignes × ~85 cols
 ASCII_ICON_MEDIUM = _downsample(ASCII_ICON, 2, 2)      # ~23 lignes × ~43 cols
 ASCII_ICON_SMALL = _downsample(ASCII_ICON, 3, 3)       # ~15 lignes × ~28 cols
@@ -117,14 +117,14 @@ ICON_SIZES = {
 
 
 def render_banner(icon_size: str = "medium") -> Panel:
-    """Construit la bannière (icône + logo + tagline) dans un Panel.
+    """Build banner (icon + logo + tagline) inside a Panel.
 
     icon_size : 'none' | 'small' | 'medium' | 'large'
     """
     parts = []
     icon_art = ICON_SIZES.get(icon_size, ASCII_ICON_MEDIUM)
     if icon_art:
-        # Text() (pas from_markup) → les `.`, `:`, `-` ne sont pas interprétés.
+        # Text() (not from_markup) -> `.`, `:`, `-` are not interpreted.
         icon = Text(icon_art, style="brand", no_wrap=True)
         parts.append(Align.center(icon))
 
@@ -146,7 +146,7 @@ def render_banner(icon_size: str = "medium") -> Panel:
 
 
 def show_banner(icon_size: str = "medium") -> None:
-    """Affiche la bannière dans la console (appelé au démarrage)."""
+    """Print banner in console (called at startup)."""
     console.print(render_banner(icon_size=icon_size))
 
 
@@ -168,12 +168,12 @@ def error(msg: str) -> None:
 
 
 def section(title: str) -> None:
-    """Petite séparation de section, sobre."""
+    """Small, minimal section separator."""
     console.rule(f"[label]{title}[/label]", style="rule")
 
 
 def kv_panel(title: str, items: dict[str, str]) -> Panel:
-    """Petit panel clé/valeur pour résumer config, solde, verdict, etc."""
+    """Small key/value panel to summarize config, balance, verdict, etc."""
     table = Table.grid(padding=(0, 2))
     table.add_column(style="label", justify="right", no_wrap=True)
     table.add_column(style="white", overflow="fold", no_wrap=False)

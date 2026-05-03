@@ -1,6 +1,6 @@
 /**
- * Onchor.ai — logo ASCII identique à `backend/ui.py` (ASCII_LOGO).
- * Affiché en monospace + couleur brand. Préserve les espaces.
+ * Onchor.ai — ASCII logo identical to `backend/ui.py` (ASCII_LOGO).
+ * Displayed in monospace + brand color. Preserves spaces.
  */
 export const ASCII_LOGO = String.raw`   ____             __                     ___    ____
   / __ \____  _____/ /_  ____  _____      /   |  /  _/

@@ -22,7 +22,7 @@ def get_agent_client():
         base_url=os.getenv("OPENAI_BASE_URL", "https://ai-gateway.vercel.sh/v1")
     )
 
-# MODEL et MAX_TURNS sont désormais définis dynamiquement dans run_investigation()
+# MODEL and MAX_TURNS are now defined dynamically in run_investigation()
 
 # ─── System prompt ────────────────────────────────────────────────────────────
 
@@ -189,7 +189,7 @@ def tool_read_contract(file: str, function_name: str = None) -> str:
         content = f.read()
     if not function_name:
         return content
-    # Extraire la fonction spécifique via regex simple
+    # Extract the specific function with a simple regex
     pattern = rf"function\s+{re.escape(function_name)}\s*\(.*?(?=\n\s*function|\Z)"
     match = re.search(pattern, content, re.DOTALL)
     if match:
@@ -198,7 +198,7 @@ def tool_read_contract(file: str, function_name: str = None) -> str:
 
 
 def tool_search_pattern(regex: str, scope_files: list[str]) -> str:
-    """Grep regex sur tous les .sol du scope."""
+    """Run regex grep across all .sol files in scope."""
     results = []
     for file in scope_files:
         if not os.path.exists(file):
@@ -246,7 +246,7 @@ def tool_get_storage_layout(contract: str) -> str:
 async def tool_query_memory(query: str) -> str:
     output_lines = []
 
-    # ── 1. Mémoire locale Cognee ─────────────────────────────────────────────
+    # -- 1. Local Cognee memory --
     try:
         import cognee
         local_results = await cognee.recall(query)
@@ -258,7 +258,7 @@ async def tool_query_memory(query: str) -> str:
     except Exception as e:
         output_lines.append(f"[Local Memory] error: {e}")
 
-    # ── 2. Mémoire collective 0G ─────────────────────────────────────────────
+    # -- 2. 0G collective memory --
     try:
         from memory.collective_0g import (
             query_collective_memory,
@@ -298,7 +298,7 @@ def tool_simulate_call(signature: str, args: list = None) -> str:
 
 
 async def tool_anchor_finding(pattern_hash: str, root_hash: str) -> str:
-    """Ancre un finding LIKELY/CONFIRMED via KeeperHub (voir keeper/hub_anchor)."""
+    """Anchor a LIKELY/CONFIRMED finding via KeeperHub (see keeper/hub_anchor)."""
     from keeper.hub_anchor import keeperhub_anchor_registry
 
     kh = await keeperhub_anchor_registry(pattern_hash, root_hash)
@@ -338,7 +338,7 @@ async def dispatch_tool(tool_name: str, tool_args: dict, scope_files: list[str])
         confidence = (tool_args.get("confidence") or "").upper().strip()
         severity   = (tool_args.get("severity") or "").upper().strip()
 
-        # Bloquer SUSPECTED, vide, ou inconnu
+        # Block SUSPECTED, empty, or unknown
         if confidence not in ("LIKELY", "CONFIRMED"):
             return (
                 f"[anchor_finding BLOCKED] confidence='{confidence}' — "
@@ -346,7 +346,7 @@ async def dispatch_tool(tool_name: str, tool_args: dict, scope_files: list[str])
                 f"Re-evaluate this finding before anchoring."
             )
 
-        # Bloquer aussi si severity trop basse
+        # Also block if severity is too low
         if severity == "LOW":
             return (
                 f"[anchor_finding BLOCKED] severity=LOW — "
@@ -383,12 +383,12 @@ def parse_findings_from_text(text: str) -> list[dict]:
 
     findings = []
 
-    # Nettoyer le markdown avant de parser
+    # Clean markdown before parsing
     clean_text = re.sub(r'\*+', '', text)        # supprimer **
     clean_text = re.sub(r'`+', '', clean_text)   # supprimer ```
     clean_text = re.sub(r'#+\s*', '', clean_text) # supprimer ## headers
 
-    # Format strict sur texte nettoyé
+    # Strict format on cleaned text
     pattern = r"FINDING:\s*(HIGH|MEDIUM|LOW)\s*\|\s*(SUSPECTED|LIKELY|CONFIRMED)\s*\|\s*([^|\n]+?)\s*\|\s*([^\n]+?)\s*\nREASON:\s*([^\n]+)"
     matches = re.findall(pattern, clean_text, re.IGNORECASE | re.MULTILINE)
 
@@ -406,7 +406,7 @@ def parse_findings_from_text(text: str) -> list[dict]:
             "reason":     reason.strip(),
         })
 
-    # Fallback si format strict pas trouvé
+    # Fallback if strict format is not found
     if not findings:
         lines = clean_text.split("\n")
         for i, line in enumerate(lines):
@@ -437,7 +437,7 @@ DANGEROUS_PATTERNS = {
     r"delegatecall\s*\(": "HIGH: delegatecall present",
     r"tx\.origin\s*==": "MEDIUM: tx.origin authentication",
     r"block\.(timestamp|number)\s*[<%>]": "MEDIUM: block variable manipulation",
-    # Reentrancy : call externe ET balance dans le même fichier
+    # Reentrancy: external call AND balance update in the same file
     r"\.call\{value:": "HIGH: External ETH call — check for reentrancy",
     r"transferWithAuthorization|permit\(": "MEDIUM: EIP-2612/3009 — check replay protection",
     r"initialize\s*\(": "MEDIUM: Initializer — check if protected",
@@ -523,16 +523,16 @@ async def run_investigation(
     await setup_cognee()
     auto_findings: list[dict] = []
 
-    # 1. Pre-screening déterministe (pour driver le routage)
+    # 1. Deterministic pre-screening (to drive routing)
     screening_hits = _pre_screen(scope.files)
     screening_str = "\n".join([f"!!! {h['label']} in {h['file']}" for h in screening_hits])
 
-    # Court-circuit total si demandé via ENV (bypass LLM pour CRITICAL évidents)
+    # Full short-circuit when requested via ENV (bypass LLM for obvious CRITICAL findings)
     critical_hits = [h for h in screening_hits if "CRITICAL" in h["label"]]
     if critical_hits:
         print(f"  ⚡ Fast-path: {len(critical_hits)} critical pattern(s) detected by regex")
         
-        # Génère les findings préliminaires sans LLM
+        # Generate preliminary findings without LLM
         auto_findings = [{
             "severity": "HIGH",
             "confidence": "LIKELY",
@@ -552,11 +552,11 @@ async def run_investigation(
                 "model": "deterministic-prescreening",
             }
 
-    # 2. Architecture hybride : routage selon pre-screening + score de triage
+    # 2. Hybrid architecture: routing based on pre-screening + triage score
     risk_score = float(triage_data.get("risk_score", 0))
     
     if screening_hits and any("CRITICAL" in h["label"] for h in screening_hits):
-        # Pattern critique détecté → Haiku suffit pour confirmer rapidement
+        # Critical pattern detected -> Haiku is sufficient for quick confirmation
         MODEL = "anthropic/claude-haiku-4-5"
         MAX_TURNS = 5
     elif risk_score >= 7:
@@ -574,7 +574,7 @@ async def run_investigation(
 
     print(f"  ↳ Routing: {MODEL} ({MAX_TURNS} turns max) | Risk: {risk_score}")
 
-    # Pre-chargement de la mémoire collective ( Phase 1++ )
+    # Preload collective memory (Phase 1++)
     if critical_hits:
         print("  ⚡ Fast-path: skip collective memory pre-load")
         memory_context = "Skipped — fast-path confirmation mode. Query memory tool if needed."
@@ -595,7 +595,7 @@ async def run_investigation(
 
     client = get_agent_client()
 
-    # Contexte initial pour l'agent (pré-chargement du code pour économiser des turns)
+    # Initial context for the agent (preload code to save turns)
     initial_context = {}
     for file in scope.files:
         try:
@@ -606,7 +606,7 @@ async def run_investigation(
             if line_count < 200:
                 initial_context[file] = content
             else:
-                # Trop gros pour l'input initial (risque de dégrader Haiku)
+                # Too large for initial input (can degrade Haiku performance)
                 initial_context[file] = (
                     f"[File too large — use read_contract tool]\n"
                     f"Line count: {line_count}\n"
@@ -655,12 +655,12 @@ then CONFIRM or DISMISS with a one-line reason.
 Anchor LIKELY and CONFIRMED only.
 """
 
-    # Court-circuit si pre-screening critique (déjà calculé en début de fonction)
+    # Short-circuit if critical pre-screening was already triggered
     if critical_hits:
         print(f"  ⚡ Pre-screening short-circuit: {len(critical_hits)} critical finding(s) detected")
         print("  ↳ LLM agent running in CONFIRMATION-ONLY mode")
 
-        # L'agent ne fait que confirmer, pas explorer
+        # Agent only confirms, not explores
         initial_message += f"""
 \n⚠️  CRITICAL PATTERNS ALREADY DETECTED by deterministic analysis:
 {screening_str}
@@ -676,7 +676,7 @@ Do NOT explore further. Read only the flagged functions. Max 5 turns.
     pending_anchors: dict[str, dict[str, str]] = {}
     turns = 0
 
-    # ─── Variables d'état pour les garde-fous ───────────────────────────────
+    # --- State variables for guardrails ---
     seen_regexes = set()
     total_regex_calls = 0
     consecutive_regex_calls = 0
@@ -734,7 +734,7 @@ Do NOT explore further. Read only the flagged functions. Max 5 turns.
                 tool_args = json.loads(tc.function.arguments)
                 print(f"  → tool: {tool_name}({list(tool_args.keys())})")
 
-                # ─── Appliquer les garde-fous ───────────────────────────────
+                # --- Apply guardrails ---
                 if tool_name == "search_pattern":
                     regex = tool_args.get("regex", "")
                     if regex in seen_regexes:
@@ -776,7 +776,7 @@ Do NOT explore further. Read only the flagged functions. Max 5 turns.
                     "content": str(result)[:2000]
                 })
 
-            # Si stagnation grave, on force un rappel
+            # If severe stagnation occurs, force a reminder
             if turns_since_finding >= 8 and len(all_findings) == 0:
                 tool_results.append({
                     "role": "user",
@@ -785,12 +785,12 @@ Do NOT explore further. Read only the flagged functions. Max 5 turns.
 
             messages.extend(tool_results)
 
-        # Stop si l'agent a fini (pas de tool calls + message de conclusion)
+        # Stop if agent has finished (no tool calls + conclusion message)
         elif choice.finish_reason == "stop":
             print(f"  ✓ Agent concluded after {turns} turns")
             break
 
-    # Dédupliquer les findings par titre
+    # Deduplicate findings by title
     seen_titles = set()
     unique_findings = []
     for f in all_findings:

@@ -2,7 +2,7 @@ import asyncio
 import sys
 import os
 
-# Ajouter le dossier parent (backend/) au path pour les imports
+# Add parent folder (backend/) to import path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from dotenv import load_dotenv
@@ -13,22 +13,22 @@ import cognee
 load_dotenv()
 
 async def force_seed():
-    # 1. Initialiser Cognee avec les MÊMES chemins absolus que le serveur
+    # 1. Initialize Cognee with the SAME absolute paths as the server
     success = await setup_cognee()
     if not success:
-        print("❌ Setup Cognee échoué.")
+        print("❌ Cognee setup failed.")
         return
     
-    # 2. Injection du hack historique
+    # 2. Inject historical hack
     euler_data = {
         "check": "reentrancy-eth",
         "impact": "High",
-        "description": "L'attaque d'Euler Finance est une réentrance classique sur la fonction withdraw où le solde est mis à jour après l'appel externe."
+        "description": "The Euler Finance attack is classic reentrancy on withdraw where balance is updated after external call."
     }
     
     print("🧹 Injection dans le graphe de connaissances...")
     await add_finding_to_memory(euler_data, "EulerVault")
-    print("✅ Donnée injectée dans le graphe.")
+    print("✅ Data injected into graph.")
 
 if __name__ == "__main__":
     asyncio.run(force_seed())

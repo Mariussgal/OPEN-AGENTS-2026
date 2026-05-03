@@ -1,6 +1,6 @@
 /**
- * Onchor seal — version compacte (équivalent ASCII_ICON_SMALL côté CLI).
- * Downsamplée 1 ligne sur 3 + 1 char sur 3 depuis l'original.
+ * Onchor seal — compact version (equivalent to CLI ASCII_ICON_SMALL).
+ * Downsampled 1 line out of 3 + 1 char out of 3 from original.
  */
 export const ASCII_ICON_SMALL = String.raw`                              
                   .              

@@ -9,14 +9,14 @@ client = OpenAI(
   base_url='https://ai-gateway.vercel.sh/v1'
 )
 
-print("📡 Appel à la Gateway Vercel...")
+print("📡 Calling Vercel Gateway...")
 
 try:
     response = client.chat.completions.create(
-      model='openai/gpt-4o-mini', # gpt-5.4 n'est pas encore dispo, utilise 4o-mini pour le test
-      messages=[{'role': 'user', 'content': 'Explique la réentrance en 10 mots.'}]
+      model='openai/gpt-4o-mini', # gpt-5.4 not available yet, use 4o-mini for the test
+      messages=[{'role': 'user', 'content': 'Explain reentrancy in 10 words.'}]
     )
-    print("🤖 Réponse :", response.choices[0].message.content)
-    print("✅ Ça marche !")
+    print("🤖 Response:", response.choices[0].message.content)
+    print("✅ It works!")
 except Exception as e:
     print(f"❌ Erreur : {e}")

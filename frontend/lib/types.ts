@@ -125,5 +125,5 @@ export interface AuditSummary {
 export interface PriceQuote {
     files_count: number;
     price_usdc: number;
-    scope_label: string; // e.g. "≤ 10 fichiers"
+    scope_label: string; // e.g. "<= 10 files"
 }

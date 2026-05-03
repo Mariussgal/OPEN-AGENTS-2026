@@ -1,10 +1,10 @@
 """
-0G Storage : JSON ↔ rootHash (`0g/0g_upload.js`, `0g/0g_download.js`).
+0G Storage: JSON <-> rootHash (`0g/0g_upload.js`, `0g/0g_download.js`).
 
-``OG_STORAGE_MODE`` :
-  - ``live`` (défaut) — upload/download réels (Galileo / testnet 0G).
-  - ``merkle`` — Merkle root uniquement (pas de données récupérables sur le réseau).
-  - ``mock`` — stockage dans ``backend/storage/.zero_g_mock/`` (sans réseau).
+``OG_STORAGE_MODE``:
+  - ``live`` (default) — real upload/download (Galileo / 0G testnet).
+  - ``merkle`` — Merkle root only (no retrievable network data).
+  - ``mock`` — local storage in ``backend/storage/.zero_g_mock/`` (no network).
 """
 
 from __future__ import annotations
@@ -17,9 +17,9 @@ from typing import Any, Literal
 
 def _resolve_zero_g_dir() -> Path:
     """
-    Trouve le dossier 0g/ (scripts Node) en remontant depuis ce fichier.
-    Nécessaire si le déploiement utilise la racine du repo (backend + 0g).
-    Si seul backend/ est déployé sur Render, 0g/ sera absent — erreur explicite.
+    Find the 0g/ folder (Node scripts) by walking up from this file.
+    Required when deployment uses repo root (backend + 0g).
+    If only backend/ is deployed on Render, 0g/ is missing — explicit error.
     """
     p = Path(__file__).resolve().parent
     for _ in range(8):
@@ -30,10 +30,10 @@ def _resolve_zero_g_dir() -> Path:
             break
         p = p.parent
     raise FileNotFoundError(
-        "Dossier 0g/ introuvable (0g_download.js). "
-        "Déploie la racine du monorepo (pas seulement backend/), "
-        "ou copie 0g/ à côté du backend. "
-        "Puis: cd 0g && npm install"
+        "0g/ folder not found (0g_download.js). "
+        "Deploy the monorepo root (not backend/ only), "
+        "or copy 0g/ next to backend. "
+        "Then run: cd 0g && npm install"
     )
 
 
@@ -111,7 +111,7 @@ def _node_env() -> dict[str, str]:
 
 def _run_node(script: Path, args: list[str], stdin: str | None = None, timeout: int = 300) -> dict[str, Any]:
     if not script.is_file():
-        raise FileNotFoundError(f"Script 0G introuvable: {script} — lance \"npm install\" dans {_ZERO_G_DIR}")
+        raise FileNotFoundError(f"0G script not found: {script} — run \"npm install\" in {_ZERO_G_DIR}")
     proc = subprocess.run(
         ["node", str(script), *args],
         input=stdin.encode("utf-8") if stdin is not None else None,
@@ -125,7 +125,7 @@ def _run_node(script: Path, args: list[str], stdin: str | None = None, timeout: 
     if proc.returncode != 0:
         raise RuntimeError(f"0g node exit {proc.returncode}: {err_txt or out_txt or 'no output'}")
     if not out_txt:
-        raise RuntimeError(f"stdout vide. stderr: {err_txt}")
+        raise RuntimeError(f"empty stdout. stderr: {err_txt}")
     line = out_txt.splitlines()[-1]
     return json.loads(line)
 
@@ -165,7 +165,7 @@ def store_pattern(payload: dict[str, Any]) -> str:
 
 def store_pattern_with_proof(payload: dict[str, Any]) -> dict[str, str]:
     """
-    Stocke un payload et retourne le rootHash + txHash (si disponible).
+    Store a payload and return rootHash + txHash (when available).
     """
     mode = _storage_mode()
     if mode == "merkle":
@@ -194,14 +194,14 @@ def retrieve_pattern(root_hash: str) -> dict[str, Any]:
     rh = _normalize_root_hash(root_hash)
     mode = _storage_mode()
     if mode == "merkle":
-        raise RuntimeError("OG_STORAGE_MODE=merkle : pas de retrieve réseau ni mock")
+        raise RuntimeError("OG_STORAGE_MODE=merkle: no network or mock retrieve available")
     if mode == "mock":
         p = _mock_file(rh)
         if not p.is_file():
             raise FileNotFoundError(f"mock: no file for {rh}")
         data = json.loads(p.read_text(encoding="utf-8"))
         if not isinstance(data, dict):
-            raise RuntimeError("mock: JSON racine doit être un objet")
+            raise RuntimeError("mock: root JSON must be an object")
         return data
 
     out = _run_node(_DOWNLOAD_JS, [rh], timeout=300)
@@ -218,8 +218,8 @@ MANIFEST_KEY_PREFIX = "onchor-manifest"
 
 def store_manifest(manifest_data: dict) -> str:
     """
-    Stocke le manifest avec une clé nommée stable.
-    Retourne le rootHash 0G.
+    Store manifest with a stable named key.
+    Return 0G rootHash.
     """
     payload = {
         **manifest_data,

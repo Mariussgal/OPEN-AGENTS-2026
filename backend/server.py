@@ -36,8 +36,8 @@ load_dotenv()
 
 async def _handle_uploaded_file(file: UploadFile) -> str:
     """
-    Sauve le fichier uploadé dans un dossier temporaire.
-    Retourne le path à auditer (fichier .sol ou dossier dézippé).
+    Save uploaded file into a temporary directory.
+    Return path to audit (.sol file or unzipped directory).
     """
     suffix = ".sol" if file.filename.endswith(".sol") else ".zip"
 
@@ -46,7 +46,7 @@ async def _handle_uploaded_file(file: UploadFile) -> str:
         tmp_path = tmp.name
 
     if suffix == ".zip":
-        # Créer un dossier temporaire et dézipper
+        # Create a temporary directory and unzip
         extract_dir = tempfile.mkdtemp()
         with zipfile.ZipFile(tmp_path, "r") as zf:
             zf.extractall(extract_dir)
@@ -57,7 +57,7 @@ async def _handle_uploaded_file(file: UploadFile) -> str:
 
 
 async def _cleanup(path: str):
-    """Nettoie fichier ou dossier temporaire."""
+    """Clean up temporary file or directory."""
     if os.path.isdir(path):
         shutil.rmtree(path)
     elif os.path.isfile(path):
@@ -65,7 +65,7 @@ async def _cleanup(path: str):
 
 
 async def _run_audit_from_path(tmp_path: str, *, mode: str = "local") -> dict:
-    """Logique commune d'audit, utilisée par les deux routes upload."""
+    """Shared audit logic used by both upload routes."""
     try:
         scope = await resolve_scope(tmp_path)
         inventory_data = await run_inventory(scope)
@@ -107,7 +107,7 @@ async def _run_audit_from_path(tmp_path: str, *, mode: str = "local") -> dict:
 
 
 def _prepare_audit_for_storage(audit: dict) -> None:
-    """Champs dérivés pour l’historique (fichier ou Postgres)."""
+    """Derived fields for history storage (file or Postgres)."""
     report = audit.get("report", {})
     audit["verdict"]     = report.get("verdict") or _map_verdict(audit.get("triage", {}))
     audit["risk_score"]  = report.get("risk_score") or audit.get("triage", {}).get("risk_score", 0)
@@ -479,7 +479,7 @@ async def run_audit_upload_stream(
     file: UploadFile = File(...),
     x_payment: Optional[str] = Header(default=None),
 ):
-    """Upload payant en NDJSON — mêmes phases que /audit/stream, après settlement x402."""
+    """Paid NDJSON upload — same phases as /audit/stream after x402 settlement."""
     if not x_payment:
         raise HTTPException(
             status_code=402,
@@ -689,12 +689,12 @@ async def run_audit_stream(
             detail=f"Invalid payment: {verify_data.get('invalidReason', 'unknown')}",
         )
 
-    # ── Wrapper async generator : payment events → pipeline → persistance ───
+    # -- Wrapper async generator: payment events -> pipeline -> persistence --
     async def _stream() -> AsyncGenerator[bytes, None]:
         def emit(event: dict[str, Any]) -> bytes:
             return (json.dumps(event, default=str) + "\n").encode("utf-8")
 
-        # 1. Settle x402 — exécute le transfert USDC onchain.
+        # 1. Settle x402 — execute onchain USDC transfer.
         yield emit({"phase": "payment", "status": "start",
                     "msg": "Settling USDC payment via x402 facilitator..."})
         async with httpx.AsyncClient(timeout=300.0, follow_redirects=True) as http:
@@ -718,7 +718,7 @@ async def run_audit_stream(
         yield emit({"phase": "payment", "status": "done",
                     "tx_hash": tx_hash, "amount_usd": price_usd})
 
-        # 2. Pipeline streaming — capture le payload final pour persistance.
+        # 2. Pipeline streaming — capture final payload for persistence.
         full_result: dict[str, Any] = {}
         async for chunk in stream_audit_pipeline(
             path,
@@ -733,7 +733,7 @@ async def run_audit_stream(
             except Exception:
                 pass
 
-        # 3. Persistance audit (post-pipeline) — historique paid.
+        # 3. Persist audit (post-pipeline) — paid history.
         if full_result:
             try:
                 report = full_result.get("report") or {}
@@ -881,7 +881,7 @@ async def get_audit_report(audit_id: str):
     if not audit.get("risk_score"):
         audit["risk_score"] = audit.get("triage", {}).get("risk_score", 0)
     if not audit.get("findings"):
-        # Préférer les findings enrichis de la Phase 6
+        # Prefer Phase 6 enriched findings
         audit["findings"] = (
             audit.get("report", {}).get("findings")
             or _format_findings(audit.get("slither", {}))

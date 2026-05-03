@@ -2,14 +2,14 @@
 
 def calculate_price(files_count: int) -> float:
     """
-    Calcule le prix de l'audit en USDC selon la complexité du projet.
-    Basé sur la grille tarifaire du cahier des charges Keeper Memory.
+    Calculate audit price in USDC based on project complexity.
+    Based on the Keeper Memory pricing specification.
     """
     if files_count <= 3:
-        return 0.50  # Petit contrat (ex: Token ERC20 simple)
+        return 0.50  # Small contract (e.g. simple ERC20 token)
     elif files_count <= 10:
-        return 1.00  # Projet standard (ex: Vault + Router + interfaces)
+        return 1.00  # Standard project (e.g. Vault + Router + interfaces)
     elif files_count <= 30:
-        return 2.00  # Protocole DeFi complet
+        return 2.00  # Full DeFi protocol
     else:
-        return 4.00  # Gros protocole complexe
+        return 4.00  # Large complex protocol

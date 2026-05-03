@@ -7,13 +7,13 @@ type Props = {
   children: ReactNode;
   className?: string;
   bodyClassName?: string;
-  /** Affiche un point pulsant à côté du titre, signal "live". */
+  /** Show a pulsing dot next to title as a "live" signal. */
   live?: boolean;
 };
 
 /**
- * Fenêtre style terminal : barre de titre + 3 dots à gauche, body sombre.
- * Cohérent avec l'ambiance de `onchor-ai` (dots monochromes, pas de gradient).
+ * Terminal-style window: title bar + 3 left dots, dark body.
+ * Consistent with the `onchor-ai` style (monochrome dots, no gradient).
  */
 export function TerminalWindow({
   title = "onchor-ai",
@@ -45,7 +45,7 @@ export function TerminalWindow({
         <div className="w-12" />
       </div>
 
-      {/* Body — occupe tout l'espace restant, min-h-0 crucial pour flex overflow */}
+      {/* Body — fills remaining space, min-h-0 is crucial for flex overflow */}
       <div className={["bg-[--terminal-bg] flex-1 min-h-0 p-4 sm:p-6", bodyClassName].join(" ")}>
         {children}
       </div>

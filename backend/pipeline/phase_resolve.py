@@ -18,7 +18,7 @@ class ResolvedContract:
     upstream: Optional[UpstreamRef] = None
     address: Optional[str] = None
 
-# Base de données d'upstreams avec métadonnées pour le futur diff
+# Upstream database with metadata for future diffing
 KNOWN_UPSTREAMS_DB = {
     "0x1f98431c8ad98523631ae4a59f267346ea31f984": UpstreamRef("Uniswap V3", "https://github.com/Uniswap/v3-core", "v1.0.0"),
     "0x49ca165bd6aee88825f59c557bc52a685e0594b5": UpstreamRef("Euler Vault", "https://github.com/euler-xyz/euler-vault", "v1.0")
@@ -42,8 +42,8 @@ _CHAIN_ID_BY_NAME = {
 
 def _resolve_chain_candidates() -> list[str]:
     """
-    Ordre de recherche Etherscan pour les adresses 0x.
-    Par défaut: Sepolia puis Mainnet (retro-compatible + support mainnet).
+    Etherscan lookup order for 0x addresses.
+    Default: Sepolia then Mainnet (retro-compatible + mainnet support).
     """
     raw = (os.getenv("ONCHOR_ETHERSCAN_CHAIN_PRIORITY") or "11155111,1").strip()
     candidates = [c.strip() for c in raw.split(",") if c.strip()]
@@ -52,7 +52,7 @@ def _resolve_chain_candidates() -> list[str]:
 
 async def fetch_etherscan_source(address: str) -> List[str]:
     api_key = os.getenv("ETHERSCAN_API_KEY")
-    print(f"[Phase 0] Appel Etherscan V2 pour {address}...")
+    print(f"[Phase 0] Calling Etherscan V2 for {address}...")
 
     if not api_key:
         print("❌ Missing ETHERSCAN_API_KEY.")
@@ -72,7 +72,7 @@ async def fetch_etherscan_source(address: str) -> List[str]:
                 print(f"❌ Etherscan network error (chain {chainid}): {e}")
                 continue
 
-            # Sur l'API V2, le succès se vérifie toujours sur "status" == "1"
+            # In API V2, success is validated by "status" == "1"
             if data.get("status") != "1":
                 print(f"ℹ️ No verified code for {address} on chainid={chainid} ({data.get('result')})")
                 continue
@@ -88,10 +88,10 @@ async def fetch_etherscan_source(address: str) -> List[str]:
             os.makedirs(temp_dir, exist_ok=True)
             file_list = []
 
-            # Logique de parsing multi-fichiers {{...}}
+            # Multi-file parsing logic {{...}}
             if source_code_raw.startswith("{{"):
                 try:
-                    # Etherscan V2 peut nécessiter d'enlever les doubles accolades
+                    # Etherscan V2 may require removing double braces
                     json_raw = source_code_raw[1:-1] if source_code_raw.startswith("{{") else source_code_raw
                     json_content = json.loads(json_raw)
                     sources = json_content.get("sources", json_content)
@@ -106,7 +106,7 @@ async def fetch_etherscan_source(address: str) -> List[str]:
                     print(f"❌ JSON parsing error (chain {chainid}): {e}")
                     continue
             else:
-                # Cas fichier unique
+                # Single-file case
                 path = os.path.join(temp_dir, "Contract.sol")
                 with open(path, "w") as f:
                     f.write(source_code_raw)
@@ -122,8 +122,8 @@ def filter_diff_only(files: List[str], upstream: Optional[UpstreamRef]) -> List[
     if not upstream:
         return files
     
-    # Logique de filtrage : on ignore ce qui ressemble à du standard (lib, node_modules, etc.)
-    # Dans une version avancée, on comparerait les hashes via l'URL du repo
+    # Filtering logic: ignore items that look standard (lib, node_modules, etc.)
+    # In an advanced version, compare hashes via repo URL
     filtered = [f for f in files if "node_modules" not in f and "lib/" not in f and "@openzeppelin" not in f]
     print(f"[Phase 0] Scope reduced: {len(files)} -> {len(filtered)} files (Delta focus)")
     return filtered
@@ -137,21 +137,21 @@ async def resolve_scope(path_or_address: str) -> ResolvedContract:
         files = await fetch_etherscan_source(address)
         upstream = KNOWN_UPSTREAMS_DB.get(address)
     else:
-        # Résolution locale
+        # Local resolution
         files = []
-        # Cas 1 : C'est un fichier unique
+        # Case 1: this is a single file
         if os.path.isfile(path_or_address):
             if path_or_address.endswith(".sol"):
                 files.append(path_or_address)
         
-        # Cas 2 : C'est un répertoire
+        # Case 2: it is a directory
         elif os.path.isdir(path_or_address):
             for root, _, filenames in os.walk(path_or_address):
                 for f in filenames:
                     if f.endswith(".sol"):
                         files.append(os.path.join(root, f))
 
-        # Cas 3 : le serveur uvicorn a souvent cwd = backend/ — relatif à la racine du dépôt
+        # Case 3: uvicorn server often has cwd = backend/ — relative to repo root
         if not files and not os.path.isabs(path_or_address):
             repo_root = Path(__file__).resolve().parents[2]
             cand = (repo_root / path_or_address).resolve()
@@ -163,12 +163,12 @@ async def resolve_scope(path_or_address: str) -> ResolvedContract:
                         if f.endswith(".sol"):
                             files.append(os.path.join(root, f))
         
-        # Détection de l'upstream sur le premier fichier trouvé
+        # Detect upstream from the first discovered file
         if files and not upstream:
             with open(files[0], 'r') as file:
                 upstream = await detect_upstream_from_code(file.read())
 
-    # Application de la réduction de scope
+    # Apply scope reduction
     files = filter_diff_only(files, upstream)
 
     return ResolvedContract(

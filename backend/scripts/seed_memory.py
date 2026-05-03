@@ -6,16 +6,16 @@ async def main():
     success = await setup_cognee()
     if not success: return
 
-    # 2. On injecte le hack historique
+    # 2. Inject historical hack
     euler_data = {
         "check": "reentrancy-eth",
         "impact": "High",
-        "description": "Exploit historique d'Euler Finance : Réentrance sur withdraw()."
+        "description": "Historical Euler Finance exploit: reentrancy on withdraw()."
     }
 
     print("🚀 Construction du graphe de connaissances...")
     await add_finding_to_memory(euler_data, "EulerVault")
-    print("✅ Mémoire collective opérationnelle.")
+    print("✅ Collective memory operational.")
 
 if __name__ == "__main__":
     asyncio.run(main())

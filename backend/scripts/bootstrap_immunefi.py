@@ -2,37 +2,37 @@ import asyncio
 from memory.cognee_setup import setup_cognee, add_finding_to_memory
 
 async def scrape_and_inject_immunefi():
-    print("🛡️ Récupération des rapports publics depuis Immunefi...")
+    print("🛡️ Fetching public reports from Immunefi...")
     
     # ---------------------------------------------------------
-    # Squelette de récupération (API / Scraping Github)
-    # Les rapports Immunefi publics sont souvent agrégés sur GitHub
-    # ou via leur flux RSS.
+    # Retrieval skeleton (API / GitHub scraping)
+    # Public Immunefi reports are often aggregated on GitHub
+    # or through their RSS feed.
     # ---------------------------------------------------------
     
-    # Simulation d'un jeu de données de rapports publics Immunefi
+    # Simulated public Immunefi report dataset
     immunefi_reports = [
         {
             "check": "logic-error-eth",
             "impact": "Critical",
-            "description": "Wormhole Uninitialized Proxy. Vulnérabilité permettant à un attaquant de prendre le contrôle d'un contrat proxy non initialisé et de drainer les fonds.",
+            "description": "Wormhole Uninitialized Proxy. Vulnerability allowing attacker to take control of an uninitialized proxy and drain funds.",
             "contract_name": "WormholeBridge"
         },
         {
             "check": "signature-malleability",
             "impact": "High",
-            "description": "Polygon Plasma Bridge. Faille de malléabilité de signature ecrecover permettant la réutilisation (replay) de retraits précédemment soumis.",
+            "description": "Polygon Plasma Bridge. ecrecover signature malleability flaw enabling replay of previously submitted withdrawals.",
             "contract_name": "WithdrawManager"
         },
         {
             "check": "price-oracle-manipulation",
             "impact": "Critical",
-            "description": "Mango Markets. Manipulation massive des prix au comptant sur les oracles internes via de grosses positions perpétuelles, vidant la liquidité globale.",
+            "description": "Mango Markets. Massive spot price manipulation on internal oracles via large perpetual positions, draining global liquidity.",
             "contract_name": "MangoPerpMarket"
         }
     ]
 
-    print(f"🐞 {len(immunefi_reports)} rapports publics Immunefi prêts. Début de l'injection...")
+    print(f"🐞 {len(immunefi_reports)} public Immunefi reports ready. Starting injection...")
 
     for report in immunefi_reports:
         finding_data = {
@@ -42,9 +42,9 @@ async def scrape_and_inject_immunefi():
         }
         
         await add_finding_to_memory(finding_data, report["contract_name"])
-        await asyncio.sleep(1) # Délai pour éviter le rate-limit du LLM
+        await asyncio.sleep(1) # Delay to avoid LLM rate limiting
 
-    print("✅ Bootstrap Immunefi terminé. La base de patterns s'agrandit encore.")
+    print("✅ Immunefi bootstrap completed. Pattern base expanded further.")
 
 async def main():
     success = await setup_cognee()

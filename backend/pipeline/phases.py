@@ -1,21 +1,21 @@
 """
-Métadonnées du pipeline d'audit (id + label des 7 phases).
+Audit pipeline metadata (id + label of 7 phases).
 
-Module volontairement minimaliste — *zéro import lourd* — pour que les clients
-légers (CLI, frontend bridge, tests) puissent l'importer sans déclencher le
+Intentionally minimal module — *zero heavy imports* — so clients
+lightweight (CLI, frontend bridge, tests) can import it without triggering
 chargement de Cognee, Slither, Anthropic, etc.
 
-Le module `pipeline.streaming` (côté serveur) ré-exporte `PIPELINE_PHASES` pour
+The `pipeline.streaming` module (server side) re-exports `PIPELINE_PHASES` for
 back-compat.
 """
 
 from __future__ import annotations
 
 
-# Liste ordonnée des 7 phases du pipeline d'audit.
+# Ordered list of the 7 audit pipeline phases.
 # Format : (phase_id, human_label).
-# - phase_id   : utilisé dans les events NDJSON (`{"phase": "<id>", ...}`)
-# - human_label: utilisé par le CLI pour la progress bar.
+# - phase_id   : used in NDJSON events (`{"phase": "<id>", ...}`)
+# - human_label: used by the CLI for the progress bar.
 PIPELINE_PHASES: list[tuple[str, str]] = [
     ("resolve",     "Phase 0 · Resolve target"),
     ("inventory",   "Phase 1 · Inventory"),

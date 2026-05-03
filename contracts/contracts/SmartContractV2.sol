@@ -121,12 +121,12 @@ contract Token is ERC20, Ownable {
     }
 
     function _transferFrom(address sender, address recipient, uint256 amount) internal returns(bool) {
-        // Vérification du trading : permet toujours au owner de transférer (pour addLiquidity)
+        // Trading check: always allow owner transfers (for addLiquidity)
         require(canTrade || sender == owner(), "Trading not enabled yet");
 
         require(amount <= _balances[sender], "Insufficient balance");
 
-        // Vérification de la limite de wallet (sauf pour les ventes vers la paire)
+        // Wallet limit check (except sells to pair)
         if (!maxWalletExempt[recipient] && sender != owner()) {
             require(_balances[recipient] + amount <= _maxWalletSize, "Exceeds max wallet size");
         }

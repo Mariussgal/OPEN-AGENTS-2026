@@ -31,7 +31,7 @@ print('Result type:', type(result))
 print('Result preview:', str(result)[:200])
 
 if not isinstance(result, list):
-    print('ERREUR: result nest pas une liste')
+    print('ERROR: result is not a list')
     exit(1)
 
 ph_clean = 'accf5e130c2d752144900bad7f626b3563e138c5344eb9f422c3b1be99398fbf'
@@ -49,6 +49,6 @@ for tx in result:
         break
 
 if not found:
-    print('Non trouve - premiers inputs:')
+    print('Not found - first inputs:')
     for tx in result[:3]:
         print(f'  input: {tx["input"]}')

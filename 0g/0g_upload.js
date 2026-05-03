@@ -1,6 +1,6 @@
 /**
- * JSON (stdin ou fichier) → upload 0G Storage → stdout: {"ok":true,"rootHash":"...","txHash":"..."}
- * --merkle-only : Merkle root via MemData, sans transaction.
+ * JSON (stdin or file) -> upload to 0G Storage -> stdout: {"ok":true,"rootHash":"...","txHash":"..."}
+ * --merkle-only: Merkle root via MemData, without transaction.
  */
 import path from "path";
 import fs from "fs";

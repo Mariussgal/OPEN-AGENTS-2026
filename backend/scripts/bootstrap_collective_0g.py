@@ -1,6 +1,6 @@
 """
-Bootstrap la mémoire collective sur 0G KV Storage.
-À lancer UNE FOIS depuis la machine du serveur.
+Bootstrap collective memory on 0G KV Storage.
+Run ONCE from the server machine.
 Usage : python -m scripts.bootstrap_collective_0g
 """
 
@@ -14,10 +14,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from dotenv import load_dotenv
 load_dotenv()
 
-from storage.zero_g_client import store_pattern, pattern_storage_payload
+from storage.zero_g_client import store_pattern
 from pipeline.utils import compute_pattern_hash
-
-MANIFEST_KEY = "onchor-manifest-v1"
+from storage.zero_g_kv_client import kv_get, kv_set, MANIFEST_KEY
 
 # ─── Dataset bootstrap ────────────────────────────────────────────────────────
 # Sources : Rekt.news top 100 + Immunefi disclosures + OZ/Trail of Bits audits
@@ -190,8 +189,20 @@ BOOTSTRAP_PATTERNS = [
 
 
 async def bootstrap():
-    print(f"🚀 Bootstrap mémoire collective sur 0G Storage")
-    print(f"   {len(BOOTSTRAP_PATTERNS)} patterns à uploader...")
+    print(f"🚀 Bootstrapping collective memory on 0G Storage")
+    print(f"   {len(BOOTSTRAP_PATTERNS)} patterns to upload...")
+    print()
+
+    existing_manifest_payload = kv_get(MANIFEST_KEY, use_cache=False) or {}
+    existing_entries = existing_manifest_payload.get("entries", [])
+    if not isinstance(existing_entries, list):
+        existing_entries = []
+    existing_by_hash = {
+        e.get("pattern_hash"): e
+        for e in existing_entries
+        if isinstance(e, dict) and e.get("pattern_hash")
+    }
+    print(f"📚 Manifest existant: {len(existing_by_hash)} pattern(s)")
     print()
 
     manifest = []
@@ -233,12 +244,11 @@ async def bootstrap():
             print(f"  [{i+1:2d}/{len(BOOTSTRAP_PATTERNS)}] ❌ {p['type']:20s} → {e}")
 
     print()
-    print(f"📋 Upload manifest ({len(manifest)} entrées)...")
-    from storage.zero_g_kv_client import kv_set
+    print(f"📋 Uploading manifest ({len(manifest)} entries)...")
 
     manifest_kv_tx = None
 
-    # Chaque pattern est aussi indexé individuellement par son hash
+    # Each pattern is also indexed individually by its hash
     for entry in manifest:
         ph = entry["pattern_hash"]
         payload_for_kv = next(
@@ -252,32 +262,38 @@ async def bootstrap():
         )
         try:
             kv_set(ph, payload_for_kv)
-            print(f"  [KV] Pattern indexé: {ph[:16]}...")
+            print(f"  [KV] Pattern indexed: {ph[:16]}...")
         except Exception as e:
             print(f"  [KV] Erreur pattern {ph[:16]}: {e}")
 
-    # Manifest global
+    merged_by_hash = dict(existing_by_hash)
+    for entry in manifest:
+        merged_by_hash[entry["pattern_hash"]] = entry
+    merged_manifest = list(merged_by_hash.values())
+
+    # Manifest global (merge non-destructif)
     try:
         tx = kv_set(
             "onchor-manifest-v1",
             {
                 "schema": "onchor-ai/manifest/v1",
                 "key": "onchor-manifest-v1",
-                "entries": manifest,
+                "entries": merged_manifest,
             },
         )
         manifest_kv_tx = tx
-        print(f"✅ Manifest KV stocké — tx: {tx}")
+        print(f"✅ Manifest KV stored — tx: {tx}")
+        print(f"   Merge: {len(existing_by_hash)} existants + {len(manifest)} bootstrap -> {len(merged_manifest)} total")
         print()
         print("✅ Plus besoin de MANIFEST_ROOT_HASH dans .env")
         print("   Le manifest est maintenant permanent sur 0G KV")
     except Exception as e:
-        print(f"❌ Manifest KV échoué: {e}")
+        print(f"❌ Manifest KV failed: {e}")
 
     print()
-    print(f"─── Résultat ───────────────────────────────")
-    print(f"  Patterns uploadés : {success}/{len(BOOTSTRAP_PATTERNS)}")
-    print(f"  Patterns échoués  : {failed}")
+    print(f"--- Result ------------------------------")
+    print(f"  Patterns uploaded : {success}/{len(BOOTSTRAP_PATTERNS)}")
+    print(f"  Patterns failed  : {failed}")
     print(f"  Manifest KV tx    : {manifest_kv_tx or 'N/A'}")
 
 

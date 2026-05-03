@@ -3,15 +3,15 @@ Client streaming pour le CLI Onchor.ai.
 
 Consomme les routes NDJSON `/audit/local/stream` et `/audit/stream` du backend
 et affiche une progress bar Rich dynamique avec :
-- Une barre de progression violette qui passe en teal à 100 %.
+- A purple progress bar that turns teal at 100%.
 - Un label par phase courante (Phase 0..6).
 - Une ligne `> message` muted entre chaque phase pour comprendre ce qui se
-  passe côté serveur.
+  happening on the server side.
 - L'event `payment` (mode paid uniquement) est rendu au-dessus de la progress
-  bar avant de démarrer le pipeline.
+  bar before starting the pipeline.
 
 Le payload final (l'event `{"phase": "report", "status": "done", "result": ...}`)
-est retourné à l'appelant pour qu'il puisse rendre le verdict / les findings /
+is returned to the caller so it can render verdict / findings /
 le JSON brut comme avant — strict equivalent des routes non-stream.
 """
 
@@ -33,17 +33,17 @@ from rich.progress import (
     TimeElapsedColumn,
 )
 
-# IMPORTANT — on importe depuis `pipeline.phases` (module léger, zéro
-# dépendance lourde) et SURTOUT pas depuis `pipeline.streaming` qui chargerait
-# Cognee, Slither, Anthropic, etc. au démarrage du CLI et polluerait le
-# terminal avec les logs d'init de ces libs.
+# IMPORTANT — import from `pipeline.phases` (lightweight module, zero
+# heavy dependency) and ESPECIALLY not from `pipeline.streaming`, which would load
+# Cognee, Slither, Anthropic, etc. at CLI startup and pollute
+# the terminal with initialization logs from those libs.
 from pipeline.phases import PIPELINE_PHASES
 from ui import console, info
 
 
 # ─── Phase formatting ────────────────────────────────────────────────────────
 
-# Map phase id → (index, label) pour calculer la progression.
+# Map phase id -> (index, label) to compute progress.
 _PHASE_INDEX = {pid: i for i, (pid, _) in enumerate(PIPELINE_PHASES)}
 _PHASE_LABEL = {pid: label for pid, label in PIPELINE_PHASES}
 
@@ -113,24 +113,24 @@ async def consume_audit_stream(
     files: Optional[dict[str, Any]] = None,
     show_payment: bool = False,
 ) -> tuple[dict[str, Any], str | None]:
-    """Ouvre un stream NDJSON sur `url` et affiche la progress bar.
+    """Open an NDJSON stream on `url` and render the progress bar.
 
     Args:
-        client: AsyncClient httpx (timeout long recommandé, p.ex. 600s).
-        method: "POST" en pratique.
-        url: URL complète de la route streaming.
+        client: httpx AsyncClient (long timeout recommended, e.g. 600s).
+        method: usually "POST".
+        url: Full streaming route URL.
         params: Query string params.
-        headers: Headers (X-PAYMENT pour le mode paid).
-        files: Corps multipart (ex. upload fichier) — mutuellement exclusif avec params côté appelant.
-        show_payment: Si True, affiche les events `phase: payment` au-dessus
-            de la progress bar (uniquement le mode paid après le settle x402).
+        headers: Headers (X-PAYMENT for paid mode).
+        files: Multipart body (e.g. file upload) — mutually exclusive with params by caller convention.
+        show_payment: If True, show `phase: payment` events above
+            the progress bar (paid mode only, after x402 settlement).
 
     Returns:
-        Couple ``(result, payment_tx)`` : ``result`` est le payload final extrait de
-        l'event ``{"phase": "report", "status": "done"}`` ; ``payment_tx`` est le
-        hash de règlement x402 depuis ``{"phase": "payment", "status": "done"}`` si présent.
+        Tuple ``(result, payment_tx)``: ``result`` is the final payload extracted from
+        event ``{"phase": "report", "status": "done"}``; ``payment_tx`` is the
+        x402 settlement hash from ``{"phase": "payment", "status": "done"}`` when present.
 
-    Lève RuntimeError si le stream se termine sans payload.
+    Raises RuntimeError if the stream ends without payload.
     """
     full_result: dict[str, Any] | None = None
     payment_tx: str | None = None
@@ -148,7 +148,7 @@ async def consume_audit_stream(
         TextColumn("[muted]·[/muted]"),
         TimeElapsedColumn(),
         console=console,
-        transient=False,  # garde la barre visible une fois finie
+        transient=False,  # keep progress bar visible when finished
     )
 
     with progress:
@@ -162,8 +162,8 @@ async def consume_audit_stream(
         if files is not None:
             req_kw["files"] = files
         async with client.stream(method, url, **req_kw) as resp:
-            # Si le serveur a répondu en 4xx/5xx avant de streamer, lit le body
-            # complet et lève une exception explicite.
+            # If server returned 4xx/5xx before streaming, read body
+            # and raise an explicit exception.
             if resp.status_code >= 400:
                 body = (await resp.aread()).decode("utf-8", errors="replace")
                 raise httpx.HTTPStatusError(
@@ -179,13 +179,13 @@ async def consume_audit_stream(
                 try:
                     event = json.loads(line)
                 except json.JSONDecodeError:
-                    # Ligne cassée (timeout proxy, etc.) — skip.
+                    # Malformed line (proxy timeout, etc.) — skip.
                     continue
 
                 phase = event.get("phase")
                 status = event.get("status")
 
-                # ── Event "payment" (mode paid uniquement) ───────────────────
+                # -- "payment" event (paid mode only) --
                 if phase == "payment":
                     if status == "done":
                         tx_cap = event.get("tx_hash")
@@ -210,13 +210,13 @@ async def consume_audit_stream(
                         raise RuntimeError(f"Payment failed: {err}")
                     continue
 
-                # ── Event "pipeline done" (sentinelle finale) ────────────────
+                # -- "pipeline done" event (final sentinel) --
                 if phase == "pipeline" and status == "done":
                     progress.update(task_id, completed=total_phases,
                                     description="Pipeline complete")
                     continue
 
-                # ── Events "phase X" ─────────────────────────────────────────
+                # -- "phase X" events --
                 if phase not in _PHASE_INDEX:
                     continue
 
@@ -290,7 +290,7 @@ async def run_streaming_paid_upload(
     path: str,
     x_payment_header: str,
 ) -> tuple[dict[str, Any], str | None]:
-    """Audit payant d'un fichier ou dossier local via NDJSON (/audit/upload/stream)."""
+    """Paid audit of local file/folder via NDJSON (/audit/upload/stream)."""
     info("Pipeline started — see progress below.")
     tout = httpx.Timeout(connect=60.0, read=7200.0, write=60.0, pool=7200.0)
     url = f"{api_url}/audit/upload/stream"
@@ -311,9 +311,9 @@ async def run_streaming_paid_upload(
         if os.path.isdir(path):
             sol_files = list(Path(path).rglob("*.sol"))
             if not sol_files:
-                raise ValueError(f"Aucun fichier .sol trouvé dans {path}")
+                raise ValueError(f"No .sol file found in {path}")
 
-            info(f"{len(sol_files)} fichiers .sol trouvés, compression...")
+            info(f"{len(sol_files)} .sol files found, compressing...")
             with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as tmp_zip:
                 zip_path = tmp_zip.name
             try:

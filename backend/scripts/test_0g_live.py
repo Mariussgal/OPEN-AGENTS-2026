@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-Teste un download 0G via le même chemin que le pipeline Python (node 0g_download.js).
+Test 0G download through same path as Python pipeline (node 0g_download.js).
 
 Usage (depuis le dossier backend/) :
   python scripts/test_0g_live.py 0x<rootHash>
 
 Charge ``backend/.env`` puis force ``OG_STORAGE_MODE=live`` pour cet appel,
-même si ton .env utilise ``mock`` en dev.
+even if your .env uses ``mock`` in dev.
 """
 
 from __future__ import annotations

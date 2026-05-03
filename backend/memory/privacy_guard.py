@@ -1,20 +1,20 @@
 def sanitize_finding_for_memory(finding: dict) -> dict:
     """
-    Garde-fou Privacy : S'assure qu'on ne stocke aucune donnée client sensible
+    Privacy guardrail: ensure no sensitive client data is stored
     avant l'injection dans la base Cognee.
     """
-    # On crée une copie pour ne pas modifier l'objet original en cours d'audit
+    # Create a copy to avoid mutating the original object during audit
     sanitized = finding.copy()
     
-    # 1. Purger l'adresse du contrat (privacy client)
+    # 1. Strip contract address (client privacy)
     if "contract_address" in sanitized:
         sanitized["contract_address"] = "REDACTED_ADDRESS"
         
-    # 2. Purger le nom du projet (confidentialité de l'audit)
+    # 2. Strip project name (audit confidentiality)
     if "project_name" in sanitized:
         sanitized["project_name"] = "REDACTED_PROJECT"
         
-    # 3. Ne jamais stocker le code source brut complet (propriété intellectuelle)
+    # 3. Never store full raw source code (intellectual property)
     if "raw_code" in sanitized:
         del sanitized["raw_code"]
         

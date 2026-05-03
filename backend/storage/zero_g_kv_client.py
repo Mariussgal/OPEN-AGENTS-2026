@@ -1,7 +1,7 @@
 """
 0G KV Storage client — remplace le manifest file upload.
-Clé = pattern_hash (str), Valeur = JSON du pattern.
-Clé spéciale "onchor-manifest-v1" = index de tous les patterns.
+Key = pattern_hash (str), Value = pattern JSON.
+Special key "onchor-manifest-v1" = index of all patterns.
 """
 from __future__ import annotations
 
@@ -82,7 +82,7 @@ def kv_set(key: str, payload: dict[str, Any]) -> str:
     if not out.get("ok"):
         raise RuntimeError(out.get("error", "kv_set failed"))
     
-    # Invalider le cache local pour cette clé
+    # Invalidate local cache for this key
     p = _cache_path(key)
     if p.is_file():
         p.unlink()
@@ -92,8 +92,8 @@ def kv_set(key: str, payload: dict[str, Any]) -> str:
 
 def kv_get(key: str, use_cache: bool = True) -> dict[str, Any] | None:
     """
-    Récupère un pattern depuis 0G KV.
-    Retourne None si la clé n'existe pas.
+    Retrieve a pattern from 0G KV.
+    Return None if key does not exist.
     """
     if use_cache:
         cached = _read_cache(key)
@@ -116,10 +116,10 @@ def kv_get(key: str, use_cache: bool = True) -> dict[str, Any] | None:
 
 
 def kv_set_pattern(pattern_hash: str, payload: dict[str, Any]) -> str:
-    """Raccourci : store un pattern indexé par son hash."""
+    """Shortcut: store a pattern indexed by its hash."""
     return kv_set(pattern_hash, payload)
 
 
 def kv_get_pattern(pattern_hash: str) -> dict[str, Any] | None:
-    """Raccourci : fetch un pattern par son hash."""
+    """Shortcut: fetch a pattern by its hash."""
     return kv_get(pattern_hash)
