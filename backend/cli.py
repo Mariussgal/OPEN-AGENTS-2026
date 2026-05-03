@@ -9,6 +9,8 @@ import asyncio
 import json
 import os
 import sys
+import tempfile
+import zipfile
 from pathlib import Path
 from typing import Any
 
@@ -343,6 +345,90 @@ def audit(path: str, local: bool, dev: bool, no_stream: bool) -> None:
         error(f"Error: {e}")
 
 
+async def _upload_and_audit(path: str, *, local: bool, dev: bool) -> tuple[dict, str | None]:
+    # Mode local/dev → route gratuite, pas de paiement
+    if local or dev:
+        route = "/audit/local/upload"
+        if os.path.isfile(path):
+            async with httpx.AsyncClient(timeout=600.0) as client:
+                with open(path, "rb") as f:
+                    resp = await client.post(
+                        f"{get_api_url()}{route}",
+                        files={"file": (os.path.basename(path), f, "text/plain")},
+                    )
+                resp.raise_for_status()
+                return resp.json(), None
+        if os.path.isdir(path):
+            sol_files = list(Path(path).rglob("*.sol"))
+            if not sol_files:
+                raise click.ClickException(f"Aucun fichier .sol trouvé dans {path}")
+
+            info(f"{len(sol_files)} fichiers .sol trouvés, compression...")
+            with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as tmp_zip:
+                zip_path = tmp_zip.name
+            try:
+                with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+                    for sol in sol_files:
+                        zf.write(sol, sol.relative_to(path))
+                async with httpx.AsyncClient(timeout=600.0) as client:
+                    with open(zip_path, "rb") as f:
+                        resp = await client.post(
+                            f"{get_api_url()}{route}",
+                            files={"file": (os.path.basename(path) + ".zip", f, "application/zip")},
+                        )
+                    resp.raise_for_status()
+                    return resp.json(), None
+            finally:
+                os.unlink(zip_path)
+        raise click.ClickException(f"Chemin invalide: {path}")
+
+    # Mode paid → préparer x402 d'abord
+    from payments.x402_client import prepare_x_payment
+
+    x_payment, _, _ = await prepare_x_payment(get_api_url(), "upload")
+
+    if os.path.isfile(path):
+        async with httpx.AsyncClient(timeout=600.0) as client:
+            with open(path, "rb") as f:
+                resp = await client.post(
+                    f"{get_api_url()}/audit/upload",
+                    files={"file": (os.path.basename(path), f, "text/plain")},
+                    headers={"X-PAYMENT": x_payment},
+                )
+            resp.raise_for_status()
+            data = resp.json()
+            payment_tx = data.get("report", {}).get("payment_tx")
+            return data, payment_tx
+
+    if os.path.isdir(path):
+        sol_files = list(Path(path).rglob("*.sol"))
+        if not sol_files:
+            raise click.ClickException(f"Aucun fichier .sol trouvé dans {path}")
+
+        info(f"{len(sol_files)} fichiers .sol trouvés, compression...")
+        with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as tmp_zip:
+            zip_path = tmp_zip.name
+        try:
+            with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+                for sol in sol_files:
+                    zf.write(sol, sol.relative_to(path))
+            async with httpx.AsyncClient(timeout=600.0) as client:
+                with open(zip_path, "rb") as f:
+                    resp = await client.post(
+                        f"{get_api_url()}/audit/upload",
+                        files={"file": (os.path.basename(path) + ".zip", f, "application/zip")},
+                        headers={"X-PAYMENT": x_payment},
+                    )
+                resp.raise_for_status()
+                data = resp.json()
+                payment_tx = data.get("report", {}).get("payment_tx")
+                return data, payment_tx
+        finally:
+            os.unlink(zip_path)
+
+    raise click.ClickException(f"Chemin invalide: {path}")
+
+
 async def _run_audit_async(
     path: str,
     *,
@@ -351,6 +437,10 @@ async def _run_audit_async(
     stream: bool,
 ) -> tuple[dict[str, Any], str | None]:
     """Dispatch des 4 combinaisons : local/paid × stream/legacy."""
+    # ← AJOUT : fichier local → upload vers Render
+    if not path.startswith("0x") and (os.path.isfile(path) or os.path.isdir(path)):
+        return await _upload_and_audit(path, local=local, dev=dev)
+
     if local or dev:
         if stream:
             from streaming_client import run_streaming_audit_local

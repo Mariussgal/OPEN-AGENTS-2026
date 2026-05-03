@@ -4,7 +4,11 @@ import base64
 import httpx
 import json
 import hashlib
-from fastapi import FastAPI, Request, HTTPException, Header, Body
+import shutil
+import tempfile
+import zipfile
+
+from fastapi import FastAPI, Request, HTTPException, Header, Body, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from dotenv import load_dotenv
@@ -28,6 +32,76 @@ from keeper.direct_api import anchor_contribution
 from storage.audits_store import load_audits, save_audit
 
 load_dotenv()
+
+
+async def _handle_uploaded_file(file: UploadFile) -> str:
+    """
+    Sauve le fichier uploadé dans un dossier temporaire.
+    Retourne le path à auditer (fichier .sol ou dossier dézippé).
+    """
+    suffix = ".sol" if file.filename.endswith(".sol") else ".zip"
+
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+        shutil.copyfileobj(file.file, tmp)
+        tmp_path = tmp.name
+
+    if suffix == ".zip":
+        # Créer un dossier temporaire et dézipper
+        extract_dir = tempfile.mkdtemp()
+        with zipfile.ZipFile(tmp_path, "r") as zf:
+            zf.extractall(extract_dir)
+        os.unlink(tmp_path)
+        return extract_dir  # ← resolve_scope() accepte un dossier
+
+    return tmp_path  # ← fichier .sol unique
+
+
+async def _cleanup(path: str):
+    """Nettoie fichier ou dossier temporaire."""
+    if os.path.isdir(path):
+        shutil.rmtree(path)
+    elif os.path.isfile(path):
+        os.unlink(path)
+
+
+async def _run_audit_from_path(tmp_path: str, *, mode: str = "local") -> dict:
+    """Logique commune d'audit, utilisée par les deux routes upload."""
+    try:
+        scope = await resolve_scope(tmp_path)
+        inventory_data = await run_inventory(scope)
+        slither_data = await run_slither(tmp_path)
+        triage_data = await run_triage(slither_data, inventory_data)
+        investigation_data = await run_investigation(scope, slither_data, inventory_data, triage_data)
+        anchored = await run_phase5_anchor(investigation_data.get("findings", []))
+        investigation_data["findings"] = anchored
+        report = await run_report(
+            scope=scope,
+            slither_data=slither_data,
+            inventory_data=inventory_data,
+            triage_data=triage_data,
+            investigation_data=investigation_data,
+        )
+        result = {
+            "status": "success",
+            "scope": {"files_found": len(scope.files)},
+            "inventory": inventory_data,
+            "slither": slither_data,
+            "triage": triage_data,
+            "investigation": investigation_data,
+            "report": report,
+        }
+        audit_record = {
+            "id": str(uuid.uuid4()),
+            "created_at": datetime.utcnow().isoformat() + "Z",
+            "target": {"kind": "upload", "value": os.path.basename(tmp_path)},
+            "mode": mode,
+            **result,
+            "anchored_count": report.get("summary", {}).get("anchored_count", 0),
+        }
+        _save_audit(audit_record)
+        return result
+    finally:
+        await _cleanup(tmp_path)
 
 
 def _prepare_audit_for_storage(audit: dict) -> None:
@@ -114,13 +188,14 @@ x402_server.register(NETWORK, ExactEvmServerScheme())
 x402_server.initialize()
 
 
-def _build_requirements(nb_files: int, price_usd: float):
+def _build_requirements(nb_files: int, price_usd: float, resource: Optional[str] = None):
+    resource_url = resource if resource is not None else f"{API_BASE_URL}/audit"
     config = ResourceConfig(
         scheme="exact",
         network=NETWORK,
         pay_to=RECEIVER_ADDRESS,
         price=f"${price_usd:.2f}",
-        resource=f"{API_BASE_URL}/audit",
+        resource=resource_url,
         description=f"Onchor.ai audit — {nb_files} file(s)",
     )
     return x402_server.build_payment_requirements(config)
@@ -135,10 +210,15 @@ async def root():
 
 @app.get("/audit/quote")
 async def get_audit_quote(path: str):
-    scope     = await resolve_scope(path)
-    nb_files  = len(scope.files)
-    price_usd = calculate_price(nb_files)
-    reqs      = _build_requirements(nb_files, price_usd)
+    if path == "upload":
+        nb_files = 1
+        price_usd = calculate_price(nb_files)
+        reqs = _build_requirements(nb_files, price_usd, resource=f"{API_BASE_URL}/audit/upload")
+    else:
+        scope = await resolve_scope(path)
+        nb_files = len(scope.files)
+        price_usd = calculate_price(nb_files)
+        reqs = _build_requirements(nb_files, price_usd)
     return {
         "files_count":          nb_files,
         "price_usd":            price_usd,
@@ -317,6 +397,77 @@ async def run_audit_local(path: str):
         "report":          report,                       # ← NEW
         "anchored_count":  report["summary"]["anchored_count"],
     }
+
+
+@app.post("/audit/upload")
+async def run_audit_upload(
+    request: Request,
+    file: UploadFile = File(...),
+    x_payment: Optional[str] = Header(default=None),
+):
+    if not x_payment:
+        raise HTTPException(
+            status_code=402,
+            detail="Missing X-PAYMENT header. Call GET /audit/quote first.",
+        )
+
+    price_usd = calculate_price(1)
+    reqs = _build_requirements(1, price_usd, resource=f"{API_BASE_URL}/audit/upload")
+    reqs_dict = [r.model_dump() for r in reqs]
+
+    try:
+        from x402.schemas import PaymentPayload
+        payload_json = base64.b64decode(x_payment).decode("utf-8")
+        payload_dict = json.loads(payload_json)
+        PaymentPayload.model_validate(payload_dict)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid X-PAYMENT header: {e}")
+
+    async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as http:
+        facilitator_resp = await http.post(
+            f"{FACILITATOR_URL}/verify",
+            json={
+                "x402Version":         payload_dict.get("x402Version", 2),
+                "paymentPayload":      payload_dict,
+                "paymentRequirements": reqs_dict[0],
+            },
+        )
+        facilitator_data = facilitator_resp.json()
+
+    if not facilitator_data.get("isValid"):
+        raise HTTPException(
+            status_code=402,
+            detail=f"Invalid payment: {facilitator_data.get('invalidReason', 'unknown')}",
+        )
+
+    async with httpx.AsyncClient(timeout=300.0, follow_redirects=True) as http:
+        settle_resp = await http.post(
+            f"{FACILITATOR_URL}/settle",
+            json={
+                "x402Version":         payload_dict.get("x402Version", 2),
+                "paymentPayload":      payload_dict,
+                "paymentRequirements": reqs_dict[0],
+            },
+        )
+        settle_data = settle_resp.json()
+
+    if not settle_data.get("success"):
+        raise HTTPException(
+            status_code=402,
+            detail=f"Settlement failed: {settle_data.get('error', 'unknown')}",
+        )
+
+    print(f"✅ USDC settled — tx: {settle_data.get('transaction')}")
+    tmp_path = await _handle_uploaded_file(file)
+    result = await _run_audit_from_path(tmp_path, mode="paid")
+    result.setdefault("report", {})["payment_tx"] = settle_data.get("transaction")
+    return result
+
+
+@app.post("/audit/local/upload")
+async def run_audit_local_upload(file: UploadFile = File(...)):
+    tmp_path = await _handle_uploaded_file(file)
+    return await _run_audit_from_path(tmp_path)
 
 
 # ── Streaming variants (NDJSON) ──────────────────────────────────────────────
