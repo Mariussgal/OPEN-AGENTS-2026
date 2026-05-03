@@ -42,11 +42,6 @@ Onchor combines a **fixed static baseline** with a **decentralized memory** that
 
 ---
 
-## Demo
-
-- **Video:** 
----
-
 ## System architecture
 
 ```mermaid
