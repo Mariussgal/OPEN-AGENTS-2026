@@ -45,7 +45,15 @@ function shortHash(hash: string) {
 
 // ─── Finding card ─────────────────────────────────────────────────────────────
 
-function FindingCard({ finding }: { finding: Finding }) {
+function FindingCard({
+    finding,
+    anchorTxBase,
+    anchorExplorerLabel,
+}: {
+    finding: Finding;
+    anchorTxBase: string;
+    anchorExplorerLabel: string;
+}) {
     const [expanded, setExpanded] = useState(false);
     const sc = SEVERITY_CONFIG[finding.severity];
     const { copied, copy } = useCopy(finding.onchain_proof ?? "");
@@ -130,12 +138,12 @@ function FindingCard({ finding }: { finding: Finding }) {
                                     {copied ? <Check className="w-3 h-3 text-[#0DFC67]" /> : <Copy className="w-3 h-3" />}
                                 </button>
                                 <a
-                                    href={`https://sepolia.basescan.org/tx/${finding.onchain_proof}`}
+                                    href={`${anchorTxBase}${finding.onchain_proof}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="text-xs text-[#0DFC67] hover:text-[#0DFC67] transition-colors flex items-center gap-1"
                                 >
-                                    Basescan <ExternalLink className="w-3 h-3" />
+                                    {anchorExplorerLabel} <ExternalLink className="w-3 h-3" />
                                 </a>
                             </div>
                         </div>
@@ -195,6 +203,8 @@ export default function AuditDetailPage() {
     const infoFindings = report.findings.filter(
         f => f.severity === "INFO" || f.severity === "INFORMATIONAL"
     );
+    const anchorTxBase = report.onchain?.etherscan_base || "https://sepolia.etherscan.io/tx/";
+    const anchorExplorerLabel = anchorTxBase.includes("basescan") ? "Basescan" : "Etherscan";
     const riskColor = report.risk_score >= 7 ? "#ff4444" : report.risk_score >= 4 ? "#f59e0b" : "#0DFC67";
     const date = new Date(report.created_at).toLocaleDateString("en-GB", {
         day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit"
@@ -331,7 +341,12 @@ export default function AuditDetailPage() {
                     ) : (
                         <div className="space-y-2">
                             {[...highFindings, ...medFindings, ...lowFindings].map((finding) => (
-                                <FindingCard key={finding.id} finding={finding} />
+                                <FindingCard
+                                    key={finding.id}
+                                    finding={finding}
+                                    anchorTxBase={anchorTxBase}
+                                    anchorExplorerLabel={anchorExplorerLabel}
+                                />
                             ))}
                             {infoFindings.length > 0 && (
                                 <details className="mt-2">
@@ -340,7 +355,12 @@ export default function AuditDetailPage() {
                                     </summary>
                                     <div className="mt-2 space-y-2">
                                         {infoFindings.map((finding) => (
-                                            <FindingCard key={finding.id} finding={finding} />
+                                            <FindingCard
+                                                key={finding.id}
+                                                finding={finding}
+                                                anchorTxBase={anchorTxBase}
+                                                anchorExplorerLabel={anchorExplorerLabel}
+                                            />
                                         ))}
                                     </div>
                                 </details>
