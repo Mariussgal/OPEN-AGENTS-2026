@@ -95,6 +95,18 @@ def get_api_url() -> str:
     return _API_URL_CACHE
 
 
+def _installed_package_version() -> str:
+    """Version du wheel PyPI installée (pas le champ ``version`` du config.json projet)."""
+    try:
+        from importlib.metadata import PackageNotFoundError, version
+
+        return version("onchor-ai")
+    except PackageNotFoundError:
+        return "not installed (editable/dev?)"
+    except Exception:
+        return "?"
+
+
 def _should_run_onboarding() -> bool:
     if os.getenv("ONCHOR_SKIP_ONBOARDING", "").strip().lower() in ("1", "true", "yes"):
         return False
@@ -259,7 +271,8 @@ def status() -> None:
         kv_panel(
             "Onchor.ai Profile",
             {
-                "Version": cfg.get("version", "?"),
+                "CLI package": _installed_package_version(),
+                "Config file": cfg.get("version", "?"),
                 "Mode": cfg.get("mode", "?"),
                 "USDC Balance (Real)": f"{real_balance:.2f} USDC",
                 "Wallet Address": address or "Not configured",
