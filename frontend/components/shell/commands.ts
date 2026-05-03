@@ -9,6 +9,12 @@
  */
 
 import { ASCII_LOGO } from "@/components/branding/AsciiLogo";
+import { APP_VERSION } from "@/lib/app-version";
+
+const _gitShort =
+  (typeof process !== "undefined" &&
+    (process.env.NEXT_PUBLIC_GIT_SHA || "").trim().slice(0, 7)) ||
+  "—";
 
 export type LineStyle =
   | "log"       // default text
@@ -102,12 +108,12 @@ const help: CommandHandler = () => ({
 
 const version: CommandHandler = () => ({
   lines: [
-    t("brand", "onchor-ai 0.1.0"),
+    t("brand", `onchor-ai ${APP_VERSION}`),
     t("muted", "Solidity Security Copilot — persistent collective memory"),
     blank(),
     t("label", "build"),
-    t("log", "  release    : 0.1.0-rc1"),
-    t("log", "  commit     : 6bd2b87"),
+    t("log", `  release    : ${APP_VERSION}`),
+    t("log", `  commit     : ${_gitShort}`),
     t("log", "  network    : base-sepolia (chain 84532)"),
     t("log", "  llm        : claude-sonnet-4-5 / gpt-4o-mini"),
     blank(),

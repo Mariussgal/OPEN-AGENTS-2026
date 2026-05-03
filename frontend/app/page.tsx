@@ -6,6 +6,7 @@ import { useState, useRef, useEffect } from "react";
 import { Check, Copy, Menu, X } from "lucide-react";
 import { Shell } from "@/components/shell/Shell";
 import { TerminalWindow } from "@/components/branding/TerminalWindow";
+import { APP_VERSION } from "@/lib/app-version";
 
 // ─── Static data ──────────────────────────────────────────────────────────────
 
@@ -276,7 +277,7 @@ export default function HomePage() {
                 <span className="text-[--terminal-accent]">ai</span>
               </span>
               <span className="hidden sm:inline-block text-[10px] uppercase tracking-[0.2em] text-[--terminal-muted] border border-[--terminal-border] px-1.5 py-0.5 rounded-sm">
-                v0.1.0
+                v{APP_VERSION}
               </span>
             </button>
           </div>
