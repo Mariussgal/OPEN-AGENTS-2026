@@ -68,6 +68,7 @@ from ui import (
 
 _DEFAULT_LOCAL_API  = "http://localhost:8000"
 _DEFAULT_PUBLIC_API = "https://open-agents-2026.onrender.com"
+_DEFAULT_APP_URL    = "https://onchor-ai.vercel.app"
 _API_URL_CACHE: str | None = None
 
 CONFIG_DIR     = ".onchor"
@@ -95,6 +96,14 @@ def get_api_url() -> str:
         pass
     _API_URL_CACHE = _DEFAULT_PUBLIC_API.rstrip("/")
     return _API_URL_CACHE
+
+
+def get_app_url() -> str:
+    """URL du frontend (rapport /audit/[id]). Surcharge via ONCHOR_APP_URL."""
+    explicit = (os.getenv("ONCHOR_APP_URL") or "").strip()
+    if explicit:
+        return explicit.rstrip("/")
+    return _DEFAULT_APP_URL.rstrip("/")
 
 
 def _installed_package_version() -> str:
@@ -503,6 +512,11 @@ def _render_audit_result(data: dict[str, Any], payment_tx: str | None = None) ->
 
     section("Verdict")
     console.print(verdict_panel(verdict, risk_score))
+
+    audit_web_id = data.get("id")
+    if audit_web_id:
+        web_url = f"{get_app_url()}/audit/{audit_web_id}"
+        info(f"Rapport web: [accent]{web_url}[/accent]")
 
     # ── Summary rapide ────────────────────────────────────────────────────────
     if report.get("summary"):

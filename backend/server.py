@@ -81,8 +81,10 @@ async def _run_audit_from_path(tmp_path: str, *, mode: str = "local") -> dict:
             triage_data=triage_data,
             investigation_data=investigation_data,
         )
+        audit_id = str(uuid.uuid4())
         result = {
             "status": "success",
+            "id": audit_id,
             "scope": {"files_found": len(scope.files)},
             "inventory": inventory_data,
             "slither": slither_data,
@@ -91,11 +93,11 @@ async def _run_audit_from_path(tmp_path: str, *, mode: str = "local") -> dict:
             "report": report,
         }
         audit_record = {
-            "id": str(uuid.uuid4()),
+            "id": audit_id,
             "created_at": datetime.utcnow().isoformat() + "Z",
             "target": {"kind": "upload", "value": os.path.basename(tmp_path)},
             "mode": mode,
-            **result,
+            **{k: v for k, v in result.items() if k != "id"},
             "anchored_count": report.get("summary", {}).get("anchored_count", 0),
         }
         _save_audit(audit_record)
@@ -318,8 +320,9 @@ async def run_audit(
     )
 
     # Persistance
+    audit_id = str(uuid.uuid4())
     audit_record = {
-        "id":             str(uuid.uuid4()),
+        "id":             audit_id,
         "created_at":     datetime.utcnow().isoformat() + "Z",
         "target": {
             "kind":  "address" if path.startswith("0x") else "path",
@@ -340,6 +343,7 @@ async def run_audit(
     if triage_data.get("risk_score", 0) < 3:
         return {
             "status":  "success",
+            "id":      audit_id,
             "phase":   "gate_safe",
             "message": "Contract assessed as SAFE.",
             "triage":  triage_data,
@@ -348,6 +352,7 @@ async def run_audit(
 
     return {
         "status": "success",
+        "id":     audit_id,
         "scope": {
             "files_found": nb_files,
             "is_onchain":  scope.is_onchain,
@@ -569,13 +574,16 @@ async def run_audit_upload_stream(
                 report = full_result.get("report") or {}
                 report["payment_tx"] = tx_hash
                 full_result["report"] = report
+                stream_audit_id = full_result.get("id") or str(uuid.uuid4())
+                full_result["id"] = stream_audit_id
                 audit_record = {
-                    "id":             str(uuid.uuid4()),
+                    "id":             stream_audit_id,
                     "created_at":     datetime.utcnow().isoformat() + "Z",
                     "target":         {"kind": "upload", "value": os.path.basename(tmp_path)},
                     "mode":           "paid",
                     "price_paid":     price_usd,
-                    **full_result,
+                    **{k: v for k, v in full_result.items() if k != "id"},
+                    "id":             stream_audit_id,
                     "anchored_count": report.get("summary", {}).get("anchored_count", 0),
                     "scope": {
                         "files_found": nb_files,
@@ -618,7 +626,7 @@ async def run_audit_local_stream(path: str):
             detail=f"No Solidity files found: {path}"
         )
     return StreamingResponse(
-        stream_audit_pipeline(path),
+        stream_audit_pipeline(path, assign_audit_id=False),
         media_type="application/x-ndjson",
         headers={
             "X-Accel-Buffering": "no",
@@ -715,6 +723,7 @@ async def run_audit_stream(
         async for chunk in stream_audit_pipeline(
             path,
             target_address=path if path.startswith("0x") else None,
+            assign_audit_id=True,
         ):
             yield chunk
             try:
@@ -729,8 +738,10 @@ async def run_audit_stream(
             try:
                 report = full_result.get("report") or {}
                 triage = full_result.get("triage") or {}
+                stream_audit_id = full_result.get("id") or str(uuid.uuid4())
+                full_result["id"] = stream_audit_id
                 audit_record = {
-                    "id":             str(uuid.uuid4()),
+                    "id":             stream_audit_id,
                     "created_at":     datetime.utcnow().isoformat() + "Z",
                     "target": {
                         "kind":  "address" if path.startswith("0x") else "path",

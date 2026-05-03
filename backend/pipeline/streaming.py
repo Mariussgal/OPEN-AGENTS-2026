@@ -29,6 +29,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import uuid
 from typing import Any, AsyncGenerator, Optional
 
 from pipeline.phase_resolve import resolve_scope
@@ -83,6 +84,7 @@ async def stream_audit_pipeline(
     path: str,
     *,
     target_address: Optional[str] = None,
+    assign_audit_id: bool = True,
 ) -> AsyncGenerator[bytes, None]:
     """Exécute le pipeline 6-phases en émettant un event NDJSON par étape.
 
@@ -90,6 +92,8 @@ async def stream_audit_pipeline(
         path: Chemin local ou adresse 0x.
         target_address: Adresse onchain (pour le report final). Auto-détecté
             si `path` commence par "0x".
+        assign_audit_id: Si True, ajoute un UUID stable dans le payload final
+            (`result.id`) pour l’historique / lien web. False pour routes sans persistance.
 
     Yields:
         Bytes — une ligne NDJSON par event.
@@ -114,6 +118,8 @@ async def stream_audit_pipeline(
         "upstream": scope.upstream.name if scope.upstream else None,
         "onchain":  scope.is_onchain,
     })
+
+    audit_id = str(uuid.uuid4()) if assign_audit_id else None
 
     # Le `target` passé à slither / report dépend de scope (onchain ou pas).
     target = path
@@ -240,6 +246,8 @@ async def stream_audit_pipeline(
         "investigation": investigation_data,
         "report":        report,
     }
+    if audit_id:
+        full_result["id"] = audit_id
 
     yield _emit({
         "phase":      "report",
