@@ -234,25 +234,50 @@ async def bootstrap():
 
     print()
     print(f"📋 Upload manifest ({len(manifest)} entrées)...")
+    from storage.zero_g_kv_client import kv_set
+
+    manifest_kv_tx = None
+
+    # Chaque pattern est aussi indexé individuellement par son hash
+    for entry in manifest:
+        ph = entry["pattern_hash"]
+        payload_for_kv = next(
+            (
+                p
+                for p in BOOTSTRAP_PATTERNS
+                if compute_pattern_hash(p["abstract_description"][:60], p["fix_pattern"])
+                == ph
+            ),
+            entry,
+        )
+        try:
+            kv_set(ph, payload_for_kv)
+            print(f"  [KV] Pattern indexé: {ph[:16]}...")
+        except Exception as e:
+
+    # Manifest global
     try:
-        manifest_payload = {
-            "schema": "onchor-ai/manifest/v1",
-            "key": "onchor-manifest-v1",
-            "entries": manifest,
-        }
-        manifest_root = store_pattern(manifest_payload)
-        print(f"✅ Manifest uploadé → rootHash: {manifest_root}")
+        tx = kv_set(
+            "onchor-manifest-v1",
+            {
+                "schema": "onchor-ai/manifest/v1",
+                "key": "onchor-manifest-v1",
+                "entries": manifest,
+            },
+        )
+        manifest_kv_tx = tx
+        print(f"✅ Manifest KV stocké — tx: {tx}")
+        print()
+        print("✅ Plus besoin de MANIFEST_ROOT_HASH dans .env")
+        print("   Le manifest est maintenant permanent sur 0G KV")
     except Exception as e:
-        print(f"❌ Manifest échoué : {e}")
+        print(f"❌ Manifest KV échoué: {e}")
 
     print()
     print(f"─── Résultat ───────────────────────────────")
     print(f"  Patterns uploadés : {success}/{len(BOOTSTRAP_PATTERNS)}")
     print(f"  Patterns échoués  : {failed}")
-    print(f"  Manifest root     : {manifest_root if success > 0 else 'N/A'}")
-    print()
-    print("⚠️  Note : copie ce rootHash dans .env comme MANIFEST_ROOT_HASH")
-    print(f"   MANIFEST_ROOT_HASH={manifest_root if success > 0 else 'à remplir'}")
+    print(f"  Manifest KV tx    : {manifest_kv_tx or 'N/A'}")
 
 
 if __name__ == "__main__":
