@@ -18,6 +18,10 @@ le JSON brut comme avant — strict equivalent des routes non-stream.
 from __future__ import annotations
 
 import json
+import os
+import tempfile
+import zipfile
+from pathlib import Path
 from typing import Any, Optional
 
 import httpx
@@ -106,6 +110,7 @@ async def consume_audit_stream(
     *,
     params: Optional[dict[str, Any]] = None,
     headers: Optional[dict[str, str]] = None,
+    files: Optional[dict[str, Any]] = None,
     show_payment: bool = False,
 ) -> tuple[dict[str, Any], str | None]:
     """Ouvre un stream NDJSON sur `url` et affiche la progress bar.
@@ -116,6 +121,7 @@ async def consume_audit_stream(
         url: URL complète de la route streaming.
         params: Query string params.
         headers: Headers (X-PAYMENT pour le mode paid).
+        files: Corps multipart (ex. upload fichier) — mutuellement exclusif avec params côté appelant.
         show_payment: Si True, affiche les events `phase: payment` au-dessus
             de la progress bar (uniquement le mode paid après le settle x402).
 
@@ -148,7 +154,14 @@ async def consume_audit_stream(
     with progress:
         task_id = progress.add_task("Initializing pipeline…", total=total_phases)
 
-        async with client.stream(method, url, params=params, headers=headers) as resp:
+        req_kw: dict[str, Any] = {}
+        if params is not None:
+            req_kw["params"] = params
+        if headers is not None:
+            req_kw["headers"] = headers
+        if files is not None:
+            req_kw["files"] = files
+        async with client.stream(method, url, **req_kw) as resp:
             # Si le serveur a répondu en 4xx/5xx avant de streamer, lit le body
             # complet et lève une exception explicite.
             if resp.status_code >= 400:
@@ -270,3 +283,53 @@ async def run_streaming_paid_audit(
             headers={"X-PAYMENT": x_payment_header},
             show_payment=True,
         )
+
+
+async def run_streaming_paid_upload(
+    api_url: str,
+    path: str,
+    x_payment_header: str,
+) -> tuple[dict[str, Any], str | None]:
+    """Audit payant d'un fichier ou dossier local via NDJSON (/audit/upload/stream)."""
+    info("Pipeline started — see progress below.")
+    tout = httpx.Timeout(connect=60.0, read=7200.0, write=60.0, pool=7200.0)
+    url = f"{api_url}/audit/upload/stream"
+    headers = {"X-PAYMENT": x_payment_header}
+
+    async with httpx.AsyncClient(timeout=tout) as client:
+        if os.path.isfile(path):
+            with open(path, "rb") as f:
+                return await consume_audit_stream(
+                    client,
+                    "POST",
+                    url,
+                    files={"file": (os.path.basename(path), f, "text/plain")},
+                    headers=headers,
+                    show_payment=True,
+                )
+
+        if os.path.isdir(path):
+            sol_files = list(Path(path).rglob("*.sol"))
+            if not sol_files:
+                raise ValueError(f"Aucun fichier .sol trouvé dans {path}")
+
+            info(f"{len(sol_files)} fichiers .sol trouvés, compression...")
+            with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as tmp_zip:
+                zip_path = tmp_zip.name
+            try:
+                with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+                    for sol in sol_files:
+                        zf.write(sol, sol.relative_to(path))
+                with open(zip_path, "rb") as f:
+                    return await consume_audit_stream(
+                        client,
+                        "POST",
+                        url,
+                        files={"file": (os.path.basename(path) + ".zip", f, "application/zip")},
+                        headers=headers,
+                        show_payment=True,
+                    )
+            finally:
+                os.unlink(zip_path)
+
+    raise ValueError(f"Chemin invalide: {path}")

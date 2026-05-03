@@ -214,6 +214,10 @@ async def get_audit_quote(path: str):
         nb_files = 1
         price_usd = calculate_price(nb_files)
         reqs = _build_requirements(nb_files, price_usd, resource=f"{API_BASE_URL}/audit/upload")
+    elif path == "upload-stream":
+        nb_files = 1
+        price_usd = calculate_price(nb_files)
+        reqs = _build_requirements(nb_files, price_usd, resource=f"{API_BASE_URL}/audit/upload/stream")
     else:
         scope = await resolve_scope(path)
         nb_files = len(scope.files)
@@ -462,6 +466,134 @@ async def run_audit_upload(
     result = await _run_audit_from_path(tmp_path, mode="paid")
     result.setdefault("report", {})["payment_tx"] = settle_data.get("transaction")
     return result
+
+
+@app.post("/audit/upload/stream")
+async def run_audit_upload_stream(
+    request: Request,
+    file: UploadFile = File(...),
+    x_payment: Optional[str] = Header(default=None),
+):
+    """Upload payant en NDJSON — mêmes phases que /audit/stream, après settlement x402."""
+    if not x_payment:
+        raise HTTPException(
+            status_code=402,
+            detail="Missing X-PAYMENT header. Call GET /audit/quote?path=upload-stream first.",
+        )
+
+    price_usd = calculate_price(1)
+    reqs = _build_requirements(1, price_usd, resource=f"{API_BASE_URL}/audit/upload/stream")
+    reqs_dict = [r.model_dump() for r in reqs]
+
+    try:
+        from x402.schemas import PaymentPayload
+        payload_json = base64.b64decode(x_payment).decode("utf-8")
+        payload_dict = json.loads(payload_json)
+        PaymentPayload.model_validate(payload_dict)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid X-PAYMENT header: {e}")
+
+    async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as http:
+        facilitator_resp = await http.post(
+            f"{FACILITATOR_URL}/verify",
+            json={
+                "x402Version":         payload_dict.get("x402Version", 2),
+                "paymentPayload":      payload_dict,
+                "paymentRequirements": reqs_dict[0],
+            },
+        )
+        facilitator_data = facilitator_resp.json()
+
+    if not facilitator_data.get("isValid"):
+        raise HTTPException(
+            status_code=402,
+            detail=f"Invalid payment: {facilitator_data.get('invalidReason', 'unknown')}",
+        )
+
+    tmp_path = await _handle_uploaded_file(file)
+    scope = await resolve_scope(tmp_path)
+    if not scope.files:
+        await _cleanup(tmp_path)
+        raise HTTPException(
+            status_code=400,
+            detail="No Solidity files found in upload",
+        )
+    nb_files = len(scope.files)
+
+    async def _stream() -> AsyncGenerator[bytes, None]:
+        def emit(event: dict[str, Any]) -> bytes:
+            return (json.dumps(event, default=str) + "\n").encode("utf-8")
+
+        yield emit({"phase": "payment", "status": "start",
+                    "msg": "Settling USDC payment via x402 facilitator..."})
+        async with httpx.AsyncClient(timeout=300.0, follow_redirects=True) as http:
+            settle_resp = await http.post(
+                f"{FACILITATOR_URL}/settle",
+                json={
+                    "x402Version":         payload_dict.get("x402Version", 2),
+                    "paymentPayload":      payload_dict,
+                    "paymentRequirements": reqs_dict[0],
+                },
+            )
+            settle_data = settle_resp.json()
+
+        if not settle_data.get("success"):
+            yield emit({"phase": "payment", "status": "fail",
+                        "error": settle_data.get("error", "settlement failed")})
+            await _cleanup(tmp_path)
+            return
+
+        tx_hash = settle_data.get("transaction")
+        print(f"✅ USDC settled — tx: {tx_hash}")
+        yield emit({"phase": "payment", "status": "done",
+                    "tx_hash": tx_hash, "amount_usd": price_usd})
+
+        full_result: dict[str, Any] = {}
+        try:
+            async for chunk in stream_audit_pipeline(
+                tmp_path,
+                target_address=None,
+            ):
+                yield chunk
+                try:
+                    event = json.loads(chunk.decode("utf-8").rstrip("\n"))
+                    if event.get("phase") == "report" and event.get("status") == "done":
+                        full_result = event.get("result") or {}
+                except Exception:
+                    pass
+        finally:
+            await _cleanup(tmp_path)
+
+        if full_result:
+            try:
+                report = full_result.get("report") or {}
+                report["payment_tx"] = tx_hash
+                full_result["report"] = report
+                audit_record = {
+                    "id":             str(uuid.uuid4()),
+                    "created_at":     datetime.utcnow().isoformat() + "Z",
+                    "target":         {"kind": "upload", "value": os.path.basename(tmp_path)},
+                    "mode":           "paid",
+                    "price_paid":     price_usd,
+                    **full_result,
+                    "anchored_count": report.get("summary", {}).get("anchored_count", 0),
+                    "scope": {
+                        "files_found": nb_files,
+                        "is_onchain":  scope.is_onchain,
+                    },
+                }
+                _save_audit(audit_record)
+            except Exception as e:
+                print(f"⚠ Audit persistence failed: {e}")
+
+    return StreamingResponse(
+        _stream(),
+        media_type="application/x-ndjson",
+        headers={
+            "X-Accel-Buffering": "no",
+            "Cache-Control":     "no-cache",
+        },
+    )
 
 
 @app.post("/audit/local/upload")

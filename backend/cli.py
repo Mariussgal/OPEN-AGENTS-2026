@@ -345,7 +345,7 @@ def audit(path: str, local: bool, dev: bool, no_stream: bool) -> None:
         error(f"Error: {e}")
 
 
-async def _upload_and_audit(path: str, *, local: bool, dev: bool) -> tuple[dict, str | None]:
+async def _upload_and_audit(path: str, *, local: bool, dev: bool, stream: bool = False) -> tuple[dict, str | None]:
     # Mode local/dev → route gratuite, pas de paiement
     if local or dev:
         route = "/audit/local/upload"
@@ -384,6 +384,15 @@ async def _upload_and_audit(path: str, *, local: bool, dev: bool) -> tuple[dict,
 
     # Mode paid → préparer x402 d'abord
     from payments.x402_client import prepare_x_payment
+
+    if stream:
+        from streaming_client import run_streaming_paid_upload
+
+        x_payment, _, _ = await prepare_x_payment(get_api_url(), "upload-stream")
+        try:
+            return await run_streaming_paid_upload(get_api_url(), path, x_payment)
+        except ValueError as e:
+            raise click.ClickException(str(e)) from e
 
     x_payment, _, _ = await prepare_x_payment(get_api_url(), "upload")
 
@@ -439,7 +448,7 @@ async def _run_audit_async(
     """Dispatch des 4 combinaisons : local/paid × stream/legacy."""
     # ← AJOUT : fichier local → upload vers Render
     if not path.startswith("0x") and (os.path.isfile(path) or os.path.isdir(path)):
-        return await _upload_and_audit(path, local=local, dev=dev)
+        return await _upload_and_audit(path, local=local, dev=dev, stream=stream)
 
     if local or dev:
         if stream:
